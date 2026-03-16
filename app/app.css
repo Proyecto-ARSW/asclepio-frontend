@@ -1,0 +1,263 @@
+@import "tailwindcss";
+@import "shadcn/tailwind.css";
+@import "tw-animate-css";
+@import "./fonts.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+	/* Color de fondo principal de la aplicación */
+	--background: oklch(1 0 0);
+	/* Color de texto principal sobre fondos claros */
+	--foreground: oklch(0.145 0 0);
+	/* Color de fondo para componentes tipo tarjeta */
+	--card: oklch(1 0 0);
+	/* Color de texto en tarjetas */
+	--card-foreground: oklch(0.145 0 0);
+	/* Color de fondo para menús flotantes y dropdowns */
+	--popover: oklch(1 0 0);
+	/* Color de texto en popovers y menús */
+	--popover-foreground: oklch(0.145 0 0);
+	/* Color primario para botones y acciones principales */
+	--primary: oklch(74.11% 0.169 46.45);
+	/* Color de texto sobre el color primario */
+	--primary-foreground: oklch(1 0 0);
+	/* Color secundario para acciones menos prominentes */
+	--secondary: oklch(75.91% 0.119 194.94);
+	/* Color de texto sobre el color secundario */
+	--secondary-foreground: oklch(24.78% 0 0);
+	/* Color terciario para elementos complementarios */
+	--tertiary: oklch(40.41% 0.0676 204.87);
+	/* Color de texto sobre el color terciario */
+	--tertiary-foreground: oklch(100.00% 0 0);
+	/* Color de fondo sutil para áreas desactivadas o de menor importancia */
+	--muted: oklch(0.97 0 0);
+	/* Color de texto secundario, descripciones y contenido de menor jerarquía */
+	--muted-foreground: oklch(0.556 0 0);
+	/* Color de fondo para estados hover y elementos interactivos */
+	--accent: oklch(0.97 0 0);
+	/* Color de texto sobre el color de acento */
+	--accent-foreground: oklch(0.205 0 0);
+	/* Color para acciones destructivas, errores y alertas de peligro */
+	--destructive: oklch(0.58 0.22 27);
+	/* Color para bordes y divisores */
+	--border: oklch(0.922 0 0);
+	/* Color de fondo para campos de entrada (inputs) */
+	--input: oklch(0.922 0 0);
+	/* Color del anillo de enfoque (focus ring) para accesibilidad */
+	--ring: oklch(0.708 0 0);
+	/* Color 1 de la paleta para gráficos y visualizaciones */
+	--chart-1: oklch(0.85 0.13 181);
+	/* Color 2 de la paleta para gráficos y visualizaciones */
+	--chart-2: oklch(0.78 0.13 182);
+	/* Color 3 de la paleta para gráficos y visualizaciones */
+	--chart-3: oklch(0.7 0.12 183);
+	/* Color 4 de la paleta para gráficos y visualizaciones */
+	--chart-4: oklch(0.6 0.1 185);
+	/* Color 5 de la paleta para gráficos y visualizaciones */
+	--chart-5: oklch(0.51 0.09 186);
+	/* Radio de borde base para componentes redondeados */
+	--radius: 0.45rem;
+	/* Color de fondo del sidebar/barra lateral */
+	--sidebar: oklch(0.985 0 0);
+	/* Color de texto en el sidebar */
+	--sidebar-foreground: oklch(0.145 0 0);
+	/* Color primario para elementos destacados en el sidebar */
+	--sidebar-primary: oklch(74.11% 0.169 46.45);
+	/* Color de texto sobre elementos primarios del sidebar */
+	--sidebar-primary-foreground: oklch(0.145 0 0);
+	/* Color de acento para estados hover en el sidebar */
+	--sidebar-accent: oklch(0.97 0 0);
+	/* Color de texto sobre el acento del sidebar */
+	--sidebar-accent-foreground: oklch(0.205 0 0);
+	/* Color de bordes en el sidebar */
+	--sidebar-border: oklch(0.922 0 0);
+	/* Color del anillo de enfoque en el sidebar */
+	--sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+	/* Color de fondo principal de la aplicación en modo oscuro */
+	--background: oklch(0.145 0 0);
+	/* Color de texto principal sobre fondos oscuros */
+	--foreground: oklch(0.985 0 0);
+	/* Color de fondo para componentes tipo tarjeta en modo oscuro */
+	--card: oklch(0.205 0 0);
+	/* Color de texto en tarjetas en modo oscuro */
+	--card-foreground: oklch(0.985 0 0);
+	/* Color de fondo para menús flotantes y dropdowns en modo oscuro */
+	--popover: oklch(0.205 0 0);
+	/* Color de texto en popovers y menús en modo oscuro */
+	--popover-foreground: oklch(0.985 0 0);
+	/* Color primario para botones y acciones principales en modo oscuro */
+	--primary: oklch(0.7 0.12 183);
+	/* Color de texto sobre el color primario en modo oscuro */
+	--primary-foreground: oklch(0.28 0.04 193);
+	/* Color secundario para acciones menos prominentes en modo oscuro */
+	--secondary: oklch(0.274 0.006 286.033);
+	/* Color de texto sobre el color secundario en modo oscuro */
+	--secondary-foreground: oklch(0.985 0 0);
+	/* Color de fondo sutil para áreas desactivadas en modo oscuro */
+	--muted: oklch(0.269 0 0);
+	/* Color de texto secundario y descripciones en modo oscuro */
+	--muted-foreground: oklch(0.708 0 0);
+	/* Color de fondo para estados hover y elementos interactivos en modo oscuro */
+	--accent: oklch(0.371 0 0);
+	/* Color de texto sobre el color de acento en modo oscuro */
+	--accent-foreground: oklch(0.985 0 0);
+	/* Color para acciones destructivas y errores en modo oscuro */
+	--destructive: oklch(0.704 0.191 22.216);
+	/* Color para bordes y divisores en modo oscuro */
+	--border: oklch(1 0 0 / 10%);
+	/* Color de fondo para campos de entrada en modo oscuro */
+	--input: oklch(1 0 0 / 15%);
+	/* Color del anillo de enfoque para accesibilidad en modo oscuro */
+	--ring: oklch(0.556 0 0);
+	/* Color 1 de la paleta para gráficos (igual en modo oscuro) */
+	--chart-1: oklch(0.85 0.13 181);
+	/* Color 2 de la paleta para gráficos (igual en modo oscuro) */
+	--chart-2: oklch(0.78 0.13 182);
+	/* Color 3 de la paleta para gráficos (igual en modo oscuro) */
+	--chart-3: oklch(0.7 0.12 183);
+	/* Color 4 de la paleta para gráficos (igual en modo oscuro) */
+	--chart-4: oklch(0.6 0.1 185);
+	/* Color 5 de la paleta para gráficos (igual en modo oscuro) */
+	--chart-5: oklch(0.51 0.09 186);
+	/* Color de fondo del sidebar en modo oscuro */
+	--sidebar: oklch(0.205 0 0);
+	/* Color de texto en el sidebar en modo oscuro */
+	--sidebar-foreground: oklch(0.985 0 0);
+	/* Color primario para elementos destacados en el sidebar en modo oscuro */
+	--sidebar-primary: oklch(0.78 0.13 182);
+	/* Color de texto sobre elementos primarios del sidebar en modo oscuro */
+	--sidebar-primary-foreground: oklch(0.28 0.04 193);
+	/* Color de acento para estados hover en el sidebar en modo oscuro */
+	--sidebar-accent: oklch(0.269 0 0);
+	/* Color de texto sobre el acento del sidebar en modo oscuro */
+	--sidebar-accent-foreground: oklch(0.985 0 0);
+	/* Color de bordes en el sidebar en modo oscuro */
+	--sidebar-border: oklch(1 0 0 / 10%);
+	/* Color del anillo de enfoque en el sidebar en modo oscuro */
+	--sidebar-ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+	--color-*: initial; /* Disable default colors */
+	--radius-*: initial; /* Disable default radius */
+	--font-sans: "Axiforma", sans-serif;
+	--color-sidebar-ring: var(--sidebar-ring);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar: var(--sidebar);
+	--color-chart-5: var(--chart-5);
+	--color-chart-4: var(--chart-4);
+	--color-chart-3: var(--chart-3);
+	--color-chart-2: var(--chart-2);
+	--color-chart-1: var(--chart-1);
+	--color-ring: var(--ring);
+	--color-input: var(--input);
+	--color-border: var(--border);
+	--color-destructive: var(--destructive);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-accent: var(--accent);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-muted: var(--muted);
+	--color-tertiary-foreground: var(--tertiary-foreground);
+	--color-tertiary: var(--tertiary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-secondary: var(--secondary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-primary: var(--primary);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-popover: var(--popover);
+	--color-card-foreground: var(--card-foreground);
+	--color-card: var(--card);
+	--color-foreground: var(--foreground);
+	--color-background: var(--background);
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+	--radius-2xl: calc(var(--radius) + 8px);
+	--radius-3xl: calc(var(--radius) + 12px);
+	--radius-4xl: calc(var(--radius) + 16px);
+}
+
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply font-sans bg-background text-foreground;
+	}
+	html {
+		@apply font-sans;
+	}
+	.font-sans {
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		font-optical-sizing: auto;
+	}
+}
+
+@layer utilities {
+	/* Animación de entrada fluida sin lag */
+	.animate-step-in {
+		animation: stepIn 300ms ease-out forwards;
+	}
+
+	.animate-step-in-left {
+		animation: stepInLeft 300ms ease-out forwards;
+	}
+
+	.animate-step-in-right {
+		animation: stepInRight 300ms ease-out forwards;
+	}
+
+	.explore-search-hero {
+		background-image: url("./assets/images/searchbarimg.webp");
+		background-size: cover;
+		background-position: center;
+	}
+
+	.properties-search-hero {
+		background-image: url("./assets/images/apt-ex.webp");
+		background-size: cover;
+		background-position: center;
+	}
+}
+
+@keyframes stepIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes stepInLeft {
+	from {
+		opacity: 0;
+		transform: translateX(-8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+@keyframes stepInRight {
+	from {
+		opacity: 0;
+		transform: translateX(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}

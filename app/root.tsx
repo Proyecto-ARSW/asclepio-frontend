@@ -9,9 +9,11 @@ import {
 } from 'react-router';
 import type { Route } from './+types/root';
 import '@/app.css';
+import { useEffect } from 'react';
 import { Toaster } from '@/components/ui/sonner/sonner.component';
 import { paraglideMiddleware } from '@/features/i18n/paraglide/server';
 import { AppQueryClientProvider } from '@/providers/query-client.provider';
+import { useAuthStore } from '@/store/auth.store';
 
 export const middleware: MiddlewareFunction[] = [
 	(ctx, next) => paraglideMiddleware(ctx.request, () => next()),
@@ -37,9 +39,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
 	);
 }
 
+function AuthHydrator() {
+	useEffect(() => {
+		useAuthStore.persist.rehydrate();
+	}, []);
+	return null;
+}
+
 export default function App() {
 	return (
 		<AppQueryClientProvider>
+			<AuthHydrator />
 			<Outlet />
 		</AppQueryClientProvider>
 	);

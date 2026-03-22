@@ -6,6 +6,8 @@ interface DashboardContent {
 	sidebar: {
 		brandName: string;
 		logout: string;
+		openMenu: string;
+		closeMenu: string;
 		sections: Record<NavSection, string>;
 	};
 	overview: {
@@ -30,6 +32,12 @@ interface DashboardContent {
 		refresh: string;
 		refreshLoading: string;
 		empty: string;
+		card: {
+			active: string;
+			inactive: string;
+			emergency: string;
+			consultingRooms: string;
+		};
 	};
 	patients: {
 		title: string;
@@ -132,6 +140,8 @@ export function getDashboardContent(
 		sidebar: {
 			brandName: m.dashboardSidebarBrandName({}, options),
 			logout: m.dashboardSidebarLogout({}, options),
+			openMenu: m.dashboardSidebarOpenMenu({}, options),
+			closeMenu: m.dashboardSidebarCloseMenu({}, options),
 			sections: {
 				overview: m.dashboardSidebarOverview({}, options),
 				hospitals: m.dashboardSidebarHospitals({}, options),
@@ -177,6 +187,12 @@ export function getDashboardContent(
 			refresh: m.dashboardHospitalsRefresh({}, options),
 			refreshLoading: m.dashboardHospitalsRefreshLoading({}, options),
 			empty: m.dashboardHospitalsEmpty({}, options),
+			card: {
+				active: m.dashboardHospitalStatusActive({}, options),
+				inactive: m.dashboardHospitalStatusInactive({}, options),
+				emergency: m.dashboardHospitalEmergency({}, options),
+				consultingRooms: m.dashboardHospitalConsultingRooms({}, options),
+			},
 		},
 		patients: {
 			title: m.dashboardPatientsTitle({}, options),

@@ -150,15 +150,15 @@ export default function HomePage() {
 					<nav className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 						<div className="flex items-center justify-between gap-3">
 							<div className="flex min-w-0 items-center gap-2">
-							<img
-								src="/favicon.png"
-								alt={m.homeLandingBrand({}, { locale })}
-								className="h-10 w-10 rounded-full border border-border/70 bg-card object-contain"
-							/>
-							<span className="truncate text-sm font-semibold tracking-tight">
-								{m.homeLandingBrand({}, { locale })}
-							</span>
-						</div>
+								<img
+									src="/favicon.png"
+									alt={m.homeLandingBrand({}, { locale })}
+									className="h-10 w-10 rounded-full border border-border/70 bg-card object-contain"
+								/>
+								<span className="truncate text-sm font-semibold tracking-tight">
+									{m.homeLandingBrand({}, { locale })}
+								</span>
+							</div>
 
 							<div className="flex items-center gap-2 md:hidden">
 								<button

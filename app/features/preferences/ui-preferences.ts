@@ -8,7 +8,7 @@ export interface UiPreferences {
 export const UI_PREFERENCES_STORAGE_KEY = 'asclepio-ui-preferences';
 
 const DEFAULT_PREFERENCES: UiPreferences = {
-	theme: 'system',
+	theme: 'light',
 	dyslexiaFont: false,
 };
 

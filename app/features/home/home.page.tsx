@@ -149,7 +149,7 @@ export default function HomePage() {
 							<img
 								src="/favicon.png"
 								alt={m.homeLandingBrand({}, { locale })}
-								className="h-10 w-10 rounded-full border border-border/70 bg-card object-contain p-1"
+								className="h-10 w-10 rounded-full border border-border/70 bg-card object-contain"
 							/>
 							<span className="text-sm font-semibold tracking-tight">
 								{m.homeLandingBrand({}, { locale })}

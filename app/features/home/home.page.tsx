@@ -6,16 +6,25 @@ import {
 	HeartIcon,
 	LifebuoyIcon,
 	LinkIcon,
+	MoonIcon,
 	PlayCircleIcon,
 	SparklesIcon,
+	SunIcon,
 	UserGroupIcon,
 } from '@heroicons/react/24/outline';
+import { useEffect, useState } from 'react';
 import { Link, redirect, useLocation } from 'react-router';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { buttonVariants } from '@/components/ui/button/button.component';
 import { Card, CardContent } from '@/components/ui/card/card.component';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
+import {
+	applyUiPreferences,
+	readUiPreferences,
+	saveUiPreferences,
+	type ThemeMode,
+} from '@/features/preferences/ui-preferences';
 import { cn } from '@/lib/utils';
 
 export async function clientLoader() {
@@ -42,6 +51,7 @@ export function meta() {
 export default function HomePage() {
 	const location = useLocation();
 	const locale = currentLocale(location.pathname);
+	const [isDarkMode, setIsDarkMode] = useState(false);
 	const nextLocale = locale === 'es' ? 'en' : 'es';
 	const localeTogglePath = `${localePath(location.pathname, nextLocale)}${location.search}${location.hash}`;
 	const navItems = [
@@ -132,6 +142,22 @@ export default function HomePage() {
 		});
 	};
 
+	useEffect(() => {
+		if (typeof document === 'undefined') return;
+		setIsDarkMode(document.documentElement.classList.contains('dark'));
+	}, []);
+
+	function handleThemeToggle() {
+		if (typeof document === 'undefined') return;
+		const currentlyDark = document.documentElement.classList.contains('dark');
+		const nextTheme: ThemeMode = currentlyDark ? 'light' : 'dark';
+		const currentPrefs = readUiPreferences();
+		const nextPrefs = { ...currentPrefs, theme: nextTheme };
+		applyUiPreferences(nextPrefs);
+		saveUiPreferences(nextPrefs);
+		setIsDarkMode(!currentlyDark);
+	}
+
 	return (
 		<main className="relative overflow-x-clip bg-background text-foreground">
 			<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_10%,color-mix(in_oklch,var(--color-primary)_20%,transparent),transparent_34%),radial-gradient(circle_at_80%_18%,color-mix(in_oklch,var(--color-secondary)_35%,white),transparent_30%),linear-gradient(180deg,color-mix(in_oklch,var(--color-background)_96%,white)_0%,color-mix(in_oklch,var(--color-secondary)_20%,white)_52%,var(--color-background)_100%)]" />
@@ -168,6 +194,21 @@ export default function HomePage() {
 						</ul>
 
 						<div className="flex items-center gap-2 sm:gap-3">
+							<button
+								type="button"
+								onClick={handleThemeToggle}
+								aria-label={m.homeLandingThemeToggle({}, { locale })}
+								className={cn(
+									buttonVariants({ variant: 'outline', size: 'sm' }),
+									'h-8 w-10 shrink-0 rounded-full px-0',
+								)}
+							>
+								{isDarkMode ? (
+									<SunIcon className="h-4 w-4" />
+								) : (
+									<MoonIcon className="h-4 w-4" />
+								)}
+							</button>
 							<Link
 								to={localeTogglePath}
 								className={cn(

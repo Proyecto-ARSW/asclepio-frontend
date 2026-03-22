@@ -10,6 +10,7 @@ import {
 import type { Route } from './+types/root';
 import '@/app.css';
 import { useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { Toaster } from '@/components/ui/sonner/sonner.component';
 import { paraglideMiddleware } from '@/features/i18n/paraglide/server';
 import { readAndApplyUiPreferences } from '@/features/preferences/ui-preferences';
@@ -33,6 +34,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 			<body>
 				{children}
 				<Toaster />
+				<Analytics />
 				<ScrollRestoration />
 				<Scripts />
 			</body>

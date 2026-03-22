@@ -24,8 +24,8 @@ const colorMap = {
 		value: 'text-secondary-foreground',
 	},
 	violet: {
-		icon: 'bg-tertiary/20 text-tertiary',
-		value: 'text-tertiary',
+		icon: 'bg-primary/20 text-primary',
+		value: 'text-primary',
 	},
 	amber: {
 		icon: 'bg-accent text-accent-foreground',

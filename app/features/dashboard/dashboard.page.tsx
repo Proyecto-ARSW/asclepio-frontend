@@ -47,12 +47,13 @@ import {
 } from '@/components/ui/select/select.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import { Switch } from '@/components/ui/switch/switch.component';
-import { getDashboardContent } from '@/features/dashboard/dashboard.content';
+import { getDashboardContent } from '@/features/dashboard/dashboard-content';
 import {
 	type AppLocale,
 	currentLocale,
 	localePath,
 } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
 import {
 	applyUiPreferences,
 	readUiPreferences,
@@ -101,7 +102,8 @@ export async function clientLoader() {
 }
 
 export function meta(_: Route.MetaArgs) {
-	return [{ title: 'Asclepio - Dashboard' }];
+	const locale = currentLocale();
+	return [{ title: m.pageTitleDashboard({}, { locale }) }];
 }
 
 export default function DashboardPage() {
@@ -212,6 +214,8 @@ export default function DashboardPage() {
 				labels={{
 					brandName: content.sidebar.brandName,
 					logout: content.sidebar.logout,
+					openMenu: content.sidebar.openMenu,
+					closeMenu: content.sidebar.closeMenu,
 					sections: content.sidebar.sections,
 				}}
 			/>
@@ -336,7 +340,11 @@ export default function DashboardPage() {
 							) : (
 								<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
 									{hospitals.map((h) => (
-										<HospitalCard key={h.id} hospital={h} />
+										<HospitalCard
+											key={h.id}
+											hospital={h}
+											labels={content.hospitals.card}
+										/>
 									))}
 								</div>
 							)}

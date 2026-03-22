@@ -24,6 +24,8 @@ import {
 } from '@heroicons/react/24/solid';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button/button.component';
+import { currentLocale } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
 
 export type NavSection =
 	| 'overview'
@@ -103,19 +105,21 @@ interface SidebarNavProps {
 	labels?: {
 		brandName?: string;
 		logout?: string;
+		openMenu?: string;
+		closeMenu?: string;
 		sections?: Partial<Record<NavSection, string>>;
 	};
 }
 
 const defaultSectionLabels: Record<NavSection, string> = {
-	overview: 'Inicio',
-	hospitals: 'Hospitales',
-	patients: 'Pacientes',
-	appointments: 'Citas',
-	queue: 'Turnos',
-	medicines: 'Medicamentos',
-	doctors: 'Medicos',
-	settings: 'Configuracion',
+	overview: '',
+	hospitals: '',
+	patients: '',
+	appointments: '',
+	queue: '',
+	medicines: '',
+	doctors: '',
+	settings: '',
 };
 
 function SidebarContent({
@@ -128,7 +132,25 @@ function SidebarContent({
 	labels,
 	onClose,
 }: SidebarNavProps & { onClose?: () => void }) {
-	const sectionLabels = { ...defaultSectionLabels, ...labels?.sections };
+	const locale = currentLocale();
+	const sectionLabels = {
+		...defaultSectionLabels,
+		overview: m.dashboardSidebarOverview({}, { locale }),
+		hospitals: m.dashboardSidebarHospitals({}, { locale }),
+		patients: m.dashboardSidebarPatients({}, { locale }),
+		appointments: m.dashboardSidebarAppointments({}, { locale }),
+		queue: m.dashboardSidebarQueue({}, { locale }),
+		medicines: m.dashboardSidebarMedicines({}, { locale }),
+		doctors: m.dashboardSidebarDoctors({}, { locale }),
+		settings: m.dashboardSidebarSettings({}, { locale }),
+		...labels?.sections,
+	};
+	const brandName =
+		labels?.brandName ?? m.dashboardSidebarBrandName({}, { locale });
+	const logoutLabel =
+		labels?.logout ?? m.dashboardSidebarLogout({}, { locale });
+	const closeMenuLabel =
+		labels?.closeMenu ?? m.dashboardSidebarCloseMenu({}, { locale });
 	return (
 		<div className="flex h-full flex-col">
 			<div className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -137,9 +159,7 @@ function SidebarContent({
 						<HeartIcon className="h-5 w-5" />
 					</div>
 					<div className="min-w-0">
-						<p className="text-sm font-bold text-foreground">
-							{labels?.brandName ?? 'Asclepio'}
-						</p>
+						<p className="text-sm font-bold text-foreground">{brandName}</p>
 						{hospitalName && (
 							<p
 								className="max-w-30 truncate text-xs text-muted-foreground"
@@ -153,6 +173,7 @@ function SidebarContent({
 				{onClose && (
 					<Button
 						type="button"
+						aria-label={closeMenuLabel}
 						onClick={onClose}
 						variant="ghost"
 						size="icon-sm"
@@ -211,7 +232,7 @@ function SidebarContent({
 					className="w-full justify-start gap-3"
 				>
 					<ArrowRightStartOnRectangleIcon className="h-4.5 w-4.5 shrink-0" />
-					{labels?.logout ?? 'Cerrar sesion'}
+					{logoutLabel}
 				</Button>
 			</div>
 		</div>
@@ -220,11 +241,17 @@ function SidebarContent({
 
 export function SidebarNav(props: SidebarNavProps) {
 	const [mobileOpen, setMobileOpen] = useState(false);
+	const locale = currentLocale();
+	const openMenuLabel =
+		props.labels?.openMenu ?? m.dashboardSidebarOpenMenu({}, { locale });
+	const closeMenuLabel =
+		props.labels?.closeMenu ?? m.dashboardSidebarCloseMenu({}, { locale });
 
 	return (
 		<>
 			<Button
 				type="button"
+				aria-label={openMenuLabel}
 				onClick={() => setMobileOpen(true)}
 				variant="outline"
 				size="icon"
@@ -236,7 +263,7 @@ export function SidebarNav(props: SidebarNavProps) {
 			{mobileOpen && (
 				<button
 					type="button"
-					aria-label="Close menu"
+					aria-label={closeMenuLabel}
 					className="fixed inset-0 z-40 bg-foreground/30 lg:hidden"
 					onClick={() => setMobileOpen(false)}
 					onKeyDown={(e) => e.key === 'Escape' && setMobileOpen(false)}

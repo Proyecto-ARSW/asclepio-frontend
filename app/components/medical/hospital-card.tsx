@@ -8,6 +8,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Card, CardContent } from '@/components/ui/card/card.component';
+import { currentLocale } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
 
 export interface HospitalCardData {
 	id: number;
@@ -27,14 +29,32 @@ interface HospitalCardProps {
 	hospital: HospitalCardData;
 	onSelect?: (id: number) => void;
 	selected?: boolean;
+	labels?: {
+		active?: string;
+		inactive?: string;
+		emergency?: string;
+		consultingRooms?: string;
+	};
 }
 
 export function HospitalCard({
 	hospital,
 	onSelect,
 	selected,
+	labels,
 }: HospitalCardProps) {
 	const interactive = Boolean(onSelect);
+	const locale = currentLocale();
+	const text = {
+		active: labels?.active ?? m.dashboardHospitalStatusActive({}, { locale }),
+		inactive:
+			labels?.inactive ?? m.dashboardHospitalStatusInactive({}, { locale }),
+		emergency:
+			labels?.emergency ?? m.dashboardHospitalEmergency({}, { locale }),
+		consultingRooms:
+			labels?.consultingRooms ??
+			m.dashboardHospitalConsultingRooms({}, { locale }),
+	};
 
 	const content = (
 		<Card
@@ -71,7 +91,7 @@ export function HospitalCard({
 						) : (
 							<XCircleIcon className="h-3.5 w-3.5" />
 						)}
-						{hospital.activo ? 'Activo' : 'Inactivo'}
+						{hospital.activo ? text.active : text.inactive}
 					</Badge>
 				</div>
 
@@ -97,7 +117,9 @@ export function HospitalCard({
 							<div className="flex items-center gap-1.5">
 								<ExclamationTriangleIcon className="h-3.5 w-3.5 text-accent-foreground" />
 								<div>
-									<p className="text-xs text-muted-foreground">Urgencias</p>
+									<p className="text-xs text-muted-foreground">
+										{text.emergency}
+									</p>
 									<p className="text-sm font-semibold text-foreground">
 										{hospital.capacidadUrgencias}
 									</p>
@@ -108,7 +130,9 @@ export function HospitalCard({
 							<div className="flex items-center gap-1.5">
 								<ClipboardDocumentListIcon className="h-3.5 w-3.5 text-primary" />
 								<div>
-									<p className="text-xs text-muted-foreground">Consultorios</p>
+									<p className="text-xs text-muted-foreground">
+										{text.consultingRooms}
+									</p>
 									<p className="text-sm font-semibold text-foreground">
 										{hospital.numeroConsultorios}
 									</p>

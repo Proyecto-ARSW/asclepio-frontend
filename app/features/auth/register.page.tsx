@@ -1,29 +1,49 @@
-import { useEffect, useState } from 'react';
-import { redirect, useNavigate, Link } from 'react-router';
 import {
-	UserIcon,
-	EnvelopeIcon,
-	LockClosedIcon,
-	PhoneIcon,
-	HeartIcon,
-	ChevronRightIcon,
-	ChevronLeftIcon,
+	BeakerIcon,
 	BuildingOffice2Icon,
 	CheckCircleIcon,
+	ChevronLeftIcon,
+	ChevronRightIcon,
+	EnvelopeIcon,
+	HeartIcon,
 	IdentificationIcon,
-	BeakerIcon,
+	LockClosedIcon,
+	PhoneIcon,
+	UserIcon,
 } from '@heroicons/react/24/outline';
-import type { Route } from './+types/register.page';
+import { useEffect, useState } from 'react';
+import { Link, redirect, useNavigate } from 'react-router';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { apiGet, apiPost } from '@/lib/api';
-import { useAuthStore, type Hospital, type Usuario } from '@/store/auth.store';
+import { type Hospital, type Usuario, useAuthStore } from '@/store/auth.store';
+import type { Route } from './+types/register.page';
 
 const ROLES = [
-	{ value: 'PACIENTE', label: 'Paciente', description: 'Acceso a citas y turnos propios' },
-	{ value: 'MEDICO', label: 'Médico', description: 'Gestión de citas y pacientes asignados' },
-	{ value: 'ENFERMERO', label: 'Enfermero', description: 'Apoyo clínico y gestión de turnos' },
-	{ value: 'RECEPCIONISTA', label: 'Recepcionista', description: 'Registro de turnos y citas' },
-	{ value: 'ADMIN', label: 'Administrador', description: 'Acceso total al sistema' },
+	{
+		value: 'PACIENTE',
+		label: 'Paciente',
+		description: 'Acceso a citas y turnos propios',
+	},
+	{
+		value: 'MEDICO',
+		label: 'Médico',
+		description: 'Gestión de citas y pacientes asignados',
+	},
+	{
+		value: 'ENFERMERO',
+		label: 'Enfermero',
+		description: 'Apoyo clínico y gestión de turnos',
+	},
+	{
+		value: 'RECEPCIONISTA',
+		label: 'Recepcionista',
+		description: 'Registro de turnos y citas',
+	},
+	{
+		value: 'ADMIN',
+		label: 'Administrador',
+		description: 'Acceso total al sistema',
+	},
 ] as const;
 
 type Rol = (typeof ROLES)[number]['value'];
@@ -45,7 +65,11 @@ interface RegisterPayload {
 	telefono?: string;
 	rol: Rol;
 	hospitalId?: number;
-	medicoData?: { especialidadId: number; numeroRegistro: string; consultorio?: string };
+	medicoData?: {
+		especialidadId: number;
+		numeroRegistro: string;
+		consultorio?: string;
+	};
 	pacienteData?: {
 		tipoDocumento?: string;
 		numeroDocumento?: string;
@@ -74,7 +98,8 @@ export async function clientLoader() {
 	if (raw) {
 		try {
 			const parsed = JSON.parse(raw);
-			if (parsed.state?.accessToken) return redirect(localePath('/dashboard', locale));
+			if (parsed.state?.accessToken)
+				return redirect(localePath('/dashboard', locale));
 		} catch {}
 	}
 	return null;
@@ -104,8 +129,19 @@ export default function RegisterPage() {
 		rol: 'PACIENTE',
 		hospitalId: undefined,
 		medicoData: { especialidadId: 0, numeroRegistro: '', consultorio: '' },
-		pacienteData: { tipoDocumento: 'CC', numeroDocumento: '', tipoSangre: '', eps: '', alergias: '' },
-		enfermeroData: { numeroRegistro: '', nivelFormacion: 1, areaEspecializacion: undefined, certificacionTriage: false },
+		pacienteData: {
+			tipoDocumento: 'CC',
+			numeroDocumento: '',
+			tipoSangre: '',
+			eps: '',
+			alergias: '',
+		},
+		enfermeroData: {
+			numeroRegistro: '',
+			nivelFormacion: 1,
+			areaEspecializacion: undefined,
+			certificacionTriage: false,
+		},
 	});
 
 	const needsHospital = form.rol !== 'ADMIN';
@@ -118,16 +154,19 @@ export default function RegisterPage() {
 				.catch(() => setError('No se pudo cargar la lista de hospitales'))
 				.finally(() => setLoadingHospitals(false));
 		}
-	}, [step]);
+	}, [step, hospitals.length, needsHospital]);
 
-	function set<K extends keyof RegisterPayload>(key: K, value: RegisterPayload[K]) {
+	function set<K extends keyof RegisterPayload>(
+		key: K,
+		value: RegisterPayload[K],
+	) {
 		setForm((f) => ({ ...f, [key]: value }));
 	}
 
 	function setNested<S extends 'medicoData' | 'pacienteData' | 'enfermeroData'>(
 		section: S,
 		key: string,
-		value: unknown
+		value: unknown,
 	) {
 		setForm((f) => ({
 			...f,
@@ -139,20 +178,27 @@ export default function RegisterPage() {
 		if (!form.nombre.trim()) return 'El nombre es requerido';
 		if (!form.apellido.trim()) return 'El apellido es requerido';
 		if (!form.email.trim()) return 'El correo es requerido';
-		if (form.password.length < 6) return 'La contraseña debe tener al menos 6 caracteres';
+		if (form.password.length < 6)
+			return 'La contraseña debe tener al menos 6 caracteres';
 		return null;
 	}
 
 	function validateStep2() {
-		if (needsHospital && !form.hospitalId) return 'Debes seleccionar un hospital';
+		if (needsHospital && !form.hospitalId)
+			return 'Debes seleccionar un hospital';
 		if (form.rol === 'MEDICO') {
-			if (!form.medicoData?.numeroRegistro.trim()) return 'El número de registro médico es requerido';
+			if (!form.medicoData?.numeroRegistro.trim())
+				return 'El número de registro médico es requerido';
 			if (!form.medicoData.especialidadId || form.medicoData.especialidadId < 1)
 				return 'El ID de especialidad debe ser un número positivo';
 		}
 		if (form.rol === 'ENFERMERO') {
-			if (!form.enfermeroData?.numeroRegistro.trim()) return 'El número de registro es requerido';
-			if (!form.enfermeroData.areaEspecializacion || form.enfermeroData.areaEspecializacion < 1)
+			if (!form.enfermeroData?.numeroRegistro.trim())
+				return 'El número de registro es requerido';
+			if (
+				!form.enfermeroData.areaEspecializacion ||
+				form.enfermeroData.areaEspecializacion < 1
+			)
 				return 'El área de especialización es requerida para enfermeros';
 		}
 		return null;
@@ -162,11 +208,17 @@ export default function RegisterPage() {
 		setError('');
 		if (step === 1) {
 			const err = validateStep1();
-			if (err) { setError(err); return; }
+			if (err) {
+				setError(err);
+				return;
+			}
 			setStep(2);
 		} else if (step === 2) {
 			const err = validateStep2();
-			if (err) { setError(err); return; }
+			if (err) {
+				setError(err);
+				return;
+			}
 			setStep(3);
 		}
 	}
@@ -183,13 +235,16 @@ export default function RegisterPage() {
 				rol: form.rol,
 			};
 			if (form.telefono?.trim()) payload.telefono = form.telefono.trim();
-			if (needsHospital && form.hospitalId) payload.hospitalId = form.hospitalId;
+			if (needsHospital && form.hospitalId)
+				payload.hospitalId = form.hospitalId;
 
 			if (form.rol === 'MEDICO' && form.medicoData) {
 				payload.medicoData = {
 					especialidadId: form.medicoData.especialidadId,
 					numeroRegistro: form.medicoData.numeroRegistro,
-					...(form.medicoData.consultorio ? { consultorio: form.medicoData.consultorio } : {}),
+					...(form.medicoData.consultorio
+						? { consultorio: form.medicoData.consultorio }
+						: {}),
 				};
 			}
 
@@ -225,7 +280,11 @@ export default function RegisterPage() {
 		}
 	}
 
-	const stepTitles = ['Datos personales', 'Rol y hospital', 'Información adicional'];
+	const stepTitles = [
+		'Datos personales',
+		'Rol y hospital',
+		'Información adicional',
+	];
 
 	return (
 		<div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -239,7 +298,9 @@ export default function RegisterPage() {
 							<span className="font-bold text-white text-sm">Asclepio</span>
 						</div>
 						<h1 className="text-xl font-bold text-white">Crear cuenta</h1>
-						<p className="text-blue-100 text-sm mt-0.5">Sistema de Gestión Hospitalaria</p>
+						<p className="text-blue-100 text-sm mt-0.5">
+							Sistema de Gestión Hospitalaria
+						</p>
 
 						<div className="mt-4 flex items-center gap-2">
 							{([1, 2, 3] as const).map((n) => (
@@ -253,10 +314,14 @@ export default function RegisterPage() {
 									>
 										{step > n ? <CheckCircleIcon className="h-4 w-4" /> : n}
 									</div>
-									<span className={`text-xs ${step >= n ? 'text-white' : 'text-blue-200'}`}>
+									<span
+										className={`text-xs ${step >= n ? 'text-white' : 'text-blue-200'}`}
+									>
 										{stepTitles[n - 1]}
 									</span>
-									{n < 3 && <ChevronRightIcon className="h-3 w-3 text-blue-300" />}
+									{n < 3 && (
+										<ChevronRightIcon className="h-3 w-3 text-blue-300" />
+									)}
 								</div>
 							))}
 						</div>
@@ -284,18 +349,16 @@ export default function RegisterPage() {
 								onNestedChange={setNested}
 							/>
 						)}
-						{step === 3 && (
-							<Step3
-								form={form}
-								onNestedChange={setNested}
-							/>
-						)}
+						{step === 3 && <Step3 form={form} onNestedChange={setNested} />}
 
 						<div className="mt-6 flex items-center gap-3">
 							{step > 1 && (
 								<button
 									type="button"
-									onClick={() => { setError(''); setStep((s) => (s - 1) as 1 | 2 | 3); }}
+									onClick={() => {
+										setError('');
+										setStep((s) => (s - 1) as 1 | 2 | 3);
+									}}
 									className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
 								>
 									<ChevronLeftIcon className="h-4 w-4" />
@@ -326,7 +389,10 @@ export default function RegisterPage() {
 
 						<p className="mt-5 text-center text-sm text-gray-500">
 							¿Ya tienes cuenta?{' '}
-							<Link to={localePath('/login', locale)} className="font-medium text-blue-600 hover:underline">
+							<Link
+								to={localePath('/login', locale)}
+								className="font-medium text-blue-600 hover:underline"
+							>
 								Iniciar sesión
 							</Link>
 						</p>
@@ -337,10 +403,16 @@ export default function RegisterPage() {
 	);
 }
 
-function FieldWrapper({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldWrapper({
+	label,
+	children,
+}: {
+	label: string;
+	children: React.ReactNode;
+}) {
 	return (
 		<div>
-			<label className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
+			<p className="mb-1 block text-sm font-medium text-gray-700">{label}</p>
 			{children}
 		</div>
 	);
@@ -450,7 +522,11 @@ function Step2({
 	hospitals: Hospital[];
 	loadingHospitals: boolean;
 	onChange: (k: string, v: unknown) => void;
-	onNestedChange: (section: 'medicoData' | 'pacienteData' | 'enfermeroData', key: string, value: unknown) => void;
+	onNestedChange: (
+		section: 'medicoData' | 'pacienteData' | 'enfermeroData',
+		key: string,
+		value: unknown,
+	) => void;
 }) {
 	return (
 		<div className="space-y-5">
@@ -467,7 +543,9 @@ function Step2({
 									: 'border-gray-200 hover:border-gray-300'
 							}`}
 						>
-							<p className={`text-sm font-semibold ${form.rol === r.value ? 'text-blue-700' : 'text-gray-800'}`}>
+							<p
+								className={`text-sm font-semibold ${form.rol === r.value ? 'text-blue-700' : 'text-gray-800'}`}
+							>
 								{r.label}
 							</p>
 							<p className="mt-0.5 text-xs text-gray-400">{r.description}</p>
@@ -481,7 +559,10 @@ function Step2({
 					{loadingHospitals ? (
 						<div className="space-y-2">
 							{[1, 2, 3].map((i) => (
-								<div key={i} className="h-14 animate-pulse rounded-xl bg-gray-100" />
+								<div
+									key={i}
+									className="h-14 animate-pulse rounded-xl bg-gray-100"
+								/>
 							))}
 						</div>
 					) : (
@@ -501,10 +582,14 @@ function Step2({
 										className={`h-5 w-5 shrink-0 ${form.hospitalId === h.id ? 'text-blue-600' : 'text-gray-400'}`}
 									/>
 									<div className="min-w-0">
-										<p className={`truncate text-sm font-medium ${form.hospitalId === h.id ? 'text-blue-700' : 'text-gray-800'}`}>
+										<p
+											className={`truncate text-sm font-medium ${form.hospitalId === h.id ? 'text-blue-700' : 'text-gray-800'}`}
+										>
 											{h.nombre}
 										</p>
-										<p className="text-xs text-gray-400">{h.ciudad}, {h.departamento}</p>
+										<p className="text-xs text-gray-400">
+											{h.ciudad}, {h.departamento}
+										</p>
 									</div>
 									{form.hospitalId === h.id && (
 										<CheckCircleIcon className="ml-auto h-4 w-4 shrink-0 text-blue-500" />
@@ -512,7 +597,9 @@ function Step2({
 								</button>
 							))}
 							{hospitals.length === 0 && (
-								<p className="py-4 text-center text-sm text-gray-400">Sin hospitales disponibles</p>
+								<p className="py-4 text-center text-sm text-gray-400">
+									Sin hospitales disponibles
+								</p>
 							)}
 						</div>
 					)}
@@ -530,7 +617,13 @@ function Step2({
 							type="number"
 							min={1}
 							value={form.medicoData?.especialidadId || ''}
-							onChange={(e) => onNestedChange('medicoData', 'especialidadId', Number(e.target.value))}
+							onChange={(e) =>
+								onNestedChange(
+									'medicoData',
+									'especialidadId',
+									Number(e.target.value),
+								)
+							}
 							placeholder="Ej: 1"
 							className={inputClass}
 						/>
@@ -539,7 +632,9 @@ function Step2({
 						<input
 							type="text"
 							value={form.medicoData?.numeroRegistro ?? ''}
-							onChange={(e) => onNestedChange('medicoData', 'numeroRegistro', e.target.value)}
+							onChange={(e) =>
+								onNestedChange('medicoData', 'numeroRegistro', e.target.value)
+							}
 							placeholder="Ej: RM-2024-001"
 							className={inputClass}
 						/>
@@ -548,7 +643,9 @@ function Step2({
 						<input
 							type="text"
 							value={form.medicoData?.consultorio ?? ''}
-							onChange={(e) => onNestedChange('medicoData', 'consultorio', e.target.value)}
+							onChange={(e) =>
+								onNestedChange('medicoData', 'consultorio', e.target.value)
+							}
 							placeholder="Ej: 301"
 							className={inputClass}
 						/>
@@ -566,7 +663,13 @@ function Step2({
 						<input
 							type="text"
 							value={form.enfermeroData?.numeroRegistro ?? ''}
-							onChange={(e) => onNestedChange('enfermeroData', 'numeroRegistro', e.target.value)}
+							onChange={(e) =>
+								onNestedChange(
+									'enfermeroData',
+									'numeroRegistro',
+									e.target.value,
+								)
+							}
 							placeholder="Ej: ENF-2024-001"
 							className={inputClass}
 						/>
@@ -574,11 +677,19 @@ function Step2({
 					<FieldWrapper label="Nivel de formación *">
 						<select
 							value={form.enfermeroData?.nivelFormacion ?? 1}
-							onChange={(e) => onNestedChange('enfermeroData', 'nivelFormacion', Number(e.target.value))}
+							onChange={(e) =>
+								onNestedChange(
+									'enfermeroData',
+									'nivelFormacion',
+									Number(e.target.value),
+								)
+							}
 							className={selectClass}
 						>
 							{NIVEL_FORMACION.map((n) => (
-								<option key={n.id} value={n.id}>{n.label}</option>
+								<option key={n.id} value={n.id}>
+									{n.label}
+								</option>
 							))}
 						</select>
 					</FieldWrapper>
@@ -587,7 +698,13 @@ function Step2({
 							type="number"
 							min={1}
 							value={form.enfermeroData?.areaEspecializacion || ''}
-							onChange={(e) => onNestedChange('enfermeroData', 'areaEspecializacion', Number(e.target.value))}
+							onChange={(e) =>
+								onNestedChange(
+									'enfermeroData',
+									'areaEspecializacion',
+									Number(e.target.value),
+								)
+							}
 							placeholder="Ej: 1"
 							className={inputClass}
 						/>
@@ -597,10 +714,18 @@ function Step2({
 							id="triage"
 							type="checkbox"
 							checked={form.enfermeroData?.certificacionTriage ?? false}
-							onChange={(e) => onNestedChange('enfermeroData', 'certificacionTriage', e.target.checked)}
+							onChange={(e) =>
+								onNestedChange(
+									'enfermeroData',
+									'certificacionTriage',
+									e.target.checked,
+								)
+							}
 							className="h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
 						/>
-						<label htmlFor="triage" className="text-sm text-gray-700">Certificación de triage</label>
+						<label htmlFor="triage" className="text-sm text-gray-700">
+							Certificación de triage
+						</label>
 					</div>
 				</div>
 			)}
@@ -613,7 +738,11 @@ function Step3({
 	onNestedChange,
 }: {
 	form: RegisterPayload;
-	onNestedChange: (section: 'medicoData' | 'pacienteData' | 'enfermeroData', key: string, value: unknown) => void;
+	onNestedChange: (
+		section: 'medicoData' | 'pacienteData' | 'enfermeroData',
+		key: string,
+		value: unknown,
+	) => void;
 }) {
 	return (
 		<div className="space-y-4">
@@ -625,24 +754,40 @@ function Step3({
 				<>
 					<div className="mb-2 flex items-center gap-2">
 						<IdentificationIcon className="h-4 w-4 text-blue-500" />
-						<span className="text-sm font-semibold text-gray-700">Datos del paciente</span>
+						<span className="text-sm font-semibold text-gray-700">
+							Datos del paciente
+						</span>
 					</div>
 
 					<div className="grid grid-cols-2 gap-3">
 						<FieldWrapper label="Tipo de documento">
 							<select
 								value={form.pacienteData?.tipoDocumento ?? 'CC'}
-								onChange={(e) => onNestedChange('pacienteData', 'tipoDocumento', e.target.value)}
+								onChange={(e) =>
+									onNestedChange(
+										'pacienteData',
+										'tipoDocumento',
+										e.target.value,
+									)
+								}
 								className={selectClass}
 							>
-								{TIPO_DOCUMENTO.map((t) => <option key={t}>{t}</option>)}
+								{TIPO_DOCUMENTO.map((t) => (
+									<option key={t}>{t}</option>
+								))}
 							</select>
 						</FieldWrapper>
 						<FieldWrapper label="Número de documento">
 							<input
 								type="text"
 								value={form.pacienteData?.numeroDocumento ?? ''}
-								onChange={(e) => onNestedChange('pacienteData', 'numeroDocumento', e.target.value)}
+								onChange={(e) =>
+									onNestedChange(
+										'pacienteData',
+										'numeroDocumento',
+										e.target.value,
+									)
+								}
 								placeholder="1234567890"
 								className={inputClass}
 							/>
@@ -653,18 +798,24 @@ function Step3({
 						<FieldWrapper label="Tipo de sangre">
 							<select
 								value={form.pacienteData?.tipoSangre ?? ''}
-								onChange={(e) => onNestedChange('pacienteData', 'tipoSangre', e.target.value)}
+								onChange={(e) =>
+									onNestedChange('pacienteData', 'tipoSangre', e.target.value)
+								}
 								className={selectClass}
 							>
 								<option value="">Seleccionar</option>
-								{TIPO_SANGRE.map((t) => <option key={t}>{t}</option>)}
+								{TIPO_SANGRE.map((t) => (
+									<option key={t}>{t}</option>
+								))}
 							</select>
 						</FieldWrapper>
 						<FieldWrapper label="EPS">
 							<input
 								type="text"
 								value={form.pacienteData?.eps ?? ''}
-								onChange={(e) => onNestedChange('pacienteData', 'eps', e.target.value)}
+								onChange={(e) =>
+									onNestedChange('pacienteData', 'eps', e.target.value)
+								}
 								placeholder="Sura, Compensar..."
 								className={inputClass}
 							/>
@@ -675,7 +826,9 @@ function Step3({
 						<input
 							type="text"
 							value={form.pacienteData?.alergias ?? ''}
-							onChange={(e) => onNestedChange('pacienteData', 'alergias', e.target.value)}
+							onChange={(e) =>
+								onNestedChange('pacienteData', 'alergias', e.target.value)
+							}
 							placeholder="Penicilina, látex..."
 							className={inputClass}
 						/>
@@ -686,7 +839,9 @@ function Step3({
 			{form.rol !== 'PACIENTE' && (
 				<div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-center">
 					<CheckCircleIcon className="mx-auto h-10 w-10 text-emerald-400 mb-2" />
-					<p className="text-sm font-medium text-gray-700">Listo para crear tu cuenta</p>
+					<p className="text-sm font-medium text-gray-700">
+						Listo para crear tu cuenta
+					</p>
 					<p className="mt-1 text-xs text-gray-400">
 						Revisa los datos anteriores y confirma el registro.
 					</p>

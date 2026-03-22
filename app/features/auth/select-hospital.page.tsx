@@ -1,14 +1,17 @@
-import { useEffect, useState } from 'react';
-import { useForm } from '@tanstack/react-form';
-import { redirect, useNavigate } from 'react-router';
 import {
+	ArrowRightIcon,
 	BuildingOffice2Icon,
 	CheckCircleIcon,
-	ArrowRightIcon,
 	ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import type { Route } from './+types/select-hospital.page';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert/alert.component';
+import { useForm } from '@tanstack/react-form';
+import { useEffect, useState } from 'react';
+import { redirect, useNavigate } from 'react-router';
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+} from '@/components/ui/alert/alert.component';
 import { Button } from '@/components/ui/button/button.component';
 import {
 	Card,
@@ -20,7 +23,8 @@ import {
 import { getAuthContent } from '@/features/auth/auth.content';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { apiPost } from '@/lib/api';
-import { useAuthStore, type Hospital, type Usuario } from '@/store/auth.store';
+import { type Hospital, type Usuario, useAuthStore } from '@/store/auth.store';
+import type { Route } from './+types/select-hospital.page';
 
 interface SelectHospitalResponse {
 	accessToken: string;
@@ -66,7 +70,10 @@ export default function SelectHospitalPage() {
 		},
 		onSubmit: async ({ value }) => {
 			if (!value.hospitalId) {
-				form.setFieldValue('submitError', content.selectHospital.errors.selectionRequired);
+				form.setFieldValue(
+					'submitError',
+					content.selectHospital.errors.selectionRequired,
+				);
 				return;
 			}
 
@@ -83,7 +90,9 @@ export default function SelectHospitalPage() {
 			} catch (err) {
 				form.setFieldValue(
 					'submitError',
-					err instanceof Error ? err.message : content.selectHospital.errors.connection,
+					err instanceof Error
+						? err.message
+						: content.selectHospital.errors.connection,
 				);
 			}
 		},
@@ -110,7 +119,10 @@ export default function SelectHospitalPage() {
 					{!hydrated && (
 						<div className="space-y-3" aria-hidden="true">
 							{[1, 2, 3].map((i) => (
-								<div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
+								<div
+									key={i}
+									className="h-16 animate-pulse rounded-lg bg-muted"
+								/>
 							))}
 						</div>
 					)}
@@ -148,7 +160,9 @@ export default function SelectHospitalPage() {
 							}}
 							className="space-y-4"
 						>
-							<p className="text-sm text-muted-foreground">{content.selectHospital.listHint}</p>
+							<p className="text-sm text-muted-foreground">
+								{content.selectHospital.listHint}
+							</p>
 							<form.Field name="hospitalId">
 								{(field) => (
 									<div className="max-h-72 space-y-2 overflow-y-auto pr-1">
@@ -175,7 +189,9 @@ export default function SelectHospitalPage() {
 															{hospital.ciudad}, {hospital.departamento}
 														</p>
 													</div>
-													{selected && <CheckCircleIcon className="h-5 w-5 shrink-0 text-primary" />}
+													{selected && (
+														<CheckCircleIcon className="h-5 w-5 shrink-0 text-primary" />
+													)}
 												</button>
 											);
 										})}
@@ -194,7 +210,10 @@ export default function SelectHospitalPage() {
 							</form.Field>
 
 							<form.Subscribe
-								selector={(state) => [state.values.hospitalId, state.isSubmitting]}
+								selector={(state) => [
+									state.values.hospitalId,
+									state.isSubmitting,
+								]}
 							>
 								{([selectedHospitalId, isSubmitting]) => (
 									<Button
@@ -202,7 +221,9 @@ export default function SelectHospitalPage() {
 										className="w-full"
 										disabled={Boolean(!selectedHospitalId || isSubmitting)}
 									>
-										{isSubmitting ? content.selectHospital.submitLoading : content.selectHospital.submit}
+										{isSubmitting
+											? content.selectHospital.submitLoading
+											: content.selectHospital.submit}
 										{!isSubmitting && <ArrowRightIcon className="h-4 w-4" />}
 									</Button>
 								)}

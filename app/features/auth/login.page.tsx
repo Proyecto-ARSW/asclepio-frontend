@@ -1,7 +1,6 @@
-import { useForm } from '@tanstack/react-form';
 import { HeartIcon } from '@heroicons/react/24/outline';
-import { redirect, useNavigate, Link } from 'react-router';
-import type { Route } from './+types/login.page';
+import { useForm } from '@tanstack/react-form';
+import { Link, redirect, useNavigate } from 'react-router';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Button } from '@/components/ui/button/button.component';
 import {
@@ -21,7 +20,8 @@ import { Input } from '@/components/ui/input/input.component';
 import { getAuthContent } from '@/features/auth/auth.content';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { apiPost } from '@/lib/api';
-import { useAuthStore, type Hospital, type Usuario } from '@/store/auth.store';
+import { type Hospital, type Usuario, useAuthStore } from '@/store/auth.store';
+import type { Route } from './+types/login.page';
 
 interface LoginResponse {
 	preToken: string;
@@ -72,7 +72,9 @@ export default function LoginPage() {
 			} catch (err) {
 				form.setFieldValue(
 					'submitError',
-					err instanceof Error ? err.message : content.login.errors.invalidCredentials,
+					err instanceof Error
+						? err.message
+						: content.login.errors.invalidCredentials,
 				);
 			}
 		},
@@ -101,12 +103,16 @@ export default function LoginPage() {
 							name="email"
 							validators={{
 								onBlur: ({ value }) =>
-									value.includes('@') ? undefined : content.login.errors.requiredEmail,
+									value.includes('@')
+										? undefined
+										: content.login.errors.requiredEmail,
 							}}
 						>
 							{(field) => (
 								<Field data-invalid={Boolean(field.state.meta.errors.length)}>
-									<FieldLabel htmlFor={field.name}>{content.login.emailLabel}</FieldLabel>
+									<FieldLabel htmlFor={field.name}>
+										{content.login.emailLabel}
+									</FieldLabel>
 									<Input
 										id={field.name}
 										type="email"
@@ -118,7 +124,9 @@ export default function LoginPage() {
 										required
 									/>
 									<FieldError
-										errors={field.state.meta.errors.map((message) => ({ message }))}
+										errors={field.state.meta.errors.map((message) => ({
+											message,
+										}))}
 									/>
 								</Field>
 							)}
@@ -128,12 +136,16 @@ export default function LoginPage() {
 							name="password"
 							validators={{
 								onBlur: ({ value }) =>
-									value.length > 0 ? undefined : content.login.errors.requiredPassword,
+									value.length > 0
+										? undefined
+										: content.login.errors.requiredPassword,
 							}}
 						>
 							{(field) => (
 								<Field data-invalid={Boolean(field.state.meta.errors.length)}>
-									<FieldLabel htmlFor={field.name}>{content.login.passwordLabel}</FieldLabel>
+									<FieldLabel htmlFor={field.name}>
+										{content.login.passwordLabel}
+									</FieldLabel>
 									<Input
 										id={field.name}
 										type="password"
@@ -145,7 +157,9 @@ export default function LoginPage() {
 										required
 									/>
 									<FieldError
-										errors={field.state.meta.errors.map((message) => ({ message }))}
+										errors={field.state.meta.errors.map((message) => ({
+											message,
+										}))}
 									/>
 								</Field>
 							)}
@@ -165,8 +179,14 @@ export default function LoginPage() {
 							selector={(state) => [state.canSubmit, state.isSubmitting]}
 						>
 							{([canSubmit, isSubmitting]) => (
-								<Button type="submit" className="w-full" disabled={!canSubmit || isSubmitting}>
-									{isSubmitting ? content.login.submitLoading : content.login.submit}
+								<Button
+									type="submit"
+									className="w-full"
+									disabled={!canSubmit || isSubmitting}
+								>
+									{isSubmitting
+										? content.login.submitLoading
+										: content.login.submit}
 								</Button>
 							)}
 						</form.Subscribe>
@@ -174,7 +194,10 @@ export default function LoginPage() {
 
 					<FieldDescription className="text-center">
 						{content.login.registerPrompt}{' '}
-						<Link to={localePath('/register', locale)} className="text-primary underline-offset-4 hover:underline">
+						<Link
+							to={localePath('/register', locale)}
+							className="text-primary underline-offset-4 hover:underline"
+						>
 							{content.login.registerAction}
 						</Link>
 					</FieldDescription>

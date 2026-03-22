@@ -27,7 +27,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 export async function apiPost<T>(
 	path: string,
 	body: unknown,
-	token?: string
+	token?: string,
 ): Promise<T> {
 	const t = token ?? getStoredToken();
 	const res = await fetch(`${API_URL}${path}`, {
@@ -54,7 +54,7 @@ export async function apiGet<T>(path: string, token?: string): Promise<T> {
 export async function apiPatch<T>(
 	path: string,
 	body: unknown,
-	token?: string
+	token?: string,
 ): Promise<T> {
 	const t = token ?? getStoredToken();
 	const res = await fetch(`${API_URL}${path}`, {
@@ -67,5 +67,3 @@ export async function apiPatch<T>(
 	});
 	return handleResponse<T>(res);
 }
-
-export type { };

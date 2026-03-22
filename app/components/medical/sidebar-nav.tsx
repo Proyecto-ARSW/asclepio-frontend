@@ -4,6 +4,7 @@ import {
 	BeakerIcon,
 	BuildingOffice2Icon,
 	CalendarDaysIcon,
+	Cog6ToothIcon,
 	HeartIcon,
 	HomeIcon,
 	QueueListIcon,
@@ -15,6 +16,7 @@ import {
 	BeakerIcon as BeakerIconSolid,
 	BuildingOffice2Icon as BuildingOffice2IconSolid,
 	CalendarDaysIcon as CalendarDaysIconSolid,
+	Cog6ToothIcon as Cog6ToothIconSolid,
 	HomeIcon as HomeIconSolid,
 	QueueListIcon as QueueListIconSolid,
 	UserGroupIcon as UserGroupIconSolid,
@@ -30,7 +32,8 @@ export type NavSection =
 	| 'appointments'
 	| 'queue'
 	| 'medicines'
-	| 'doctors';
+	| 'doctors'
+	| 'settings';
 
 interface NavItem {
 	key: NavSection;
@@ -82,6 +85,12 @@ const navItems: NavItem[] = [
 		icon: UserIcon,
 		iconActive: UserIconSolid,
 	},
+	{
+		key: 'settings',
+		label: 'Configuracion',
+		icon: Cog6ToothIcon,
+		iconActive: Cog6ToothIconSolid,
+	},
 ];
 
 interface SidebarNavProps {
@@ -106,6 +115,7 @@ const defaultSectionLabels: Record<NavSection, string> = {
 	queue: 'Turnos',
 	medicines: 'Medicamentos',
 	doctors: 'Medicos',
+	settings: 'Configuracion',
 };
 
 function SidebarContent({

@@ -11,51 +11,41 @@ import {
 	PhoneIcon,
 	UserIcon,
 } from '@heroicons/react/24/outline';
+import { useForm } from '@tanstack/react-form';
 import { useEffect, useState } from 'react';
 import { Link, redirect, useNavigate } from 'react-router';
+import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
+import { Badge } from '@/components/ui/badge/badge.component';
+import { Button } from '@/components/ui/button/button.component';
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from '@/components/ui/card/card.component';
+import { Checkbox } from '@/components/ui/checkbox/checkbox.component';
+import {
+	Field,
+	FieldDescription,
+	FieldLabel,
+} from '@/components/ui/field/field.component';
+import { Input } from '@/components/ui/input/input.component';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select/select.component';
+import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
+import { getAuthContent } from '@/features/auth/auth.content';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { apiGet, apiPost } from '@/lib/api';
 import { type Hospital, type Usuario, useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/register.page';
 
-const ROLES = [
-	{
-		value: 'PACIENTE',
-		label: 'Paciente',
-		description: 'Acceso a citas y turnos propios',
-	},
-	{
-		value: 'MEDICO',
-		label: 'Médico',
-		description: 'Gestión de citas y pacientes asignados',
-	},
-	{
-		value: 'ENFERMERO',
-		label: 'Enfermero',
-		description: 'Apoyo clínico y gestión de turnos',
-	},
-	{
-		value: 'RECEPCIONISTA',
-		label: 'Recepcionista',
-		description: 'Registro de turnos y citas',
-	},
-	{
-		value: 'ADMIN',
-		label: 'Administrador',
-		description: 'Acceso total al sistema',
-	},
-] as const;
-
-type Rol = (typeof ROLES)[number]['value'];
-
-const TIPO_DOCUMENTO = ['CC', 'TI', 'CE', 'PA', 'RC'];
-const TIPO_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const NIVEL_FORMACION = [
-	{ id: 1, label: 'Técnico' },
-	{ id: 2, label: 'Tecnólogo' },
-	{ id: 3, label: 'Profesional' },
-	{ id: 4, label: 'Especialista' },
-];
+type Rol = 'PACIENTE' | 'MEDICO' | 'ENFERMERO' | 'RECEPCIONISTA' | 'ADMIN';
 
 interface RegisterPayload {
 	nombre: string;
@@ -91,6 +81,29 @@ interface RegisterResponse {
 	hospital?: Hospital;
 }
 
+interface RegisterFormValues {
+	nombre: string;
+	apellido: string;
+	email: string;
+	password: string;
+	telefono: string;
+	rol: Rol;
+	hospitalId: number | null;
+	medicoEspecialidadId: number | null;
+	medicoNumeroRegistro: string;
+	medicoConsultorio: string;
+	enfermeroNumeroRegistro: string;
+	enfermeroNivelFormacion: number;
+	enfermeroAreaEspecializacion: number | null;
+	enfermeroCertificacionTriage: boolean;
+	pacienteTipoDocumento: string;
+	pacienteNumeroDocumento: string;
+	pacienteTipoSangre: string;
+	pacienteEps: string;
+	pacienteAlergias: string;
+	submitError: string;
+}
+
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
 	const locale = currentLocale(window.location.pathname);
@@ -98,8 +111,9 @@ export async function clientLoader() {
 	if (raw) {
 		try {
 			const parsed = JSON.parse(raw);
-			if (parsed.state?.accessToken)
+			if (parsed.state?.accessToken) {
 				return redirect(localePath('/dashboard', locale));
+			}
 		} catch {}
 	}
 	return null;
@@ -109,744 +123,916 @@ export function meta(_: Route.MetaArgs) {
 	return [{ title: 'Asclepio - Crear cuenta' }];
 }
 
+function StepIndicator({
+	step,
+	index,
+	label,
+}: {
+	step: 1 | 2 | 3;
+	index: 1 | 2 | 3;
+	label: string;
+}) {
+	const active = step >= index;
+	const completed = step > index;
+
+	return (
+		<div className="flex items-center gap-2">
+			<div
+				className={[
+					'flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-colors',
+					active
+						? 'bg-primary text-primary-foreground'
+						: 'bg-muted text-muted-foreground',
+				].join(' ')}
+			>
+				{completed ? <CheckCircleIcon className="h-4 w-4" /> : index}
+			</div>
+			<span
+				className={
+					active ? 'text-foreground text-xs' : 'text-muted-foreground text-xs'
+				}
+			>
+				{label}
+			</span>
+		</div>
+	);
+}
+
+function isValidEmail(email: string): boolean {
+	return email.includes('@') && email.includes('.');
+}
+
 export default function RegisterPage() {
 	const navigate = useNavigate();
 	const locale = currentLocale();
+	const content = getAuthContent(locale);
 	const setFullAuth = useAuthStore((s) => s.setFullAuth);
 
 	const [step, setStep] = useState<1 | 2 | 3>(1);
 	const [hospitals, setHospitals] = useState<Hospital[]>([]);
 	const [loadingHospitals, setLoadingHospitals] = useState(false);
-	const [submitting, setSubmitting] = useState(false);
-	const [error, setError] = useState('');
 
-	const [form, setForm] = useState<RegisterPayload>({
-		nombre: '',
-		apellido: '',
-		email: '',
-		password: '',
-		telefono: '',
-		rol: 'PACIENTE',
-		hospitalId: undefined,
-		medicoData: { especialidadId: 0, numeroRegistro: '', consultorio: '' },
-		pacienteData: {
-			tipoDocumento: 'CC',
-			numeroDocumento: '',
-			tipoSangre: '',
-			eps: '',
-			alergias: '',
-		},
-		enfermeroData: {
-			numeroRegistro: '',
-			nivelFormacion: 1,
-			areaEspecializacion: undefined,
-			certificacionTriage: false,
+	const form = useForm({
+		defaultValues: {
+			nombre: '',
+			apellido: '',
+			email: '',
+			password: '',
+			telefono: '',
+			rol: 'PACIENTE' as Rol,
+			hospitalId: null,
+			medicoEspecialidadId: null,
+			medicoNumeroRegistro: '',
+			medicoConsultorio: '',
+			enfermeroNumeroRegistro: '',
+			enfermeroNivelFormacion: 1,
+			enfermeroAreaEspecializacion: null,
+			enfermeroCertificacionTriage: false,
+			pacienteTipoDocumento: content.register.documentTypes[0] ?? 'CC',
+			pacienteNumeroDocumento: '',
+			pacienteTipoSangre: '',
+			pacienteEps: '',
+			pacienteAlergias: '',
+			submitError: '',
+		} as RegisterFormValues,
+		onSubmit: async ({ value }) => {
+			form.setFieldValue('submitError', '');
+			try {
+				const needsHospital = value.rol !== 'ADMIN';
+				const payload: RegisterPayload = {
+					nombre: value.nombre.trim(),
+					apellido: value.apellido.trim(),
+					email: value.email.trim(),
+					password: value.password,
+					rol: value.rol,
+				};
+
+				if (value.telefono.trim()) {
+					payload.telefono = value.telefono.trim();
+				}
+
+				if (needsHospital && value.hospitalId) {
+					payload.hospitalId = value.hospitalId;
+				}
+
+				if (value.rol === 'MEDICO') {
+					payload.medicoData = {
+						especialidadId: value.medicoEspecialidadId ?? 0,
+						numeroRegistro: value.medicoNumeroRegistro.trim(),
+						...(value.medicoConsultorio.trim()
+							? { consultorio: value.medicoConsultorio.trim() }
+							: {}),
+					};
+				}
+
+				if (value.rol === 'ENFERMERO') {
+					payload.enfermeroData = {
+						numeroRegistro: value.enfermeroNumeroRegistro.trim(),
+						nivelFormacion: value.enfermeroNivelFormacion,
+						areaEspecializacion:
+							value.enfermeroAreaEspecializacion ?? undefined,
+						certificacionTriage: value.enfermeroCertificacionTriage,
+					};
+				}
+
+				if (value.rol === 'PACIENTE') {
+					const patientData = {
+						tipoDocumento: value.pacienteTipoDocumento,
+						numeroDocumento: value.pacienteNumeroDocumento.trim(),
+						tipoSangre: value.pacienteTipoSangre,
+						eps: value.pacienteEps.trim(),
+						alergias: value.pacienteAlergias.trim(),
+					};
+					const hasPatientData = Object.values(patientData).some(Boolean);
+					if (hasPatientData) {
+						payload.pacienteData = patientData;
+					}
+				}
+
+				const response = await apiPost<RegisterResponse>(
+					'/auth/register',
+					payload,
+				);
+				const hospitalForStore: Hospital = response.hospital ?? {
+					id: 0,
+					nombre: 'Sin hospital',
+					ciudad: '',
+					departamento: '',
+				};
+				setFullAuth(response.accessToken, response.usuario, hospitalForStore);
+				navigate(localePath('/dashboard', locale));
+			} catch (error) {
+				form.setFieldValue(
+					'submitError',
+					error instanceof Error
+						? error.message
+						: content.register.errors.submit,
+				);
+			}
 		},
 	});
 
-	const needsHospital = form.rol !== 'ADMIN';
+	const values = form.state.values;
+	const needsHospital = values.rol !== 'ADMIN';
 
 	useEffect(() => {
-		if (step === 2 && needsHospital && hospitals.length === 0) {
-			setLoadingHospitals(true);
-			apiGet<Hospital[]>('/hospitals')
-				.then(setHospitals)
-				.catch(() => setError('No se pudo cargar la lista de hospitales'))
-				.finally(() => setLoadingHospitals(false));
+		if (
+			step !== 2 ||
+			!needsHospital ||
+			hospitals.length > 0 ||
+			loadingHospitals
+		) {
+			return;
 		}
-	}, [step, hospitals.length, needsHospital]);
 
-	function set<K extends keyof RegisterPayload>(
-		key: K,
-		value: RegisterPayload[K],
-	) {
-		setForm((f) => ({ ...f, [key]: value }));
-	}
+		setLoadingHospitals(true);
+		void apiGet<Hospital[]>('/hospitals')
+			.then((result) => setHospitals(result))
+			.catch(() => {
+				form.setFieldValue(
+					'submitError',
+					content.register.errors.loadHospitals,
+				);
+			})
+			.finally(() => setLoadingHospitals(false));
+	}, [
+		content.register.errors.loadHospitals,
+		form,
+		hospitals.length,
+		loadingHospitals,
+		needsHospital,
+		step,
+	]);
 
-	function setNested<S extends 'medicoData' | 'pacienteData' | 'enfermeroData'>(
-		section: S,
-		key: string,
-		value: unknown,
-	) {
-		setForm((f) => ({
-			...f,
-			[section]: { ...(f[section] as object), [key]: value },
-		}));
-	}
-
-	function validateStep1() {
-		if (!form.nombre.trim()) return 'El nombre es requerido';
-		if (!form.apellido.trim()) return 'El apellido es requerido';
-		if (!form.email.trim()) return 'El correo es requerido';
-		if (form.password.length < 6)
-			return 'La contraseña debe tener al menos 6 caracteres';
+	function validateStep1(nextValues: RegisterFormValues): string | null {
+		if (!nextValues.nombre.trim()) return content.register.errors.requiredName;
+		if (!nextValues.apellido.trim())
+			return content.register.errors.requiredLastName;
+		if (!isValidEmail(nextValues.email.trim()))
+			return content.register.errors.requiredEmail;
+		if (nextValues.password.length < 6)
+			return content.register.errors.requiredPassword;
 		return null;
 	}
 
-	function validateStep2() {
-		if (needsHospital && !form.hospitalId)
-			return 'Debes seleccionar un hospital';
-		if (form.rol === 'MEDICO') {
-			if (!form.medicoData?.numeroRegistro.trim())
-				return 'El número de registro médico es requerido';
-			if (!form.medicoData.especialidadId || form.medicoData.especialidadId < 1)
-				return 'El ID de especialidad debe ser un número positivo';
+	function validateStep2(nextValues: RegisterFormValues): string | null {
+		if (nextValues.rol !== 'ADMIN' && !nextValues.hospitalId) {
+			return content.register.errors.requiredHospital;
 		}
-		if (form.rol === 'ENFERMERO') {
-			if (!form.enfermeroData?.numeroRegistro.trim())
-				return 'El número de registro es requerido';
+
+		if (nextValues.rol === 'MEDICO') {
+			if (!nextValues.medicoNumeroRegistro.trim()) {
+				return content.register.errors.requiredDoctorRegistration;
+			}
 			if (
-				!form.enfermeroData.areaEspecializacion ||
-				form.enfermeroData.areaEspecializacion < 1
-			)
-				return 'El área de especialización es requerida para enfermeros';
+				!nextValues.medicoEspecialidadId ||
+				nextValues.medicoEspecialidadId < 1
+			) {
+				return content.register.errors.requiredDoctorSpecialty;
+			}
 		}
+
+		if (nextValues.rol === 'ENFERMERO') {
+			if (!nextValues.enfermeroNumeroRegistro.trim()) {
+				return content.register.errors.requiredNurseRegistration;
+			}
+			if (
+				!nextValues.enfermeroAreaEspecializacion ||
+				nextValues.enfermeroAreaEspecializacion < 1
+			) {
+				return content.register.errors.requiredNurseArea;
+			}
+		}
+
 		return null;
 	}
 
-	function goNext() {
-		setError('');
-		if (step === 1) {
-			const err = validateStep1();
-			if (err) {
-				setError(err);
-				return;
-			}
-			setStep(2);
-		} else if (step === 2) {
-			const err = validateStep2();
-			if (err) {
-				setError(err);
-				return;
-			}
-			setStep(3);
+	function handleNext() {
+		form.setFieldValue('submitError', '');
+		const nextError =
+			step === 1 ? validateStep1(values) : validateStep2(values);
+		if (nextError) {
+			form.setFieldValue('submitError', nextError);
+			return;
 		}
+		setStep((current) => (current === 1 ? 2 : 3));
 	}
 
-	async function handleSubmit() {
-		setError('');
-		setSubmitting(true);
-		try {
-			const payload: RegisterPayload = {
-				nombre: form.nombre.trim(),
-				apellido: form.apellido.trim(),
-				email: form.email.trim(),
-				password: form.password,
-				rol: form.rol,
-			};
-			if (form.telefono?.trim()) payload.telefono = form.telefono.trim();
-			if (needsHospital && form.hospitalId)
-				payload.hospitalId = form.hospitalId;
-
-			if (form.rol === 'MEDICO' && form.medicoData) {
-				payload.medicoData = {
-					especialidadId: form.medicoData.especialidadId,
-					numeroRegistro: form.medicoData.numeroRegistro,
-					...(form.medicoData.consultorio
-						? { consultorio: form.medicoData.consultorio }
-						: {}),
-				};
-			}
-
-			if (form.rol === 'ENFERMERO' && form.enfermeroData) {
-				payload.enfermeroData = {
-					numeroRegistro: form.enfermeroData.numeroRegistro,
-					nivelFormacion: form.enfermeroData.nivelFormacion,
-					areaEspecializacion: form.enfermeroData.areaEspecializacion,
-					certificacionTriage: form.enfermeroData.certificacionTriage,
-				};
-			}
-
-			if (form.rol === 'PACIENTE') {
-				const pd = form.pacienteData ?? {};
-				const hasData = Object.values(pd).some((v) => v);
-				if (hasData) payload.pacienteData = pd;
-			}
-
-			const res = await apiPost<RegisterResponse>('/auth/register', payload);
-
-			const hospitalForStore: Hospital = res.hospital ?? {
-				id: 0,
-				nombre: 'Sin hospital',
-				ciudad: '',
-				departamento: '',
-			};
-			setFullAuth(res.accessToken, res.usuario, hospitalForStore);
-			navigate(localePath('/dashboard', locale));
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error al crear la cuenta');
-		} finally {
-			setSubmitting(false);
-		}
+	function handleBack() {
+		form.setFieldValue('submitError', '');
+		setStep((current) => (current === 3 ? 2 : 1));
 	}
-
-	const stepTitles = [
-		'Datos personales',
-		'Rol y hospital',
-		'Información adicional',
-	];
 
 	return (
-		<div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-			<div className="w-full max-w-lg">
-				<div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-					<div className="bg-blue-600 px-6 py-5 sm:px-8">
-						<div className="flex items-center gap-3 mb-4">
-							<div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20">
-								<HeartIcon className="h-5 w-5 text-white" />
-							</div>
-							<span className="font-bold text-white text-sm">Asclepio</span>
-						</div>
-						<h1 className="text-xl font-bold text-white">Crear cuenta</h1>
-						<p className="text-blue-100 text-sm mt-0.5">
-							Sistema de Gestión Hospitalaria
-						</p>
-
-						<div className="mt-4 flex items-center gap-2">
-							{([1, 2, 3] as const).map((n) => (
-								<div key={n} className="flex items-center gap-2">
-									<div
-										className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-											step >= n
-												? 'bg-white text-blue-600'
-												: 'bg-white/20 text-white'
-										}`}
-									>
-										{step > n ? <CheckCircleIcon className="h-4 w-4" /> : n}
-									</div>
-									<span
-										className={`text-xs ${step >= n ? 'text-white' : 'text-blue-200'}`}
-									>
-										{stepTitles[n - 1]}
-									</span>
-									{n < 3 && (
-										<ChevronRightIcon className="h-3 w-3 text-blue-300" />
-									)}
-								</div>
-							))}
-						</div>
+		<div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-8">
+			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.14),transparent_50%)]" />
+			<Card className="relative z-10 w-full max-w-3xl">
+				<CardHeader className="space-y-3 border-b">
+					<div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+						<HeartIcon className="h-6 w-6" />
 					</div>
-
-					<div className="p-6 sm:p-8">
-						{error && (
-							<div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-								{error}
-							</div>
-						)}
-
+					<CardTitle>{content.register.title}</CardTitle>
+					<CardDescription>{content.register.subtitle}</CardDescription>
+					<div className="flex flex-wrap items-center gap-3 pt-1">
+						<StepIndicator
+							step={step}
+							index={1}
+							label={content.register.stepTitles[0]}
+						/>
+						<div className="h-px w-8 bg-border" />
+						<StepIndicator
+							step={step}
+							index={2}
+							label={content.register.stepTitles[1]}
+						/>
+						<div className="h-px w-8 bg-border" />
+						<StepIndicator
+							step={step}
+							index={3}
+							label={content.register.stepTitles[2]}
+						/>
+					</div>
+				</CardHeader>
+				<CardContent className="space-y-5 pt-5">
+					<form
+						onSubmit={(event) => {
+							event.preventDefault();
+							if (step < 3) {
+								handleNext();
+								return;
+							}
+							void form.handleSubmit();
+						}}
+						className="space-y-5"
+					>
 						{step === 1 && (
-							<Step1
-								form={form}
-								onChange={(k, v) => set(k as keyof RegisterPayload, v as never)}
-							/>
+							<div className="space-y-4">
+								<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+									<form.Field name="nombre">
+										{(field) => (
+											<Field>
+												<FieldLabel htmlFor={field.name}>
+													{content.register.labels.nombre}
+												</FieldLabel>
+												<div className="relative">
+													<UserIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+													<Input
+														id={field.name}
+														type="text"
+														autoComplete="given-name"
+														value={field.state.value}
+														onBlur={field.handleBlur}
+														onChange={(event) =>
+															field.handleChange(event.target.value)
+														}
+														placeholder={content.register.placeholders.nombre}
+														className="pl-9"
+														required
+													/>
+												</div>
+											</Field>
+										)}
+									</form.Field>
+									<form.Field name="apellido">
+										{(field) => (
+											<Field>
+												<FieldLabel htmlFor={field.name}>
+													{content.register.labels.apellido}
+												</FieldLabel>
+												<div className="relative">
+													<UserIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+													<Input
+														id={field.name}
+														type="text"
+														autoComplete="family-name"
+														value={field.state.value}
+														onBlur={field.handleBlur}
+														onChange={(event) =>
+															field.handleChange(event.target.value)
+														}
+														placeholder={content.register.placeholders.apellido}
+														className="pl-9"
+														required
+													/>
+												</div>
+											</Field>
+										)}
+									</form.Field>
+								</div>
+
+								<form.Field name="email">
+									{(field) => (
+										<Field>
+											<FieldLabel htmlFor={field.name}>
+												{content.register.labels.email}
+											</FieldLabel>
+											<div className="relative">
+												<EnvelopeIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+												<Input
+													id={field.name}
+													type="email"
+													autoComplete="email"
+													value={field.state.value}
+													onBlur={field.handleBlur}
+													onChange={(event) =>
+														field.handleChange(event.target.value)
+													}
+													placeholder={content.register.placeholders.email}
+													className="pl-9"
+													required
+												/>
+											</div>
+										</Field>
+									)}
+								</form.Field>
+
+								<form.Field name="password">
+									{(field) => (
+										<Field>
+											<FieldLabel htmlFor={field.name}>
+												{content.register.labels.password}
+											</FieldLabel>
+											<div className="relative">
+												<LockClosedIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+												<Input
+													id={field.name}
+													type="password"
+													autoComplete="new-password"
+													value={field.state.value}
+													onBlur={field.handleBlur}
+													onChange={(event) =>
+														field.handleChange(event.target.value)
+													}
+													placeholder={content.register.placeholders.password}
+													className="pl-9"
+													required
+												/>
+											</div>
+											<FieldDescription>
+												{content.register.errors.requiredPassword}
+											</FieldDescription>
+										</Field>
+									)}
+								</form.Field>
+
+								<form.Field name="telefono">
+									{(field) => (
+										<Field>
+											<FieldLabel htmlFor={field.name}>
+												{content.register.labels.telefono}
+											</FieldLabel>
+											<div className="relative">
+												<PhoneIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+												<Input
+													id={field.name}
+													type="tel"
+													autoComplete="tel"
+													value={field.state.value}
+													onBlur={field.handleBlur}
+													onChange={(event) =>
+														field.handleChange(event.target.value)
+													}
+													placeholder={content.register.placeholders.telefono}
+													className="pl-9"
+												/>
+											</div>
+										</Field>
+									)}
+								</form.Field>
+							</div>
 						)}
+
 						{step === 2 && (
-							<Step2
-								form={form}
-								hospitals={hospitals}
-								loadingHospitals={loadingHospitals}
-								onChange={(k, v) => set(k as keyof RegisterPayload, v as never)}
-								onNestedChange={setNested}
-							/>
-						)}
-						{step === 3 && <Step3 form={form} onNestedChange={setNested} />}
+							<div className="space-y-5">
+								<div className="space-y-2">
+									<p className="text-sm font-medium text-foreground">
+										{content.register.labels.rol}
+									</p>
+									<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+										{content.register.roles.map((roleOption) => {
+											const selected = values.rol === roleOption.value;
+											return (
+												<button
+													key={roleOption.value}
+													type="button"
+													onClick={() =>
+														form.setFieldValue('rol', roleOption.value)
+													}
+													className={[
+														'rounded-xl border p-3 text-left transition-colors',
+														selected
+															? 'border-primary bg-primary/5'
+															: 'border-border bg-card hover:bg-muted/40',
+													].join(' ')}
+												>
+													<div className="flex items-center gap-2">
+														<span className="text-sm font-medium text-foreground">
+															{roleOption.label}
+														</span>
+														{selected && (
+															<Badge variant="secondary">Activo</Badge>
+														)}
+													</div>
+													<p className="mt-1 text-xs text-muted-foreground">
+														{roleOption.description}
+													</p>
+												</button>
+											);
+										})}
+									</div>
+								</div>
 
-						<div className="mt-6 flex items-center gap-3">
-							{step > 1 && (
-								<button
-									type="button"
-									onClick={() => {
-										setError('');
-										setStep((s) => (s - 1) as 1 | 2 | 3);
-									}}
-									className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-								>
-									<ChevronLeftIcon className="h-4 w-4" />
-									Atrás
-								</button>
-							)}
-
-							{step < 3 ? (
-								<button
-									type="button"
-									onClick={goNext}
-									className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-								>
-									Continuar
-									<ChevronRightIcon className="h-4 w-4" />
-								</button>
-							) : (
-								<button
-									type="button"
-									onClick={handleSubmit}
-									disabled={submitting}
-									className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
-								>
-									{submitting ? 'Creando cuenta...' : 'Crear cuenta'}
-								</button>
-							)}
-						</div>
-
-						<p className="mt-5 text-center text-sm text-gray-500">
-							¿Ya tienes cuenta?{' '}
-							<Link
-								to={localePath('/login', locale)}
-								className="font-medium text-blue-600 hover:underline"
-							>
-								Iniciar sesión
-							</Link>
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-	);
-}
-
-function FieldWrapper({
-	label,
-	children,
-}: {
-	label: string;
-	children: React.ReactNode;
-}) {
-	return (
-		<div>
-			<p className="mb-1 block text-sm font-medium text-gray-700">{label}</p>
-			{children}
-		</div>
-	);
-}
-
-const inputClass =
-	'w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 transition';
-
-const selectClass =
-	'w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 transition';
-
-function Step1({
-	form,
-	onChange,
-}: {
-	form: RegisterPayload;
-	onChange: (k: string, v: unknown) => void;
-}) {
-	return (
-		<div className="space-y-4">
-			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<FieldWrapper label="Nombre *">
-					<div className="relative">
-						<UserIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-						<input
-							type="text"
-							autoComplete="given-name"
-							required
-							value={form.nombre}
-							onChange={(e) => onChange('nombre', e.target.value)}
-							placeholder="Juan"
-							className={`${inputClass} pl-9`}
-						/>
-					</div>
-				</FieldWrapper>
-				<FieldWrapper label="Apellido *">
-					<div className="relative">
-						<UserIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-						<input
-							type="text"
-							autoComplete="family-name"
-							required
-							value={form.apellido}
-							onChange={(e) => onChange('apellido', e.target.value)}
-							placeholder="García"
-							className={`${inputClass} pl-9`}
-						/>
-					</div>
-				</FieldWrapper>
-			</div>
-
-			<FieldWrapper label="Correo electrónico *">
-				<div className="relative">
-					<EnvelopeIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-					<input
-						type="email"
-						autoComplete="email"
-						required
-						value={form.email}
-						onChange={(e) => onChange('email', e.target.value)}
-						placeholder="correo@hospital.com"
-						className={`${inputClass} pl-9`}
-					/>
-				</div>
-			</FieldWrapper>
-
-			<FieldWrapper label="Contraseña * (mín. 6 caracteres)">
-				<div className="relative">
-					<LockClosedIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-					<input
-						type="password"
-						autoComplete="new-password"
-						required
-						value={form.password}
-						onChange={(e) => onChange('password', e.target.value)}
-						placeholder="••••••••"
-						className={`${inputClass} pl-9`}
-					/>
-				</div>
-			</FieldWrapper>
-
-			<FieldWrapper label="Teléfono (opcional)">
-				<div className="relative">
-					<PhoneIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-					<input
-						type="tel"
-						autoComplete="tel"
-						value={form.telefono ?? ''}
-						onChange={(e) => onChange('telefono', e.target.value)}
-						placeholder="+57 300 123 4567"
-						className={`${inputClass} pl-9`}
-					/>
-				</div>
-			</FieldWrapper>
-		</div>
-	);
-}
-
-function Step2({
-	form,
-	hospitals,
-	loadingHospitals,
-	onChange,
-	onNestedChange,
-}: {
-	form: RegisterPayload;
-	hospitals: Hospital[];
-	loadingHospitals: boolean;
-	onChange: (k: string, v: unknown) => void;
-	onNestedChange: (
-		section: 'medicoData' | 'pacienteData' | 'enfermeroData',
-		key: string,
-		value: unknown,
-	) => void;
-}) {
-	return (
-		<div className="space-y-5">
-			<FieldWrapper label="Rol en el sistema *">
-				<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-					{ROLES.map((r) => (
-						<button
-							key={r.value}
-							type="button"
-							onClick={() => onChange('rol', r.value)}
-							className={`rounded-xl border-2 p-3 text-left transition-colors ${
-								form.rol === r.value
-									? 'border-blue-500 bg-blue-50'
-									: 'border-gray-200 hover:border-gray-300'
-							}`}
-						>
-							<p
-								className={`text-sm font-semibold ${form.rol === r.value ? 'text-blue-700' : 'text-gray-800'}`}
-							>
-								{r.label}
-							</p>
-							<p className="mt-0.5 text-xs text-gray-400">{r.description}</p>
-						</button>
-					))}
-				</div>
-			</FieldWrapper>
-
-			{form.rol !== 'ADMIN' && (
-				<FieldWrapper label="Hospital *">
-					{loadingHospitals ? (
-						<div className="space-y-2">
-							{[1, 2, 3].map((i) => (
-								<div
-									key={i}
-									className="h-14 animate-pulse rounded-xl bg-gray-100"
-								/>
-							))}
-						</div>
-					) : (
-						<div className="max-h-52 space-y-2 overflow-y-auto pr-1">
-							{hospitals.map((h) => (
-								<button
-									key={h.id}
-									type="button"
-									onClick={() => onChange('hospitalId', h.id)}
-									className={`flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left transition-colors ${
-										form.hospitalId === h.id
-											? 'border-blue-500 bg-blue-50'
-											: 'border-gray-200 hover:border-gray-300'
-									}`}
-								>
-									<BuildingOffice2Icon
-										className={`h-5 w-5 shrink-0 ${form.hospitalId === h.id ? 'text-blue-600' : 'text-gray-400'}`}
-									/>
-									<div className="min-w-0">
-										<p
-											className={`truncate text-sm font-medium ${form.hospitalId === h.id ? 'text-blue-700' : 'text-gray-800'}`}
-										>
-											{h.nombre}
+								{needsHospital && (
+									<div className="space-y-2">
+										<p className="text-sm font-medium text-foreground">
+											{content.register.labels.hospital}
 										</p>
-										<p className="text-xs text-gray-400">
-											{h.ciudad}, {h.departamento}
+										{loadingHospitals ? (
+											<div className="space-y-2">
+												{[1, 2, 3].map((item) => (
+													<Skeleton key={item} className="h-14 rounded-xl" />
+												))}
+											</div>
+										) : (
+											<div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+												{hospitals.map((hospital) => {
+													const selected = values.hospitalId === hospital.id;
+													return (
+														<button
+															key={hospital.id}
+															type="button"
+															onClick={() =>
+																form.setFieldValue('hospitalId', hospital.id)
+															}
+															className={[
+																'flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors',
+																selected
+																	? 'border-primary bg-primary/5'
+																	: 'border-border bg-card hover:bg-muted/40',
+															].join(' ')}
+														>
+															<BuildingOffice2Icon className="h-5 w-5 shrink-0 text-primary" />
+															<div className="min-w-0 flex-1">
+																<p className="truncate text-sm font-medium text-foreground">
+																	{hospital.nombre}
+																</p>
+																<p className="text-xs text-muted-foreground">
+																	{hospital.ciudad}, {hospital.departamento}
+																</p>
+															</div>
+															{selected && (
+																<CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
+															)}
+														</button>
+													);
+												})}
+												{hospitals.length === 0 && (
+													<p className="py-4 text-center text-sm text-muted-foreground">
+														{content.register.emptyHospitals}
+													</p>
+												)}
+											</div>
+										)}
+									</div>
+								)}
+
+								{values.rol === 'MEDICO' && (
+									<div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+										<p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+											<UserIcon className="h-4 w-4" />
+											{content.register.sections.doctor}
+										</p>
+										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+											<form.Field name="medicoEspecialidadId">
+												{(field) => (
+													<Field>
+														<FieldLabel htmlFor={field.name}>
+															{content.register.labels.especialidadId}
+														</FieldLabel>
+														<Input
+															id={field.name}
+															type="number"
+															min={1}
+															value={field.state.value ?? ''}
+															onChange={(event) => {
+																const value = Number(event.target.value);
+																field.handleChange(
+																	Number.isNaN(value) ? null : value,
+																);
+															}}
+															placeholder={
+																content.register.placeholders.especialidadId
+															}
+														/>
+													</Field>
+												)}
+											</form.Field>
+											<form.Field name="medicoNumeroRegistro">
+												{(field) => (
+													<Field>
+														<FieldLabel htmlFor={field.name}>
+															{content.register.labels.numeroRegistroMedico}
+														</FieldLabel>
+														<Input
+															id={field.name}
+															type="text"
+															value={field.state.value}
+															onChange={(event) =>
+																field.handleChange(event.target.value)
+															}
+															placeholder={
+																content.register.placeholders
+																	.numeroRegistroMedico
+															}
+														/>
+													</Field>
+												)}
+											</form.Field>
+										</div>
+										<form.Field name="medicoConsultorio">
+											{(field) => (
+												<Field>
+													<FieldLabel htmlFor={field.name}>
+														{content.register.labels.consultorio}
+													</FieldLabel>
+													<Input
+														id={field.name}
+														type="text"
+														value={field.state.value}
+														onChange={(event) =>
+															field.handleChange(event.target.value)
+														}
+														placeholder={
+															content.register.placeholders.consultorio
+														}
+													/>
+												</Field>
+											)}
+										</form.Field>
+									</div>
+								)}
+
+								{values.rol === 'ENFERMERO' && (
+									<div className="space-y-3 rounded-xl border border-secondary bg-secondary/40 p-4">
+										<p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+											<BeakerIcon className="h-4 w-4" />
+											{content.register.sections.nurse}
+										</p>
+										<form.Field name="enfermeroNumeroRegistro">
+											{(field) => (
+												<Field>
+													<FieldLabel htmlFor={field.name}>
+														{content.register.labels.numeroRegistroEnfermero}
+													</FieldLabel>
+													<Input
+														id={field.name}
+														type="text"
+														value={field.state.value}
+														onChange={(event) =>
+															field.handleChange(event.target.value)
+														}
+														placeholder={
+															content.register.placeholders
+																.numeroRegistroEnfermero
+														}
+													/>
+												</Field>
+											)}
+										</form.Field>
+										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+											<form.Field name="enfermeroNivelFormacion">
+												{(field) => (
+													<Field>
+														<FieldLabel>
+															{content.register.labels.nivelFormacion}
+														</FieldLabel>
+														<Select
+															value={String(field.state.value)}
+															onValueChange={(value) =>
+																field.handleChange(
+																	Number(value ?? field.state.value),
+																)
+															}
+														>
+															<SelectTrigger className="w-full">
+																<SelectValue />
+															</SelectTrigger>
+															<SelectContent>
+																{content.register.trainingLevels.map(
+																	(level) => (
+																		<SelectItem
+																			key={level.id}
+																			value={String(level.id)}
+																		>
+																			{level.label}
+																		</SelectItem>
+																	),
+																)}
+															</SelectContent>
+														</Select>
+													</Field>
+												)}
+											</form.Field>
+											<form.Field name="enfermeroAreaEspecializacion">
+												{(field) => (
+													<Field>
+														<FieldLabel htmlFor={field.name}>
+															{content.register.labels.areaEspecializacion}
+														</FieldLabel>
+														<Input
+															id={field.name}
+															type="number"
+															min={1}
+															value={field.state.value ?? ''}
+															onChange={(event) => {
+																const value = Number(event.target.value);
+																field.handleChange(
+																	Number.isNaN(value) ? null : value,
+																);
+															}}
+															placeholder={
+																content.register.placeholders
+																	.areaEspecializacion
+															}
+														/>
+													</Field>
+												)}
+											</form.Field>
+										</div>
+										<form.Field name="enfermeroCertificacionTriage">
+											{(field) => (
+												<Field orientation="horizontal">
+													<Checkbox
+														id={field.name}
+														checked={field.state.value}
+														onCheckedChange={(checked) =>
+															field.handleChange(Boolean(checked))
+														}
+													/>
+													<FieldLabel htmlFor={field.name}>
+														{content.register.labels.certificacionTriage}
+													</FieldLabel>
+												</Field>
+											)}
+										</form.Field>
+									</div>
+								)}
+							</div>
+						)}
+
+						{step === 3 && (
+							<div className="space-y-4">
+								<FieldDescription>
+									{content.register.sections.optionalInfo}
+								</FieldDescription>
+
+								{values.rol === 'PACIENTE' ? (
+									<>
+										<div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+											<IdentificationIcon className="h-4 w-4 text-primary" />
+											{content.register.sections.patient}
+										</div>
+										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+											<form.Field name="pacienteTipoDocumento">
+												{(field) => (
+													<Field>
+														<FieldLabel>
+															{content.register.labels.tipoDocumento}
+														</FieldLabel>
+														<Select
+															value={field.state.value}
+															onValueChange={(value) =>
+																field.handleChange(value ?? '')
+															}
+														>
+															<SelectTrigger className="w-full">
+																<SelectValue />
+															</SelectTrigger>
+															<SelectContent>
+																{content.register.documentTypes.map(
+																	(documentType) => (
+																		<SelectItem
+																			key={documentType}
+																			value={documentType}
+																		>
+																			{documentType}
+																		</SelectItem>
+																	),
+																)}
+															</SelectContent>
+														</Select>
+													</Field>
+												)}
+											</form.Field>
+											<form.Field name="pacienteNumeroDocumento">
+												{(field) => (
+													<Field>
+														<FieldLabel htmlFor={field.name}>
+															{content.register.labels.numeroDocumento}
+														</FieldLabel>
+														<Input
+															id={field.name}
+															type="text"
+															value={field.state.value}
+															onChange={(event) =>
+																field.handleChange(event.target.value)
+															}
+															placeholder={
+																content.register.placeholders.numeroDocumento
+															}
+														/>
+													</Field>
+												)}
+											</form.Field>
+										</div>
+										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+											<form.Field name="pacienteTipoSangre">
+												{(field) => (
+													<Field>
+														<FieldLabel>
+															{content.register.labels.tipoSangre}
+														</FieldLabel>
+														<Select
+															value={field.state.value || '__none__'}
+															onValueChange={(value) =>
+																field.handleChange(
+																	!value || value === '__none__' ? '' : value,
+																)
+															}
+														>
+															<SelectTrigger className="w-full">
+																<SelectValue
+																	placeholder={
+																		content.register.placeholders
+																			.tipoSangreDefault
+																	}
+																/>
+															</SelectTrigger>
+															<SelectContent>
+																<SelectItem value="__none__">
+																	{
+																		content.register.placeholders
+																			.tipoSangreDefault
+																	}
+																</SelectItem>
+																{content.register.bloodTypes.map(
+																	(bloodType) => (
+																		<SelectItem
+																			key={bloodType}
+																			value={bloodType}
+																		>
+																			{bloodType}
+																		</SelectItem>
+																	),
+																)}
+															</SelectContent>
+														</Select>
+													</Field>
+												)}
+											</form.Field>
+											<form.Field name="pacienteEps">
+												{(field) => (
+													<Field>
+														<FieldLabel htmlFor={field.name}>
+															{content.register.labels.eps}
+														</FieldLabel>
+														<Input
+															id={field.name}
+															type="text"
+															value={field.state.value}
+															onChange={(event) =>
+																field.handleChange(event.target.value)
+															}
+															placeholder={content.register.placeholders.eps}
+														/>
+													</Field>
+												)}
+											</form.Field>
+										</div>
+										<form.Field name="pacienteAlergias">
+											{(field) => (
+												<Field>
+													<FieldLabel htmlFor={field.name}>
+														{content.register.labels.alergias}
+													</FieldLabel>
+													<Input
+														id={field.name}
+														type="text"
+														value={field.state.value}
+														onChange={(event) =>
+															field.handleChange(event.target.value)
+														}
+														placeholder={content.register.placeholders.alergias}
+													/>
+												</Field>
+											)}
+										</form.Field>
+									</>
+								) : (
+									<div className="rounded-xl border bg-muted/40 p-6 text-center">
+										<CheckCircleIcon className="mx-auto mb-2 h-9 w-9 text-primary" />
+										<p className="text-sm font-medium text-foreground">
+											{content.register.sections.readyTitle}
+										</p>
+										<p className="mt-1 text-xs text-muted-foreground">
+											{content.register.sections.readyHint}
 										</p>
 									</div>
-									{form.hospitalId === h.id && (
-										<CheckCircleIcon className="ml-auto h-4 w-4 shrink-0 text-blue-500" />
+								)}
+							</div>
+						)}
+
+						<form.Field name="submitError">
+							{(field) =>
+								field.state.value ? (
+									<Alert variant="destructive">
+										<AlertDescription>{field.state.value}</AlertDescription>
+									</Alert>
+								) : null
+							}
+						</form.Field>
+
+						<form.Subscribe selector={(state) => state.isSubmitting}>
+							{(isSubmitting) => (
+								<div className="flex items-center gap-3 pt-1">
+									{step > 1 && (
+										<Button
+											type="button"
+											variant="outline"
+											onClick={handleBack}
+										>
+											<ChevronLeftIcon className="h-4 w-4" />
+											{content.register.navigation.back}
+										</Button>
 									)}
-								</button>
-							))}
-							{hospitals.length === 0 && (
-								<p className="py-4 text-center text-sm text-gray-400">
-									Sin hospitales disponibles
-								</p>
+									<Button
+										type="submit"
+										className="flex-1"
+										disabled={isSubmitting}
+									>
+										{step < 3
+											? content.register.navigation.next
+											: isSubmitting
+												? content.register.navigation.submitLoading
+												: content.register.navigation.submit}
+										{step < 3 && <ChevronRightIcon className="h-4 w-4" />}
+									</Button>
+								</div>
 							)}
-						</div>
-					)}
-				</FieldWrapper>
-			)}
+						</form.Subscribe>
+					</form>
 
-			{form.rol === 'MEDICO' && (
-				<div className="rounded-xl border border-blue-100 bg-blue-50 p-4 space-y-3">
-					<p className="flex items-center gap-2 text-sm font-semibold text-blue-800">
-						<UserIcon className="h-4 w-4" />
-						Datos del médico
-					</p>
-					<FieldWrapper label="ID de especialidad *">
-						<input
-							type="number"
-							min={1}
-							value={form.medicoData?.especialidadId || ''}
-							onChange={(e) =>
-								onNestedChange(
-									'medicoData',
-									'especialidadId',
-									Number(e.target.value),
-								)
-							}
-							placeholder="Ej: 1"
-							className={inputClass}
-						/>
-					</FieldWrapper>
-					<FieldWrapper label="Número de registro médico *">
-						<input
-							type="text"
-							value={form.medicoData?.numeroRegistro ?? ''}
-							onChange={(e) =>
-								onNestedChange('medicoData', 'numeroRegistro', e.target.value)
-							}
-							placeholder="Ej: RM-2024-001"
-							className={inputClass}
-						/>
-					</FieldWrapper>
-					<FieldWrapper label="Consultorio (opcional)">
-						<input
-							type="text"
-							value={form.medicoData?.consultorio ?? ''}
-							onChange={(e) =>
-								onNestedChange('medicoData', 'consultorio', e.target.value)
-							}
-							placeholder="Ej: 301"
-							className={inputClass}
-						/>
-					</FieldWrapper>
-				</div>
-			)}
-
-			{form.rol === 'ENFERMERO' && (
-				<div className="rounded-xl border border-violet-100 bg-violet-50 p-4 space-y-3">
-					<p className="flex items-center gap-2 text-sm font-semibold text-violet-800">
-						<BeakerIcon className="h-4 w-4" />
-						Datos del enfermero
-					</p>
-					<FieldWrapper label="Número de registro *">
-						<input
-							type="text"
-							value={form.enfermeroData?.numeroRegistro ?? ''}
-							onChange={(e) =>
-								onNestedChange(
-									'enfermeroData',
-									'numeroRegistro',
-									e.target.value,
-								)
-							}
-							placeholder="Ej: ENF-2024-001"
-							className={inputClass}
-						/>
-					</FieldWrapper>
-					<FieldWrapper label="Nivel de formación *">
-						<select
-							value={form.enfermeroData?.nivelFormacion ?? 1}
-							onChange={(e) =>
-								onNestedChange(
-									'enfermeroData',
-									'nivelFormacion',
-									Number(e.target.value),
-								)
-							}
-							className={selectClass}
+					<FieldDescription className="text-center">
+						{content.register.footer.alreadyAccount}{' '}
+						<Link
+							to={localePath('/login', locale)}
+							className="text-primary underline-offset-4 hover:underline"
 						>
-							{NIVEL_FORMACION.map((n) => (
-								<option key={n.id} value={n.id}>
-									{n.label}
-								</option>
-							))}
-						</select>
-					</FieldWrapper>
-					<FieldWrapper label="ID de área de especialización *">
-						<input
-							type="number"
-							min={1}
-							value={form.enfermeroData?.areaEspecializacion || ''}
-							onChange={(e) =>
-								onNestedChange(
-									'enfermeroData',
-									'areaEspecializacion',
-									Number(e.target.value),
-								)
-							}
-							placeholder="Ej: 1"
-							className={inputClass}
-						/>
-					</FieldWrapper>
-					<div className="flex items-center gap-2">
-						<input
-							id="triage"
-							type="checkbox"
-							checked={form.enfermeroData?.certificacionTriage ?? false}
-							onChange={(e) =>
-								onNestedChange(
-									'enfermeroData',
-									'certificacionTriage',
-									e.target.checked,
-								)
-							}
-							className="h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
-						/>
-						<label htmlFor="triage" className="text-sm text-gray-700">
-							Certificación de triage
-						</label>
-					</div>
-				</div>
-			)}
-		</div>
-	);
-}
-
-function Step3({
-	form,
-	onNestedChange,
-}: {
-	form: RegisterPayload;
-	onNestedChange: (
-		section: 'medicoData' | 'pacienteData' | 'enfermeroData',
-		key: string,
-		value: unknown,
-	) => void;
-}) {
-	return (
-		<div className="space-y-4">
-			<p className="text-sm text-gray-500">
-				Esta información es opcional y puede completarse más adelante.
-			</p>
-
-			{form.rol === 'PACIENTE' && (
-				<>
-					<div className="mb-2 flex items-center gap-2">
-						<IdentificationIcon className="h-4 w-4 text-blue-500" />
-						<span className="text-sm font-semibold text-gray-700">
-							Datos del paciente
-						</span>
-					</div>
-
-					<div className="grid grid-cols-2 gap-3">
-						<FieldWrapper label="Tipo de documento">
-							<select
-								value={form.pacienteData?.tipoDocumento ?? 'CC'}
-								onChange={(e) =>
-									onNestedChange(
-										'pacienteData',
-										'tipoDocumento',
-										e.target.value,
-									)
-								}
-								className={selectClass}
-							>
-								{TIPO_DOCUMENTO.map((t) => (
-									<option key={t}>{t}</option>
-								))}
-							</select>
-						</FieldWrapper>
-						<FieldWrapper label="Número de documento">
-							<input
-								type="text"
-								value={form.pacienteData?.numeroDocumento ?? ''}
-								onChange={(e) =>
-									onNestedChange(
-										'pacienteData',
-										'numeroDocumento',
-										e.target.value,
-									)
-								}
-								placeholder="1234567890"
-								className={inputClass}
-							/>
-						</FieldWrapper>
-					</div>
-
-					<div className="grid grid-cols-2 gap-3">
-						<FieldWrapper label="Tipo de sangre">
-							<select
-								value={form.pacienteData?.tipoSangre ?? ''}
-								onChange={(e) =>
-									onNestedChange('pacienteData', 'tipoSangre', e.target.value)
-								}
-								className={selectClass}
-							>
-								<option value="">Seleccionar</option>
-								{TIPO_SANGRE.map((t) => (
-									<option key={t}>{t}</option>
-								))}
-							</select>
-						</FieldWrapper>
-						<FieldWrapper label="EPS">
-							<input
-								type="text"
-								value={form.pacienteData?.eps ?? ''}
-								onChange={(e) =>
-									onNestedChange('pacienteData', 'eps', e.target.value)
-								}
-								placeholder="Sura, Compensar..."
-								className={inputClass}
-							/>
-						</FieldWrapper>
-					</div>
-
-					<FieldWrapper label="Alergias conocidas">
-						<input
-							type="text"
-							value={form.pacienteData?.alergias ?? ''}
-							onChange={(e) =>
-								onNestedChange('pacienteData', 'alergias', e.target.value)
-							}
-							placeholder="Penicilina, látex..."
-							className={inputClass}
-						/>
-					</FieldWrapper>
-				</>
-			)}
-
-			{form.rol !== 'PACIENTE' && (
-				<div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-center">
-					<CheckCircleIcon className="mx-auto h-10 w-10 text-emerald-400 mb-2" />
-					<p className="text-sm font-medium text-gray-700">
-						Listo para crear tu cuenta
-					</p>
-					<p className="mt-1 text-xs text-gray-400">
-						Revisa los datos anteriores y confirma el registro.
-					</p>
-				</div>
-			)}
+							{content.register.footer.loginAction}
+						</Link>
+					</FieldDescription>
+				</CardContent>
+			</Card>
 		</div>
 	);
 }

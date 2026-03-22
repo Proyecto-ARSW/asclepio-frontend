@@ -11,6 +11,7 @@ import {
 	ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth.store';
+import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { apiGet } from '@/lib/api';
 import { gqlQuery } from '@/lib/graphql-client';
 import { SidebarNav, type NavSection } from '@/components/medical/sidebar-nav';
@@ -42,13 +43,14 @@ const PATIENTS_QUERY = `
 
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
+	const locale = currentLocale(window.location.pathname);
 	const raw = localStorage.getItem('asclepio-auth');
-	if (!raw) return redirect('/login');
+	if (!raw) return redirect(localePath('/login', locale));
 	try {
 		const parsed = JSON.parse(raw);
-		if (!parsed.state?.accessToken) return redirect('/login');
+		if (!parsed.state?.accessToken) return redirect(localePath('/login', locale));
 	} catch {
-		return redirect('/login');
+		return redirect(localePath('/login', locale));
 	}
 	return null;
 }
@@ -59,6 +61,7 @@ export function meta(_: Route.MetaArgs) {
 
 export default function DashboardPage() {
 	const navigate = useNavigate();
+	const locale = currentLocale();
 	const { user, selectedHospital, logout, accessToken } = useAuthStore();
 
 	const [activeSection, setActiveSection] = useState<NavSection>('overview');
@@ -113,7 +116,7 @@ export default function DashboardPage() {
 
 	function handleLogout() {
 		logout();
-		navigate('/login');
+		navigate(localePath('/login', locale));
 	}
 
 	const sectionMap: Record<NavSection, string> = {
@@ -150,7 +153,7 @@ export default function DashboardPage() {
 				<div className="mx-auto max-w-6xl px-4 py-6 pt-16 sm:px-6 sm:pt-6 lg:p-8">
 					{isTempSession && isAdmin && (
 						<div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-							<ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 text-amber-500 mt-0.5" />
+							<ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
 							<p className="text-sm text-amber-800">
 								Sesión temporal activa. Ve a{' '}
 								<button
@@ -167,7 +170,7 @@ export default function DashboardPage() {
 
 					{error && (
 						<div className="mb-6 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-							<ExclamationCircleIcon className="h-5 w-5 flex-shrink-0 text-red-500" />
+							<ExclamationCircleIcon className="h-5 w-5 shrink-0 text-red-500" />
 							<p className="text-sm text-red-700">{error}</p>
 						</div>
 					)}
@@ -193,7 +196,7 @@ export default function DashboardPage() {
 										REST — <code className="text-xs bg-gray-100 px-1 rounded">GET /hospitals</code>
 									</p>
 								</div>
-								<div className="flex gap-2 flex-shrink-0">
+								<div className="flex shrink-0 gap-2">
 									{isAdmin && (
 										<button
 											type="button"

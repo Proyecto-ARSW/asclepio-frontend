@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useForm } from '@tanstack/react-form';
 import { redirect, useNavigate } from 'react-router';
 import {
 	BuildingOffice2Icon,
@@ -7,6 +8,17 @@ import {
 	ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import type { Route } from './+types/select-hospital.page';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert/alert.component';
+import { Button } from '@/components/ui/button/button.component';
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from '@/components/ui/card/card.component';
+import { getAuthContent } from '@/features/auth/auth.content';
+import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { apiPost } from '@/lib/api';
 import { useAuthStore, type Hospital, type Usuario } from '@/store/auth.store';
 
@@ -18,13 +30,14 @@ interface SelectHospitalResponse {
 
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
+	const locale = currentLocale(window.location.pathname);
 	const raw = localStorage.getItem('asclepio-auth');
-	if (!raw) return redirect('/login');
+	if (!raw) return redirect(localePath('/login', locale));
 	try {
 		const parsed = JSON.parse(raw);
-		if (!parsed.state?.preToken) return redirect('/login');
+		if (!parsed.state?.preToken) return redirect(localePath('/login', locale));
 	} catch {
-		return redirect('/login');
+		return redirect(localePath('/login', locale));
 	}
 	return null;
 }
@@ -36,149 +49,168 @@ export function meta(_: Route.MetaArgs) {
 export default function SelectHospitalPage() {
 	const navigate = useNavigate();
 	const { hospitals, user, setFullAuth } = useAuthStore();
+	const locale = currentLocale();
+	const content = getAuthContent(locale);
 
 	const [hydrated, setHydrated] = useState(false);
-	const [selectedId, setSelectedId] = useState<number | null>(null);
-	const [error, setError] = useState('');
-	const [loading, setLoading] = useState(false);
 
 	useEffect(() => {
 		useAuthStore.persist.rehydrate();
 		setHydrated(true);
 	}, []);
 
-	async function handleSelect() {
-		if (!selectedId) return;
-		setError('');
-		setLoading(true);
-		try {
-			const token = useAuthStore.getState().preToken ?? undefined;
-			const data = await apiPost<SelectHospitalResponse>(
-				'/auth/select-hospital',
-				{ hospitalId: selectedId },
-				token
-			);
-			setFullAuth(data.accessToken, data.usuario, data.hospital);
-			navigate('/dashboard');
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error al seleccionar hospital');
-		} finally {
-			setLoading(false);
-		}
-	}
+	const form = useForm({
+		defaultValues: {
+			hospitalId: null as number | null,
+			submitError: '',
+		},
+		onSubmit: async ({ value }) => {
+			if (!value.hospitalId) {
+				form.setFieldValue('submitError', content.selectHospital.errors.selectionRequired);
+				return;
+			}
+
+			form.setFieldValue('submitError', '');
+			try {
+				const token = useAuthStore.getState().preToken ?? undefined;
+				const data = await apiPost<SelectHospitalResponse>(
+					'/auth/select-hospital',
+					{ hospitalId: value.hospitalId },
+					token,
+				);
+				setFullAuth(data.accessToken, data.usuario, data.hospital);
+				navigate(localePath('/dashboard', locale));
+			} catch (err) {
+				form.setFieldValue(
+					'submitError',
+					err instanceof Error ? err.message : content.selectHospital.errors.connection,
+				);
+			}
+		},
+	});
 
 	const isAdmin = user?.rol === 'ADMIN';
 	const hasNoHospitals = hospitals.length === 0;
 
 	return (
-		<div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-			<div className="w-full max-w-lg">
-				<div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-					<div className="bg-blue-600 px-6 py-5 sm:px-8">
-						<div className="flex items-center gap-3 mb-1">
-							<div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20">
-								<BuildingOffice2Icon className="h-5 w-5 text-white" />
-							</div>
-							<span className="font-bold text-white text-sm">Asclepio</span>
-						</div>
-						<h1 className="text-xl font-bold text-white mt-3">Seleccionar Hospital</h1>
-						{user && (
-							<p className="text-blue-100 text-sm mt-0.5">
-								Bienvenido, {user.nombre} {user.apellido}
-							</p>
-						)}
+		<div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-8">
+			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.14),transparent_50%)]" />
+			<Card className="relative z-10 w-full max-w-xl">
+				<CardHeader className="space-y-2">
+					<div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+						<BuildingOffice2Icon className="h-6 w-6" />
 					</div>
+					<CardTitle>{content.selectHospital.title}</CardTitle>
+					<CardDescription>
+						{content.selectHospital.subtitle}
+						{user ? ` · ${user.nombre} ${user.apellido}` : ''}
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					{!hydrated && (
+						<div className="space-y-3" aria-hidden="true">
+							{[1, 2, 3].map((i) => (
+								<div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
+							))}
+						</div>
+					)}
 
-					<div className="p-6 sm:p-8">
-						{!hydrated && (
-							<div className="space-y-3">
-								{[1, 2, 3].map((i) => (
-									<div key={i} className="h-16 animate-pulse rounded-xl bg-gray-100" />
-								))}
-							</div>
-						)}
+					{hydrated && hasNoHospitals && (
+						<div className="space-y-4">
+							<Alert>
+								<ExclamationTriangleIcon className="h-4 w-4" />
+								<AlertTitle>
+									{isAdmin
+										? content.selectHospital.emptyAdminTitle
+										: content.selectHospital.emptyUserTitle}
+								</AlertTitle>
+								<AlertDescription>
+									{isAdmin
+										? content.selectHospital.emptyAdminHint
+										: content.selectHospital.emptyUserHint}
+								</AlertDescription>
+							</Alert>
+							<Button
+								variant="outline"
+								className="w-full"
+								onClick={() => navigate(localePath('/login', locale))}
+							>
+								{content.selectHospital.backToLogin}
+							</Button>
+						</div>
+					)}
 
-						{hydrated && (
-							<>
-								{hasNoHospitals && (
-									<div className="text-center py-8">
-										<ExclamationTriangleIcon className="mx-auto h-10 w-10 text-amber-400 mb-3" />
-										<p className="text-sm font-medium text-gray-700">
-											{isAdmin ? 'Sin hospitales vinculados' : 'Sin hospitales asignados'}
-										</p>
-										<p className="text-xs text-gray-400 mt-1">
-											{isAdmin
-												? 'Regístrate para crear tu primer hospital desde el panel de control.'
-												: 'Contacta a un administrador para que te vincule a un hospital.'}
-										</p>
-										<button
-											type="button"
-											onClick={() => navigate('/login')}
-											className="mt-4 text-sm text-blue-600 hover:underline"
-										>
-											Volver al inicio de sesión
-										</button>
-									</div>
-								)}
-
-								{!hasNoHospitals && (
-									<>
-										<p className="text-sm text-gray-600 mb-4">
-											Selecciona el hospital en el que deseas trabajar en esta sesión:
-										</p>
-
-										<div className="max-h-72 space-y-2 overflow-y-auto pr-1 mb-5">
-											{hospitals.map((h) => (
+					{hydrated && !hasNoHospitals && (
+						<form
+							onSubmit={(e) => {
+								e.preventDefault();
+								void form.handleSubmit();
+							}}
+							className="space-y-4"
+						>
+							<p className="text-sm text-muted-foreground">{content.selectHospital.listHint}</p>
+							<form.Field name="hospitalId">
+								{(field) => (
+									<div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+										{hospitals.map((hospital) => {
+											const selected = field.state.value === hospital.id;
+											return (
 												<button
-													key={h.id}
+													key={hospital.id}
 													type="button"
-													onClick={() => setSelectedId(h.id)}
-													className={`flex w-full items-center gap-3 rounded-xl border-2 p-4 text-left transition-colors ${
-														selectedId === h.id
-															? 'border-blue-500 bg-blue-50'
-															: 'border-gray-200 hover:border-gray-300'
-													}`}
+													onClick={() => field.handleChange(hospital.id)}
+													className={[
+														'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors',
+														selected
+															? 'border-primary bg-primary/5'
+															: 'border-border bg-card hover:bg-muted/40',
+													].join(' ')}
 												>
-													<BuildingOffice2Icon
-														className={`h-5 w-5 flex-shrink-0 ${selectedId === h.id ? 'text-blue-600' : 'text-gray-400'}`}
-													/>
+													<BuildingOffice2Icon className="h-5 w-5 shrink-0 text-primary" />
 													<div className="min-w-0 flex-1">
-														<p className={`font-semibold text-sm ${selectedId === h.id ? 'text-blue-700' : 'text-gray-900'}`}>
-															{h.nombre}
+														<p className="truncate text-sm font-medium text-foreground">
+															{hospital.nombre}
 														</p>
-														<p className="text-xs text-gray-500 mt-0.5">
-															{h.ciudad}, {h.departamento}
+														<p className="text-xs text-muted-foreground">
+															{hospital.ciudad}, {hospital.departamento}
 														</p>
 													</div>
-													{selectedId === h.id && (
-														<CheckCircleIcon className="h-5 w-5 flex-shrink-0 text-blue-500" />
-													)}
+													{selected && <CheckCircleIcon className="h-5 w-5 shrink-0 text-primary" />}
 												</button>
-											))}
-										</div>
-
-										{error && (
-											<div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-												{error}
-											</div>
-										)}
-
-										<button
-											type="button"
-											onClick={handleSelect}
-											disabled={!selectedId || loading}
-											className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
-										>
-											{loading ? 'Ingresando...' : 'Continuar'}
-											{!loading && <ArrowRightIcon className="h-4 w-4" />}
-										</button>
-									</>
+											);
+										})}
+									</div>
 								)}
-							</>
-						)}
-					</div>
-				</div>
-			</div>
+							</form.Field>
+
+							<form.Field name="submitError">
+								{(field) =>
+									field.state.value ? (
+										<Alert variant="destructive">
+											<AlertDescription>{field.state.value}</AlertDescription>
+										</Alert>
+									) : null
+								}
+							</form.Field>
+
+							<form.Subscribe
+								selector={(state) => [state.values.hospitalId, state.isSubmitting]}
+							>
+								{([selectedHospitalId, isSubmitting]) => (
+									<Button
+										type="submit"
+										className="w-full"
+										disabled={Boolean(!selectedHospitalId || isSubmitting)}
+									>
+										{isSubmitting ? content.selectHospital.submitLoading : content.selectHospital.submit}
+										{!isSubmitting && <ArrowRightIcon className="h-4 w-4" />}
+									</Button>
+								)}
+							</form.Subscribe>
+						</form>
+					)}
+				</CardContent>
+			</Card>
 		</div>
 	);
 }

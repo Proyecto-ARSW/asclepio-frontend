@@ -557,30 +557,30 @@ function OverviewSection({
 
 			<div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
 				<StatCard
-					title="Hospitales"
+					title={content.overview.stats.hospitals.title}
 					value={hospitalsCount || '—'}
-					subtitle="en el sistema"
+					subtitle={content.overview.stats.hospitals.subtitle}
 					icon={BuildingOffice2Icon}
 					color="blue"
 				/>
 				<StatCard
-					title="Pacientes"
+					title={content.overview.stats.patients.title}
 					value={patientsCount || '—'}
-					subtitle="registrados"
+					subtitle={content.overview.stats.patients.subtitle}
 					icon={UserGroupIcon}
 					color="green"
 				/>
 				<StatCard
-					title="Citas"
+					title={content.overview.stats.appointments.title}
 					value="—"
-					subtitle="disponible vía GraphQL"
+					subtitle={content.overview.stats.appointments.subtitle}
 					icon={CalendarDaysIcon}
 					color="violet"
 				/>
 				<StatCard
-					title="Turnos"
+					title={content.overview.stats.queue.title}
 					value="—"
-					subtitle="disponible vía GraphQL"
+					subtitle={content.overview.stats.queue.subtitle}
 					icon={QueueListIcon}
 					color="amber"
 				/>

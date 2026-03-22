@@ -33,6 +33,18 @@ interface SelectHospitalResponse {
 	hospital: Hospital;
 }
 
+function readPreTokenFromStorage(): string | null {
+	if (typeof window === 'undefined') return null;
+	const raw = localStorage.getItem('asclepio-auth');
+	if (!raw) return null;
+	try {
+		const parsed = JSON.parse(raw);
+		return parsed.state?.preToken ?? null;
+	} catch {
+		return null;
+	}
+}
+
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
 	const locale = currentLocale(window.location.pathname);
@@ -61,7 +73,13 @@ export default function SelectHospitalPage() {
 	const [hydrated, setHydrated] = useState(false);
 
 	useEffect(() => {
-		useAuthStore.persist.rehydrate();
+		const rehydrateResult = useAuthStore.persist.rehydrate();
+		if (rehydrateResult instanceof Promise) {
+			void rehydrateResult.finally(() => {
+				setHydrated(true);
+			});
+			return;
+		}
 		setHydrated(true);
 	}, []);
 
@@ -71,6 +89,10 @@ export default function SelectHospitalPage() {
 			submitError: '',
 		},
 		onSubmit: async ({ value }) => {
+				if (!hydrated) {
+					return;
+				}
+
 			if (!value.hospitalId) {
 				form.setFieldValue(
 					'submitError',
@@ -81,14 +103,22 @@ export default function SelectHospitalPage() {
 
 			form.setFieldValue('submitError', '');
 			try {
-				const token = useAuthStore.getState().preToken ?? undefined;
+					const token =
+						useAuthStore.getState().preToken ?? readPreTokenFromStorage() ?? undefined;
+					if (!token) {
+						form.setFieldValue(
+							'submitError',
+							content.selectHospital.errors.connection,
+						);
+						return;
+					}
 				const data = await apiPost<SelectHospitalResponse>(
 					'/auth/select-hospital',
 					{ hospitalId: value.hospitalId },
 					token,
 				);
 				setFullAuth(data.accessToken, data.usuario, data.hospital);
-				navigate(localePath('/dashboard', locale));
+					navigate(localePath('/dashboard', locale), { replace: true });
 			} catch (err) {
 				form.setFieldValue(
 					'submitError',
@@ -221,7 +251,7 @@ export default function SelectHospitalPage() {
 									<Button
 										type="submit"
 										className="w-full"
-										disabled={Boolean(!selectedHospitalId || isSubmitting)}
+										disabled={Boolean(!hydrated || !selectedHospitalId || isSubmitting)}
 									>
 										{isSubmitting
 											? content.selectHospital.submitLoading

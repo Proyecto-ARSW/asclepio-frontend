@@ -9,8 +9,8 @@ import {
 } from 'react-router';
 import type { Route } from './+types/root';
 import '@/app.css';
-import { useEffect } from 'react';
 import { Analytics } from '@vercel/analytics/react';
+import { useEffect } from 'react';
 import { Toaster } from '@/components/ui/sonner/sonner.component';
 import { paraglideMiddleware } from '@/features/i18n/paraglide/server';
 import { readAndApplyUiPreferences } from '@/features/preferences/ui-preferences';

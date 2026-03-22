@@ -173,6 +173,8 @@ export default function RegisterPage() {
 	const [step, setStep] = useState<1 | 2 | 3>(1);
 	const [hospitals, setHospitals] = useState<Hospital[]>([]);
 	const [loadingHospitals, setLoadingHospitals] = useState(false);
+	const [hasAttemptedHospitalsLoad, setHasAttemptedHospitalsLoad] =
+		useState(false);
 
 	const form = useForm({
 		defaultValues: {
@@ -274,19 +276,27 @@ export default function RegisterPage() {
 		},
 	});
 
-	const values = form.state.values;
+	const values = form.state.values as RegisterFormValues;
 	const needsHospital = values.rol !== 'ADMIN';
+
+	useEffect(() => {
+		if (step !== 2) {
+			setHasAttemptedHospitalsLoad(false);
+		}
+	}, [step]);
 
 	useEffect(() => {
 		if (
 			step !== 2 ||
 			!needsHospital ||
 			hospitals.length > 0 ||
-			loadingHospitals
+			loadingHospitals ||
+			hasAttemptedHospitalsLoad
 		) {
 			return;
 		}
 
+		setHasAttemptedHospitalsLoad(true);
 		setLoadingHospitals(true);
 		void apiGet<Hospital[]>('/hospitals')
 			.then((result) => setHospitals(result))
@@ -300,6 +310,7 @@ export default function RegisterPage() {
 	}, [
 		content.register.errors.loadHospitals,
 		form,
+		hasAttemptedHospitalsLoad,
 		hospitals.length,
 		loadingHospitals,
 		needsHospital,
@@ -351,8 +362,9 @@ export default function RegisterPage() {
 
 	function handleNext() {
 		form.setFieldValue('submitError', '');
+		const nextValues = form.state.values as RegisterFormValues;
 		const nextError =
-			step === 1 ? validateStep1(values) : validateStep2(values);
+			step === 1 ? validateStep1(nextValues) : validateStep2(nextValues);
 		if (nextError) {
 			form.setFieldValue('submitError', nextError);
 			return;
@@ -378,673 +390,679 @@ export default function RegisterPage() {
 
 			<div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-7xl items-center justify-center">
 				<Card className="w-full max-w-3xl border-border/70 bg-card/95 shadow-lg backdrop-blur">
-				<CardHeader className="space-y-3 border-b px-5 py-5 text-center sm:px-6">
-					<div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-						<HeartIcon className="h-6 w-6" />
-					</div>
-					<CardTitle>{content.register.title}</CardTitle>
-					<CardDescription>{content.register.subtitle}</CardDescription>
-					<div className="flex flex-wrap items-center justify-center gap-3 pt-1">
-						<StepIndicator
-							step={step}
-							index={1}
-							label={content.register.stepTitles[0]}
-						/>
-						<div className="h-px w-8 bg-border" />
-						<StepIndicator
-							step={step}
-							index={2}
-							label={content.register.stepTitles[1]}
-						/>
-						<div className="h-px w-8 bg-border" />
-						<StepIndicator
-							step={step}
-							index={3}
-							label={content.register.stepTitles[2]}
-						/>
-					</div>
-				</CardHeader>
-				<CardContent className="space-y-5 px-5 pt-4 pb-5 sm:px-6">
-					<form
-						onSubmit={(event) => {
-							event.preventDefault();
-							if (step < 3) {
-								handleNext();
-								return;
-							}
-							void form.handleSubmit();
-						}}
-						className="mx-auto w-full max-w-2xl space-y-5"
-					>
-						{step === 1 && (
-							<div className="space-y-4">
-								<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-									<form.Field name="nombre">
-										{(field) => (
-											<Field>
-												<FieldLabel htmlFor={field.name}>
-													{content.register.labels.nombre}
-												</FieldLabel>
-												<div className="relative">
-													<UserIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-													<Input
-														id={field.name}
-														type="text"
-														autoComplete="given-name"
-														value={field.state.value}
-														onBlur={field.handleBlur}
-														onChange={(event) =>
-															field.handleChange(event.target.value)
-														}
-														placeholder={content.register.placeholders.nombre}
-														className="pl-9"
-														required
-													/>
-												</div>
-											</Field>
-										)}
-									</form.Field>
-									<form.Field name="apellido">
-										{(field) => (
-											<Field>
-												<FieldLabel htmlFor={field.name}>
-													{content.register.labels.apellido}
-												</FieldLabel>
-												<div className="relative">
-													<UserIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-													<Input
-														id={field.name}
-														type="text"
-														autoComplete="family-name"
-														value={field.state.value}
-														onBlur={field.handleBlur}
-														onChange={(event) =>
-															field.handleChange(event.target.value)
-														}
-														placeholder={content.register.placeholders.apellido}
-														className="pl-9"
-														required
-													/>
-												</div>
-											</Field>
-										)}
-									</form.Field>
-								</div>
-
-								<form.Field name="email">
-									{(field) => (
-										<Field>
-											<FieldLabel htmlFor={field.name}>
-												{content.register.labels.email}
-											</FieldLabel>
-											<div className="relative">
-												<EnvelopeIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-												<Input
-													id={field.name}
-													type="email"
-													autoComplete="email"
-													value={field.state.value}
-													onBlur={field.handleBlur}
-													onChange={(event) =>
-														field.handleChange(event.target.value)
-													}
-													placeholder={content.register.placeholders.email}
-													className="pl-9"
-													required
-												/>
-											</div>
-										</Field>
-									)}
-								</form.Field>
-
-								<form.Field name="password">
-									{(field) => (
-										<Field>
-											<FieldLabel htmlFor={field.name}>
-												{content.register.labels.password}
-											</FieldLabel>
-											<div className="relative">
-												<LockClosedIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-												<Input
-													id={field.name}
-													type="password"
-													autoComplete="new-password"
-													value={field.state.value}
-													onBlur={field.handleBlur}
-													onChange={(event) =>
-														field.handleChange(event.target.value)
-													}
-													placeholder={content.register.placeholders.password}
-													className="pl-9"
-													required
-												/>
-											</div>
-											<FieldDescription>
-												{content.register.errors.requiredPassword}
-											</FieldDescription>
-										</Field>
-									)}
-								</form.Field>
-
-								<form.Field name="telefono">
-									{(field) => (
-										<Field>
-											<FieldLabel htmlFor={field.name}>
-												{content.register.labels.telefono}
-											</FieldLabel>
-											<div className="relative">
-												<PhoneIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-												<Input
-													id={field.name}
-													type="tel"
-													autoComplete="tel"
-													value={field.state.value}
-													onBlur={field.handleBlur}
-													onChange={(event) =>
-														field.handleChange(event.target.value)
-													}
-													placeholder={content.register.placeholders.telefono}
-													className="pl-9"
-												/>
-											</div>
-										</Field>
-									)}
-								</form.Field>
-							</div>
-						)}
-
-						{step === 2 && (
-							<div className="space-y-5">
-								<div className="space-y-2">
-									<p className="text-sm font-medium text-foreground">
-										{content.register.labels.rol}
-									</p>
-									<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-										{content.register.roles.map((roleOption) => {
-											const selected = values.rol === roleOption.value;
-											return (
-												<button
-													key={roleOption.value}
-													type="button"
-													onClick={() =>
-														form.setFieldValue('rol', roleOption.value)
-													}
-													className={[
-														'rounded-xl border p-3 text-left transition-colors',
-														selected
-															? 'border-primary bg-primary/5'
-															: 'border-border bg-card hover:bg-muted/40',
-													].join(' ')}
-												>
-													<div className="flex items-center gap-2">
-														<span className="text-sm font-medium text-foreground">
-															{roleOption.label}
-														</span>
-														{selected && (
-															<Badge variant="secondary">
-																{content.register.selectedRoleBadge}
-															</Badge>
-														)}
+					<CardHeader className="space-y-3 border-b px-5 py-5 text-center sm:px-6">
+						<div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+							<HeartIcon className="h-6 w-6" />
+						</div>
+						<CardTitle>{content.register.title}</CardTitle>
+						<CardDescription>{content.register.subtitle}</CardDescription>
+						<div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+							<StepIndicator
+								step={step}
+								index={1}
+								label={content.register.stepTitles[0]}
+							/>
+							<div className="h-px w-8 bg-border" />
+							<StepIndicator
+								step={step}
+								index={2}
+								label={content.register.stepTitles[1]}
+							/>
+							<div className="h-px w-8 bg-border" />
+							<StepIndicator
+								step={step}
+								index={3}
+								label={content.register.stepTitles[2]}
+							/>
+						</div>
+					</CardHeader>
+					<CardContent className="space-y-5 px-5 pt-4 pb-5 sm:px-6">
+						<form
+							onSubmit={(event) => {
+								event.preventDefault();
+								if (step < 3) {
+									handleNext();
+									return;
+								}
+								void form.handleSubmit();
+							}}
+							className="mx-auto w-full max-w-2xl space-y-5"
+						>
+							{step === 1 && (
+								<div className="space-y-4">
+									<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+										<form.Field name="nombre">
+											{(field) => (
+												<Field>
+													<FieldLabel htmlFor={field.name}>
+														{content.register.labels.nombre}
+													</FieldLabel>
+													<div className="relative">
+														<UserIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+														<Input
+															id={field.name}
+															type="text"
+															autoComplete="given-name"
+															value={field.state.value}
+															onBlur={field.handleBlur}
+															onChange={(event) =>
+																field.handleChange(event.target.value)
+															}
+															placeholder={content.register.placeholders.nombre}
+															className="pl-9"
+															required
+														/>
 													</div>
-													<p className="mt-1 text-xs text-muted-foreground">
-														{roleOption.description}
-													</p>
-												</button>
-											);
-										})}
-									</div>
-								</div>
-
-								{needsHospital && (
-									<div className="space-y-2">
-										<p className="text-sm font-medium text-foreground">
-											{content.register.labels.hospital}
-										</p>
-										{loadingHospitals ? (
-											<div className="space-y-2">
-												{[1, 2, 3].map((item) => (
-													<Skeleton key={item} className="h-14 rounded-xl" />
-												))}
-											</div>
-										) : (
-											<div className="max-h-60 space-y-2 overflow-y-auto pr-1">
-												{hospitals.map((hospital) => {
-													const selected = values.hospitalId === hospital.id;
-													return (
-														<button
-															key={hospital.id}
-															type="button"
-															onClick={() =>
-																form.setFieldValue('hospitalId', hospital.id)
+												</Field>
+											)}
+										</form.Field>
+										<form.Field name="apellido">
+											{(field) => (
+												<Field>
+													<FieldLabel htmlFor={field.name}>
+														{content.register.labels.apellido}
+													</FieldLabel>
+													<div className="relative">
+														<UserIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+														<Input
+															id={field.name}
+															type="text"
+															autoComplete="family-name"
+															value={field.state.value}
+															onBlur={field.handleBlur}
+															onChange={(event) =>
+																field.handleChange(event.target.value)
 															}
-															className={[
-																'flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors',
-																selected
-																	? 'border-primary bg-primary/5'
-																	: 'border-border bg-card hover:bg-muted/40',
-															].join(' ')}
-														>
-															<BuildingOffice2Icon className="h-5 w-5 shrink-0 text-primary" />
-															<div className="min-w-0 flex-1">
-																<p className="truncate text-sm font-medium text-foreground">
-																	{hospital.nombre}
-																</p>
-																<p className="text-xs text-muted-foreground">
-																	{hospital.ciudad}, {hospital.departamento}
-																</p>
-															</div>
-															{selected && (
-																<CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
-															)}
-														</button>
-													);
-												})}
-												{hospitals.length === 0 && (
-													<p className="py-4 text-center text-sm text-muted-foreground">
-														{content.register.emptyHospitals}
-													</p>
-												)}
-											</div>
+															placeholder={
+																content.register.placeholders.apellido
+															}
+															className="pl-9"
+															required
+														/>
+													</div>
+												</Field>
+											)}
+										</form.Field>
+									</div>
+
+									<form.Field name="email">
+										{(field) => (
+											<Field>
+												<FieldLabel htmlFor={field.name}>
+													{content.register.labels.email}
+												</FieldLabel>
+												<div className="relative">
+													<EnvelopeIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+													<Input
+														id={field.name}
+														type="email"
+														autoComplete="email"
+														value={field.state.value}
+														onBlur={field.handleBlur}
+														onChange={(event) =>
+															field.handleChange(event.target.value)
+														}
+														placeholder={content.register.placeholders.email}
+														className="pl-9"
+														required
+													/>
+												</div>
+											</Field>
 										)}
-									</div>
-								)}
+									</form.Field>
 
-								{values.rol === 'MEDICO' && (
-									<div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
-										<p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-											<UserIcon className="h-4 w-4" />
-											{content.register.sections.doctor}
-										</p>
-										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-											<form.Field name="medicoEspecialidadId">
-												{(field) => (
-													<Field>
-														<FieldLabel htmlFor={field.name}>
-															{content.register.labels.especialidadId}
-														</FieldLabel>
-														<Input
-															id={field.name}
-															type="number"
-															min={1}
-															value={field.state.value ?? ''}
-															onChange={(event) => {
-																const value = Number(event.target.value);
-																field.handleChange(
-																	Number.isNaN(value) ? null : value,
-																);
-															}}
-															placeholder={
-																content.register.placeholders.especialidadId
-															}
-														/>
-													</Field>
-												)}
-											</form.Field>
-											<form.Field name="medicoNumeroRegistro">
-												{(field) => (
-													<Field>
-														<FieldLabel htmlFor={field.name}>
-															{content.register.labels.numeroRegistroMedico}
-														</FieldLabel>
-														<Input
-															id={field.name}
-															type="text"
-															value={field.state.value}
-															onChange={(event) =>
-																field.handleChange(event.target.value)
-															}
-															placeholder={
-																content.register.placeholders
-																	.numeroRegistroMedico
-															}
-														/>
-													</Field>
-												)}
-											</form.Field>
-										</div>
-										<form.Field name="medicoConsultorio">
-											{(field) => (
-												<Field>
-													<FieldLabel htmlFor={field.name}>
-														{content.register.labels.consultorio}
-													</FieldLabel>
+									<form.Field name="password">
+										{(field) => (
+											<Field>
+												<FieldLabel htmlFor={field.name}>
+													{content.register.labels.password}
+												</FieldLabel>
+												<div className="relative">
+													<LockClosedIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 													<Input
 														id={field.name}
-														type="text"
+														type="password"
+														autoComplete="new-password"
 														value={field.state.value}
+														onBlur={field.handleBlur}
 														onChange={(event) =>
 															field.handleChange(event.target.value)
 														}
-														placeholder={
-															content.register.placeholders.consultorio
-														}
+														placeholder={content.register.placeholders.password}
+														className="pl-9"
+														required
 													/>
-												</Field>
-											)}
-										</form.Field>
-									</div>
-								)}
+												</div>
+												<FieldDescription>
+													{content.register.errors.requiredPassword}
+												</FieldDescription>
+											</Field>
+										)}
+									</form.Field>
 
-								{values.rol === 'ENFERMERO' && (
-									<div className="space-y-3 rounded-xl border border-secondary bg-secondary/40 p-4">
-										<p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-											<BeakerIcon className="h-4 w-4" />
-											{content.register.sections.nurse}
-										</p>
-										<form.Field name="enfermeroNumeroRegistro">
-											{(field) => (
-												<Field>
-													<FieldLabel htmlFor={field.name}>
-														{content.register.labels.numeroRegistroEnfermero}
-													</FieldLabel>
+									<form.Field name="telefono">
+										{(field) => (
+											<Field>
+												<FieldLabel htmlFor={field.name}>
+													{content.register.labels.telefono}
+												</FieldLabel>
+												<div className="relative">
+													<PhoneIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 													<Input
 														id={field.name}
-														type="text"
+														type="tel"
+														autoComplete="tel"
 														value={field.state.value}
+														onBlur={field.handleBlur}
 														onChange={(event) =>
 															field.handleChange(event.target.value)
 														}
-														placeholder={
-															content.register.placeholders
-																.numeroRegistroEnfermero
-														}
+														placeholder={content.register.placeholders.telefono}
+														className="pl-9"
 													/>
-												</Field>
-											)}
-										</form.Field>
-										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-											<form.Field name="enfermeroNivelFormacion">
-												{(field) => (
-													<Field>
-														<FieldLabel>
-															{content.register.labels.nivelFormacion}
-														</FieldLabel>
-														<Select
-															value={String(field.state.value)}
-															onValueChange={(value) =>
-																field.handleChange(
-																	Number(value ?? field.state.value),
-																)
-															}
-														>
-															<SelectTrigger className="w-full">
-																<SelectValue />
-															</SelectTrigger>
-															<SelectContent>
-																{content.register.trainingLevels.map(
-																	(level) => (
-																		<SelectItem
-																			key={level.id}
-																			value={String(level.id)}
-																		>
-																			{level.label}
-																		</SelectItem>
-																	),
-																)}
-															</SelectContent>
-														</Select>
-													</Field>
-												)}
-											</form.Field>
-											<form.Field name="enfermeroAreaEspecializacion">
-												{(field) => (
-													<Field>
-														<FieldLabel htmlFor={field.name}>
-															{content.register.labels.areaEspecializacion}
-														</FieldLabel>
-														<Input
-															id={field.name}
-															type="number"
-															min={1}
-															value={field.state.value ?? ''}
-															onChange={(event) => {
-																const value = Number(event.target.value);
-																field.handleChange(
-																	Number.isNaN(value) ? null : value,
-																);
-															}}
-															placeholder={
-																content.register.placeholders
-																	.areaEspecializacion
-															}
-														/>
-													</Field>
-												)}
-											</form.Field>
-										</div>
-										<form.Field name="enfermeroCertificacionTriage">
-											{(field) => (
-												<Field orientation="horizontal">
-													<Checkbox
-														id={field.name}
-														checked={field.state.value}
-														onCheckedChange={(checked) =>
-															field.handleChange(Boolean(checked))
-														}
-													/>
-													<FieldLabel htmlFor={field.name}>
-														{content.register.labels.certificacionTriage}
-													</FieldLabel>
-												</Field>
-											)}
-										</form.Field>
-									</div>
-								)}
-							</div>
-						)}
-
-						{step === 3 && (
-							<div className="space-y-4">
-								<FieldDescription>
-									{content.register.sections.optionalInfo}
-								</FieldDescription>
-
-								{values.rol === 'PACIENTE' ? (
-									<>
-										<div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-											<IdentificationIcon className="h-4 w-4 text-primary" />
-											{content.register.sections.patient}
-										</div>
-										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-											<form.Field name="pacienteTipoDocumento">
-												{(field) => (
-													<Field>
-														<FieldLabel>
-															{content.register.labels.tipoDocumento}
-														</FieldLabel>
-														<Select
-															value={field.state.value}
-															onValueChange={(value) =>
-																field.handleChange(value ?? '')
-															}
-														>
-															<SelectTrigger className="w-full">
-																<SelectValue />
-															</SelectTrigger>
-															<SelectContent>
-																{content.register.documentTypes.map(
-																	(documentType) => (
-																		<SelectItem
-																			key={documentType}
-																			value={documentType}
-																		>
-																			{documentType}
-																		</SelectItem>
-																	),
-																)}
-															</SelectContent>
-														</Select>
-													</Field>
-												)}
-											</form.Field>
-											<form.Field name="pacienteNumeroDocumento">
-												{(field) => (
-													<Field>
-														<FieldLabel htmlFor={field.name}>
-															{content.register.labels.numeroDocumento}
-														</FieldLabel>
-														<Input
-															id={field.name}
-															type="text"
-															value={field.state.value}
-															onChange={(event) =>
-																field.handleChange(event.target.value)
-															}
-															placeholder={
-																content.register.placeholders.numeroDocumento
-															}
-														/>
-													</Field>
-												)}
-											</form.Field>
-										</div>
-										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-											<form.Field name="pacienteTipoSangre">
-												{(field) => (
-													<Field>
-														<FieldLabel>
-															{content.register.labels.tipoSangre}
-														</FieldLabel>
-														<Select
-															value={field.state.value || '__none__'}
-															onValueChange={(value) =>
-																field.handleChange(
-																	!value || value === '__none__' ? '' : value,
-																)
-															}
-														>
-															<SelectTrigger className="w-full">
-																<SelectValue
-																	placeholder={
-																		content.register.placeholders
-																			.tipoSangreDefault
-																	}
-																/>
-															</SelectTrigger>
-															<SelectContent>
-																<SelectItem value="__none__">
-																	{
-																		content.register.placeholders
-																			.tipoSangreDefault
-																	}
-																</SelectItem>
-																{content.register.bloodTypes.map(
-																	(bloodType) => (
-																		<SelectItem
-																			key={bloodType}
-																			value={bloodType}
-																		>
-																			{bloodType}
-																		</SelectItem>
-																	),
-																)}
-															</SelectContent>
-														</Select>
-													</Field>
-												)}
-											</form.Field>
-											<form.Field name="pacienteEps">
-												{(field) => (
-													<Field>
-														<FieldLabel htmlFor={field.name}>
-															{content.register.labels.eps}
-														</FieldLabel>
-														<Input
-															id={field.name}
-															type="text"
-															value={field.state.value}
-															onChange={(event) =>
-																field.handleChange(event.target.value)
-															}
-															placeholder={content.register.placeholders.eps}
-														/>
-													</Field>
-												)}
-											</form.Field>
-										</div>
-										<form.Field name="pacienteAlergias">
-											{(field) => (
-												<Field>
-													<FieldLabel htmlFor={field.name}>
-														{content.register.labels.alergias}
-													</FieldLabel>
-													<Input
-														id={field.name}
-														type="text"
-														value={field.state.value}
-														onChange={(event) =>
-															field.handleChange(event.target.value)
-														}
-														placeholder={content.register.placeholders.alergias}
-													/>
-												</Field>
-											)}
-										</form.Field>
-									</>
-								) : (
-									<div className="rounded-xl border bg-muted/40 p-6 text-center">
-										<CheckCircleIcon className="mx-auto mb-2 h-9 w-9 text-primary" />
-										<p className="text-sm font-medium text-foreground">
-											{content.register.sections.readyTitle}
-										</p>
-										<p className="mt-1 text-xs text-muted-foreground">
-											{content.register.sections.readyHint}
-										</p>
-									</div>
-								)}
-							</div>
-						)}
-
-						<form.Field name="submitError">
-							{(field) =>
-								field.state.value ? (
-									<Alert variant="destructive">
-										<AlertDescription>{field.state.value}</AlertDescription>
-									</Alert>
-								) : null
-							}
-						</form.Field>
-
-						<form.Subscribe selector={(state) => state.isSubmitting}>
-							{(isSubmitting) => (
-								<div className="flex items-center gap-3 pt-1">
-									{step > 1 && (
-										<Button
-											type="button"
-											variant="outline"
-											onClick={handleBack}
-										>
-											<ChevronLeftIcon className="h-4 w-4" />
-											{content.register.navigation.back}
-										</Button>
-									)}
-									<Button
-										type="submit"
-										className="flex-1"
-										disabled={isSubmitting}
-									>
-										{step < 3
-											? content.register.navigation.next
-											: isSubmitting
-												? content.register.navigation.submitLoading
-												: content.register.navigation.submit}
-										{step < 3 && <ChevronRightIcon className="h-4 w-4" />}
-									</Button>
+												</div>
+											</Field>
+										)}
+									</form.Field>
 								</div>
 							)}
-						</form.Subscribe>
-					</form>
 
-					<FieldDescription className="text-center">
-						{content.register.footer.alreadyAccount}{' '}
-						<Link
-							to={localePath('/login', locale)}
-							className="text-primary underline-offset-4 hover:underline"
-						>
-							{content.register.footer.loginAction}
-						</Link>
-					</FieldDescription>
-				</CardContent>
+							{step === 2 && (
+								<div className="space-y-5">
+									<div className="space-y-2">
+										<p className="text-sm font-medium text-foreground">
+											{content.register.labels.rol}
+										</p>
+										<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+											{content.register.roles.map((roleOption) => {
+												const selected = values.rol === roleOption.value;
+												return (
+													<button
+														key={roleOption.value}
+														type="button"
+														onClick={() =>
+															form.setFieldValue('rol', roleOption.value)
+														}
+														className={[
+															'rounded-xl border p-3 text-left transition-colors',
+															selected
+																? 'border-primary bg-primary/5'
+																: 'border-border bg-card hover:bg-muted/40',
+														].join(' ')}
+													>
+														<div className="flex items-center gap-2">
+															<span className="text-sm font-medium text-foreground">
+																{roleOption.label}
+															</span>
+															{selected && (
+																<Badge variant="secondary">
+																	{content.register.selectedRoleBadge}
+																</Badge>
+															)}
+														</div>
+														<p className="mt-1 text-xs text-muted-foreground">
+															{roleOption.description}
+														</p>
+													</button>
+												);
+											})}
+										</div>
+									</div>
+
+									{needsHospital && (
+										<div className="space-y-2">
+											<p className="text-sm font-medium text-foreground">
+												{content.register.labels.hospital}
+											</p>
+											{loadingHospitals ? (
+												<div className="space-y-2">
+													{[1, 2, 3].map((item) => (
+														<Skeleton key={item} className="h-14 rounded-xl" />
+													))}
+												</div>
+											) : (
+												<form.Field name="hospitalId">
+													{(field) => (
+														<div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+															{hospitals.map((hospital) => {
+																const selected = field.state.value === hospital.id;
+																return (
+																	<button
+																		key={hospital.id}
+																		type="button"
+																		onClick={() => field.handleChange(hospital.id)}
+																		className={[
+																			'flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors',
+																			selected
+																				? 'border-primary bg-primary/5'
+																				: 'border-border bg-card hover:bg-muted/40',
+																		].join(' ')}
+																	>
+																		<BuildingOffice2Icon className="h-5 w-5 shrink-0 text-primary" />
+																		<div className="min-w-0 flex-1">
+																			<p className="truncate text-sm font-medium text-foreground">
+																				{hospital.nombre}
+																			</p>
+																			<p className="text-xs text-muted-foreground">
+																				{hospital.ciudad}, {hospital.departamento}
+																			</p>
+																		</div>
+																		{selected && (
+																			<CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
+																		)}
+																	</button>
+																);
+															})}
+															{hospitals.length === 0 && (
+																<p className="py-4 text-center text-sm text-muted-foreground">
+																	{content.register.emptyHospitals}
+																</p>
+															)}
+														</div>
+													)}
+												</form.Field>
+											)}
+										</div>
+									)}
+
+									{values.rol === 'MEDICO' && (
+										<div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+											<p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+												<UserIcon className="h-4 w-4" />
+												{content.register.sections.doctor}
+											</p>
+											<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+												<form.Field name="medicoEspecialidadId">
+													{(field) => (
+														<Field>
+															<FieldLabel htmlFor={field.name}>
+																{content.register.labels.especialidadId}
+															</FieldLabel>
+															<Input
+																id={field.name}
+																type="number"
+																min={1}
+																value={field.state.value ?? ''}
+																onChange={(event) => {
+																	const value = Number(event.target.value);
+																	field.handleChange(
+																		Number.isNaN(value) ? null : value,
+																	);
+																}}
+																placeholder={
+																	content.register.placeholders.especialidadId
+																}
+															/>
+														</Field>
+													)}
+												</form.Field>
+												<form.Field name="medicoNumeroRegistro">
+													{(field) => (
+														<Field>
+															<FieldLabel htmlFor={field.name}>
+																{content.register.labels.numeroRegistroMedico}
+															</FieldLabel>
+															<Input
+																id={field.name}
+																type="text"
+																value={field.state.value}
+																onChange={(event) =>
+																	field.handleChange(event.target.value)
+																}
+																placeholder={
+																	content.register.placeholders
+																		.numeroRegistroMedico
+																}
+															/>
+														</Field>
+													)}
+												</form.Field>
+											</div>
+											<form.Field name="medicoConsultorio">
+												{(field) => (
+													<Field>
+														<FieldLabel htmlFor={field.name}>
+															{content.register.labels.consultorio}
+														</FieldLabel>
+														<Input
+															id={field.name}
+															type="text"
+															value={field.state.value}
+															onChange={(event) =>
+																field.handleChange(event.target.value)
+															}
+															placeholder={
+																content.register.placeholders.consultorio
+															}
+														/>
+													</Field>
+												)}
+											</form.Field>
+										</div>
+									)}
+
+									{values.rol === 'ENFERMERO' && (
+										<div className="space-y-3 rounded-xl border border-secondary bg-secondary/40 p-4">
+											<p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+												<BeakerIcon className="h-4 w-4" />
+												{content.register.sections.nurse}
+											</p>
+											<form.Field name="enfermeroNumeroRegistro">
+												{(field) => (
+													<Field>
+														<FieldLabel htmlFor={field.name}>
+															{content.register.labels.numeroRegistroEnfermero}
+														</FieldLabel>
+														<Input
+															id={field.name}
+															type="text"
+															value={field.state.value}
+															onChange={(event) =>
+																field.handleChange(event.target.value)
+															}
+															placeholder={
+																content.register.placeholders
+																	.numeroRegistroEnfermero
+															}
+														/>
+													</Field>
+												)}
+											</form.Field>
+											<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+												<form.Field name="enfermeroNivelFormacion">
+													{(field) => (
+														<Field>
+															<FieldLabel>
+																{content.register.labels.nivelFormacion}
+															</FieldLabel>
+															<Select
+																value={String(field.state.value)}
+																onValueChange={(value) =>
+																	field.handleChange(
+																		Number(value ?? field.state.value),
+																	)
+																}
+															>
+																<SelectTrigger className="w-full">
+																	<SelectValue />
+																</SelectTrigger>
+																<SelectContent>
+																	{content.register.trainingLevels.map(
+																		(level) => (
+																			<SelectItem
+																				key={level.id}
+																				value={String(level.id)}
+																			>
+																				{level.label}
+																			</SelectItem>
+																		),
+																	)}
+																</SelectContent>
+															</Select>
+														</Field>
+													)}
+												</form.Field>
+												<form.Field name="enfermeroAreaEspecializacion">
+													{(field) => (
+														<Field>
+															<FieldLabel htmlFor={field.name}>
+																{content.register.labels.areaEspecializacion}
+															</FieldLabel>
+															<Input
+																id={field.name}
+																type="number"
+																min={1}
+																value={field.state.value ?? ''}
+																onChange={(event) => {
+																	const value = Number(event.target.value);
+																	field.handleChange(
+																		Number.isNaN(value) ? null : value,
+																	);
+																}}
+																placeholder={
+																	content.register.placeholders
+																		.areaEspecializacion
+																}
+															/>
+														</Field>
+													)}
+												</form.Field>
+											</div>
+											<form.Field name="enfermeroCertificacionTriage">
+												{(field) => (
+													<Field orientation="horizontal">
+														<Checkbox
+															id={field.name}
+															checked={field.state.value}
+															onCheckedChange={(checked) =>
+																field.handleChange(Boolean(checked))
+															}
+														/>
+														<FieldLabel htmlFor={field.name}>
+															{content.register.labels.certificacionTriage}
+														</FieldLabel>
+													</Field>
+												)}
+											</form.Field>
+										</div>
+									)}
+								</div>
+							)}
+
+							{step === 3 && (
+								<div className="space-y-4">
+									<FieldDescription>
+										{content.register.sections.optionalInfo}
+									</FieldDescription>
+
+									{values.rol === 'PACIENTE' ? (
+										<>
+											<div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+												<IdentificationIcon className="h-4 w-4 text-primary" />
+												{content.register.sections.patient}
+											</div>
+											<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+												<form.Field name="pacienteTipoDocumento">
+													{(field) => (
+														<Field>
+															<FieldLabel>
+																{content.register.labels.tipoDocumento}
+															</FieldLabel>
+															<Select
+																value={field.state.value}
+																onValueChange={(value) =>
+																	field.handleChange(value ?? '')
+																}
+															>
+																<SelectTrigger className="w-full">
+																	<SelectValue />
+																</SelectTrigger>
+																<SelectContent>
+																	{content.register.documentTypes.map(
+																		(documentType) => (
+																			<SelectItem
+																				key={documentType}
+																				value={documentType}
+																			>
+																				{documentType}
+																			</SelectItem>
+																		),
+																	)}
+																</SelectContent>
+															</Select>
+														</Field>
+													)}
+												</form.Field>
+												<form.Field name="pacienteNumeroDocumento">
+													{(field) => (
+														<Field>
+															<FieldLabel htmlFor={field.name}>
+																{content.register.labels.numeroDocumento}
+															</FieldLabel>
+															<Input
+																id={field.name}
+																type="text"
+																value={field.state.value}
+																onChange={(event) =>
+																	field.handleChange(event.target.value)
+																}
+																placeholder={
+																	content.register.placeholders.numeroDocumento
+																}
+															/>
+														</Field>
+													)}
+												</form.Field>
+											</div>
+											<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+												<form.Field name="pacienteTipoSangre">
+													{(field) => (
+														<Field>
+															<FieldLabel>
+																{content.register.labels.tipoSangre}
+															</FieldLabel>
+															<Select
+																value={field.state.value || '__none__'}
+																onValueChange={(value) =>
+																	field.handleChange(
+																		!value || value === '__none__' ? '' : value,
+																	)
+																}
+															>
+																<SelectTrigger className="w-full">
+																	<SelectValue
+																		placeholder={
+																			content.register.placeholders
+																				.tipoSangreDefault
+																		}
+																	/>
+																</SelectTrigger>
+																<SelectContent>
+																	<SelectItem value="__none__">
+																		{
+																			content.register.placeholders
+																				.tipoSangreDefault
+																		}
+																	</SelectItem>
+																	{content.register.bloodTypes.map(
+																		(bloodType) => (
+																			<SelectItem
+																				key={bloodType}
+																				value={bloodType}
+																			>
+																				{bloodType}
+																			</SelectItem>
+																		),
+																	)}
+																</SelectContent>
+															</Select>
+														</Field>
+													)}
+												</form.Field>
+												<form.Field name="pacienteEps">
+													{(field) => (
+														<Field>
+															<FieldLabel htmlFor={field.name}>
+																{content.register.labels.eps}
+															</FieldLabel>
+															<Input
+																id={field.name}
+																type="text"
+																value={field.state.value}
+																onChange={(event) =>
+																	field.handleChange(event.target.value)
+																}
+																placeholder={content.register.placeholders.eps}
+															/>
+														</Field>
+													)}
+												</form.Field>
+											</div>
+											<form.Field name="pacienteAlergias">
+												{(field) => (
+													<Field>
+														<FieldLabel htmlFor={field.name}>
+															{content.register.labels.alergias}
+														</FieldLabel>
+														<Input
+															id={field.name}
+															type="text"
+															value={field.state.value}
+															onChange={(event) =>
+																field.handleChange(event.target.value)
+															}
+															placeholder={
+																content.register.placeholders.alergias
+															}
+														/>
+													</Field>
+												)}
+											</form.Field>
+										</>
+									) : (
+										<div className="rounded-xl border bg-muted/40 p-6 text-center">
+											<CheckCircleIcon className="mx-auto mb-2 h-9 w-9 text-primary" />
+											<p className="text-sm font-medium text-foreground">
+												{content.register.sections.readyTitle}
+											</p>
+											<p className="mt-1 text-xs text-muted-foreground">
+												{content.register.sections.readyHint}
+											</p>
+										</div>
+									)}
+								</div>
+							)}
+
+							<form.Field name="submitError">
+								{(field) =>
+									field.state.value ? (
+										<Alert variant="destructive">
+											<AlertDescription>{field.state.value}</AlertDescription>
+										</Alert>
+									) : null
+								}
+							</form.Field>
+
+							<form.Subscribe selector={(state) => state.isSubmitting}>
+								{(isSubmitting) => (
+									<div className="flex items-center gap-3 pt-1">
+										{step > 1 && (
+											<Button
+												type="button"
+												variant="outline"
+												onClick={handleBack}
+											>
+												<ChevronLeftIcon className="h-4 w-4" />
+												{content.register.navigation.back}
+											</Button>
+										)}
+										<Button
+											type="submit"
+											className="flex-1"
+											disabled={isSubmitting}
+										>
+											{step < 3
+												? content.register.navigation.next
+												: isSubmitting
+													? content.register.navigation.submitLoading
+													: content.register.navigation.submit}
+											{step < 3 && <ChevronRightIcon className="h-4 w-4" />}
+										</Button>
+									</div>
+								)}
+							</form.Subscribe>
+						</form>
+
+						<FieldDescription className="text-center">
+							{content.register.footer.alreadyAccount}{' '}
+							<Link
+								to={localePath('/login', locale)}
+								className="text-primary underline-offset-4 hover:underline"
+							>
+								{content.register.footer.loginAction}
+							</Link>
+						</FieldDescription>
+					</CardContent>
 				</Card>
 			</div>
 		</div>

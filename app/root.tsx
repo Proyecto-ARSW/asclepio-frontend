@@ -18,7 +18,19 @@ import { AppQueryClientProvider } from '@/providers/query-client.provider';
 import { useAuthStore } from '@/store/auth.store';
 
 export const middleware: MiddlewareFunction[] = [
-	(ctx, next) => paraglideMiddleware(ctx.request, () => next()),
+	async (ctx, next) => {
+		try {
+			return await paraglideMiddleware(ctx.request, () => next());
+		} catch (error) {
+			if (
+				error instanceof Error &&
+				error.message.includes('Route not found in manifest')
+			) {
+				return next();
+			}
+			throw error;
+		}
+	},
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {

@@ -1,4 +1,13 @@
-const API_URL = import.meta.env.VITE_APP_API_URL ?? 'http://localhost:3000';
+const API_URL = (
+	import.meta.env.VITE_APP_API_URL ?? 'http://localhost:3000'
+).replace(/\/$/, '');
+
+const NETWORK_ERROR_MESSAGE =
+	'No se pudo conectar con el servidor. Verifica que el backend este ejecutandose y que la URL de API sea correcta.';
+
+function isNetworkError(error: unknown): boolean {
+	return error instanceof TypeError;
+}
 
 function getAccessToken(): string | null {
 	if (typeof window === 'undefined') return null;
@@ -28,14 +37,22 @@ export async function gqlQuery<T>(
 	variables?: Record<string, unknown>,
 ): Promise<T> {
 	const token = getAccessToken();
-	const res = await fetch(`${API_URL}/graphql`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			...(token ? { Authorization: `Bearer ${token}` } : {}),
-		},
-		body: JSON.stringify({ query, variables }),
-	});
+	let res: Response;
+	try {
+		res = await fetch(`${API_URL}/graphql`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			},
+			body: JSON.stringify({ query, variables }),
+		});
+	} catch (error) {
+		if (!isNetworkError(error)) {
+			throw error;
+		}
+		throw new Error(NETWORK_ERROR_MESSAGE);
+	}
 
 	if (!res.ok) {
 		throw new Error(`HTTP ${res.status}: ${res.statusText}`);

@@ -17,15 +17,20 @@ import { readAndApplyUiPreferences } from '@/features/preferences/ui-preferences
 import { AppQueryClientProvider } from '@/providers/query-client.provider';
 import { useAuthStore } from '@/store/auth.store';
 
+function isMissingParaglideRouteError(error: unknown): boolean {
+	if (!(error instanceof Error)) {
+		return false;
+	}
+	const message = error.message.toLowerCase();
+	return message.includes('route not found') && message.includes('manifest');
+}
+
 export const middleware: MiddlewareFunction[] = [
 	async (ctx, next) => {
 		try {
 			return await paraglideMiddleware(ctx.request, () => next());
 		} catch (error) {
-			if (
-				error instanceof Error &&
-				error.message.includes('Route not found in manifest')
-			) {
+			if (isMissingParaglideRouteError(error)) {
 				return next();
 			}
 			throw error;

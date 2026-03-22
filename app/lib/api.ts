@@ -5,6 +5,10 @@ const API_URL = (
 const NETWORK_ERROR_MESSAGE =
 	'No se pudo conectar con el servidor. Verifica que el backend este ejecutandose y que la URL de API sea correcta.';
 
+function isNetworkError(error: unknown): boolean {
+	return error instanceof TypeError;
+}
+
 function getStoredToken(): string | null {
 	if (typeof window === 'undefined') return null;
 	const raw = localStorage.getItem('asclepio-auth');
@@ -35,8 +39,9 @@ export async function apiPost<T>(
 	token?: string,
 ): Promise<T> {
 	const t = token ?? getStoredToken();
+	let res: Response;
 	try {
-		const res = await fetch(`${API_URL}${path}`, {
+		res = await fetch(`${API_URL}${path}`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -44,24 +49,31 @@ export async function apiPost<T>(
 			},
 			body: JSON.stringify(body),
 		});
-		return handleResponse<T>(res);
-	} catch {
+	} catch (error) {
+		if (!isNetworkError(error)) {
+			throw error;
+		}
 		throw new Error(NETWORK_ERROR_MESSAGE);
 	}
+	return handleResponse<T>(res);
 }
 
 export async function apiGet<T>(path: string, token?: string): Promise<T> {
 	const t = token ?? getStoredToken();
+	let res: Response;
 	try {
-		const res = await fetch(`${API_URL}${path}`, {
+		res = await fetch(`${API_URL}${path}`, {
 			headers: {
 				...(t ? { Authorization: `Bearer ${t}` } : {}),
 			},
 		});
-		return handleResponse<T>(res);
-	} catch {
+	} catch (error) {
+		if (!isNetworkError(error)) {
+			throw error;
+		}
 		throw new Error(NETWORK_ERROR_MESSAGE);
 	}
+	return handleResponse<T>(res);
 }
 
 export async function apiPatch<T>(
@@ -70,8 +82,9 @@ export async function apiPatch<T>(
 	token?: string,
 ): Promise<T> {
 	const t = token ?? getStoredToken();
+	let res: Response;
 	try {
-		const res = await fetch(`${API_URL}${path}`, {
+		res = await fetch(`${API_URL}${path}`, {
 			method: 'PATCH',
 			headers: {
 				'Content-Type': 'application/json',
@@ -79,8 +92,11 @@ export async function apiPatch<T>(
 			},
 			body: JSON.stringify(body),
 		});
-		return handleResponse<T>(res);
-	} catch {
+	} catch (error) {
+		if (!isNetworkError(error)) {
+			throw error;
+		}
 		throw new Error(NETWORK_ERROR_MESSAGE);
 	}
+	return handleResponse<T>(res);
 }

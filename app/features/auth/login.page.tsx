@@ -83,9 +83,18 @@ export default function LoginPage() {
 	});
 
 	return (
-		<div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-8">
-			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.14),transparent_50%)]" />
-			<Card className="relative z-10 w-full max-w-md">
+		<div className="relative min-h-screen overflow-hidden bg-background px-4 py-8 sm:px-6 lg:px-8">
+			<img
+				src="/images/login-background.svg"
+				alt=""
+				aria-hidden="true"
+				className="pointer-events-none absolute inset-0 h-full w-full object-cover object-left"
+			/>
+			<div className="pointer-events-none absolute inset-0 bg-background/35" />
+			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,hsl(var(--primary)/0.16),transparent_50%)]" />
+
+			<div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-7xl items-center justify-center lg:justify-end lg:pr-10 xl:pr-16">
+				<Card className="w-full max-w-md border-border/70 bg-card/95 shadow-lg backdrop-blur">
 				<CardHeader className="space-y-2">
 					<div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
 						<HeartIcon className="h-6 w-6" />
@@ -204,7 +213,8 @@ export default function LoginPage() {
 						</Link>
 					</FieldDescription>
 				</CardContent>
-			</Card>
+				</Card>
+			</div>
 		</div>
 	);
 }

@@ -89,9 +89,9 @@ export default function SelectHospitalPage() {
 			submitError: '',
 		},
 		onSubmit: async ({ value }) => {
-				if (!hydrated) {
-					return;
-				}
+			if (!hydrated) {
+				return;
+			}
 
 			if (!value.hospitalId) {
 				form.setFieldValue(
@@ -103,22 +103,24 @@ export default function SelectHospitalPage() {
 
 			form.setFieldValue('submitError', '');
 			try {
-					const token =
-						useAuthStore.getState().preToken ?? readPreTokenFromStorage() ?? undefined;
-					if (!token) {
-						form.setFieldValue(
-							'submitError',
-							content.selectHospital.errors.connection,
-						);
-						return;
-					}
+				const token =
+					useAuthStore.getState().preToken ??
+					readPreTokenFromStorage() ??
+					undefined;
+				if (!token) {
+					form.setFieldValue(
+						'submitError',
+						content.selectHospital.errors.connection,
+					);
+					return;
+				}
 				const data = await apiPost<SelectHospitalResponse>(
 					'/auth/select-hospital',
 					{ hospitalId: value.hospitalId },
 					token,
 				);
 				setFullAuth(data.accessToken, data.usuario, data.hospital);
-					navigate(localePath('/dashboard', locale), { replace: true });
+				navigate(localePath('/dashboard', locale), { replace: true });
 			} catch (err) {
 				form.setFieldValue(
 					'submitError',
@@ -251,7 +253,9 @@ export default function SelectHospitalPage() {
 									<Button
 										type="submit"
 										className="w-full"
-										disabled={Boolean(!hydrated || !selectedHospitalId || isSubmitting)}
+										disabled={Boolean(
+											!hydrated || !selectedHospitalId || isSubmitting,
+										)}
 									>
 										{isSubmitting
 											? content.selectHospital.submitLoading

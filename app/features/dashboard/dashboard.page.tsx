@@ -125,6 +125,24 @@ export default function DashboardPage() {
 
 	const isAdmin = user?.rol === 'ADMIN';
 	const isTempSession = selectedHospital?.id === 0;
+	const localizedUserRole = user?.rol
+		? ((
+				{
+					ADMIN: m.authRoleAdmin({}, { locale }),
+					MEDICO: m.authRoleDoctor({}, { locale }),
+					ENFERMERO: m.authRoleNurse({}, { locale }),
+					RECEPCIONISTA: m.authRoleReceptionist({}, { locale }),
+					PACIENTE: m.authRolePatient({}, { locale }),
+				} as const
+			)[
+				user.rol as
+					| 'ADMIN'
+					| 'MEDICO'
+					| 'ENFERMERO'
+					| 'RECEPCIONISTA'
+					| 'PACIENTE'
+			] ?? user.rol)
+		: undefined;
 
 	useEffect(() => {
 		useAuthStore.persist.rehydrate();
@@ -209,7 +227,7 @@ export default function DashboardPage() {
 				onNavigate={setActiveSection}
 				hospitalName={selectedHospital?.nombre}
 				userName={user ? `${user.nombre} ${user.apellido}` : undefined}
-				userRole={user?.rol}
+				userRole={localizedUserRole}
 				onLogout={handleLogout}
 				labels={{
 					brandName: content.sidebar.brandName,

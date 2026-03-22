@@ -1,8 +1,12 @@
-import { HeartIcon } from '@heroicons/react/24/solid';
+import { HeartIcon, MoonIcon, SunIcon } from '@heroicons/react/24/solid';
 import { useForm } from '@tanstack/react-form';
+import { useEffect, useState } from 'react';
 import { Link, redirect, useNavigate } from 'react-router';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
-import { Button } from '@/components/ui/button/button.component';
+import {
+	Button,
+	buttonVariants,
+} from '@/components/ui/button/button.component';
 import {
 	Card,
 	CardContent,
@@ -20,7 +24,14 @@ import { Input } from '@/components/ui/input/input.component';
 import { getAuthContent } from '@/features/auth/auth-content';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
+import {
+	applyUiPreferences,
+	readUiPreferences,
+	saveUiPreferences,
+	type ThemeMode,
+} from '@/features/preferences/ui-preferences';
 import { apiPost } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import { type Hospital, type Usuario, useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/login.page';
 
@@ -55,6 +66,24 @@ export default function LoginPage() {
 	const setPreAuth = useAuthStore((s) => s.setPreAuth);
 	const locale = currentLocale();
 	const content = getAuthContent(locale);
+	const [isDarkMode, setIsDarkMode] = useState(false);
+	const nextLocale = locale === 'es' ? 'en' : 'es';
+
+	useEffect(() => {
+		if (typeof document === 'undefined') return;
+		setIsDarkMode(document.documentElement.classList.contains('dark'));
+	}, []);
+
+	function handleThemeToggle() {
+		if (typeof document === 'undefined') return;
+		const currentlyDark = document.documentElement.classList.contains('dark');
+		const nextTheme: ThemeMode = currentlyDark ? 'light' : 'dark';
+		const currentPrefs = readUiPreferences();
+		const nextPrefs = { ...currentPrefs, theme: nextTheme };
+		applyUiPreferences(nextPrefs);
+		saveUiPreferences(nextPrefs);
+		setIsDarkMode(!currentlyDark);
+	}
 
 	const form = useForm({
 		defaultValues: {
@@ -84,6 +113,46 @@ export default function LoginPage() {
 
 	return (
 		<div className="relative min-h-screen overflow-hidden bg-background px-4 py-8 sm:px-6 lg:px-8">
+			<div className="absolute top-4 left-4 z-20 flex items-center gap-2 sm:top-6 sm:left-6">
+				<Link
+					to={localePath('/', locale)}
+					className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/90 px-3 py-1.5 shadow-sm backdrop-blur"
+				>
+					<img
+						src="/favicon.png"
+						alt={content.appName}
+						className="h-6 w-6 rounded-full border border-border/70 bg-card object-contain"
+					/>
+					<span className="text-sm font-semibold text-foreground">
+						Asclepio
+					</span>
+				</Link>
+				<button
+					type="button"
+					onClick={handleThemeToggle}
+					className={cn(
+						buttonVariants({ variant: 'outline', size: 'icon-sm' }),
+						'rounded-full bg-card/90 backdrop-blur',
+					)}
+					aria-label={m.homeLandingThemeToggle({}, { locale })}
+				>
+					{isDarkMode ? (
+						<SunIcon className="h-4 w-4" />
+					) : (
+						<MoonIcon className="h-4 w-4" />
+					)}
+				</button>
+				<Link
+					to={localePath('/login', nextLocale)}
+					className={cn(
+						buttonVariants({ variant: 'outline', size: 'sm' }),
+						'rounded-full bg-card/90 px-3 text-xs font-semibold backdrop-blur',
+					)}
+				>
+					EN/ES
+				</Link>
+			</div>
+
 			<img
 				src="/images/login-background.svg"
 				alt=""

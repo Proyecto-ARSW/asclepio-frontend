@@ -8,7 +8,9 @@ import {
 	HeartIcon,
 	IdentificationIcon,
 	LockClosedIcon,
+	MoonIcon,
 	PhoneIcon,
+	SunIcon,
 	UserIcon,
 } from '@heroicons/react/24/outline';
 import { useForm } from '@tanstack/react-form';
@@ -16,7 +18,10 @@ import { useEffect, useState } from 'react';
 import { Link, redirect, useNavigate } from 'react-router';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
-import { Button } from '@/components/ui/button/button.component';
+import {
+	Button,
+	buttonVariants,
+} from '@/components/ui/button/button.component';
 import {
 	Card,
 	CardContent,
@@ -42,7 +47,14 @@ import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import { getAuthContent } from '@/features/auth/auth-content';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
+import {
+	applyUiPreferences,
+	readUiPreferences,
+	saveUiPreferences,
+	type ThemeMode,
+} from '@/features/preferences/ui-preferences';
 import { apiGet, apiPost } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import { type Hospital, type Usuario, useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/register.page';
 
@@ -175,6 +187,8 @@ export default function RegisterPage() {
 	const [loadingHospitals, setLoadingHospitals] = useState(false);
 	const [hasAttemptedHospitalsLoad, setHasAttemptedHospitalsLoad] =
 		useState(false);
+	const [isDarkMode, setIsDarkMode] = useState(false);
+	const nextLocale = locale === 'es' ? 'en' : 'es';
 
 	const form = useForm({
 		defaultValues: {
@@ -280,6 +294,22 @@ export default function RegisterPage() {
 	const needsHospital = values.rol !== 'ADMIN';
 
 	useEffect(() => {
+		if (typeof document === 'undefined') return;
+		setIsDarkMode(document.documentElement.classList.contains('dark'));
+	}, []);
+
+	function handleThemeToggle() {
+		if (typeof document === 'undefined') return;
+		const currentlyDark = document.documentElement.classList.contains('dark');
+		const nextTheme: ThemeMode = currentlyDark ? 'light' : 'dark';
+		const currentPrefs = readUiPreferences();
+		const nextPrefs = { ...currentPrefs, theme: nextTheme };
+		applyUiPreferences(nextPrefs);
+		saveUiPreferences(nextPrefs);
+		setIsDarkMode(!currentlyDark);
+	}
+
+	useEffect(() => {
 		if (step !== 2) {
 			setHasAttemptedHospitalsLoad(false);
 		}
@@ -379,6 +409,46 @@ export default function RegisterPage() {
 
 	return (
 		<div className="relative min-h-screen overflow-hidden bg-background px-4 py-8 sm:px-6 lg:px-8">
+			<div className="absolute top-4 left-4 z-20 flex items-center gap-2 sm:top-6 sm:left-6">
+				<Link
+					to={localePath('/', locale)}
+					className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/90 px-3 py-1.5 shadow-sm backdrop-blur"
+				>
+					<img
+						src="/favicon.png"
+						alt={content.appName}
+						className="h-6 w-6 rounded-full border border-border/70 bg-card object-contain"
+					/>
+					<span className="text-sm font-semibold text-foreground">
+						Asclepio
+					</span>
+				</Link>
+				<button
+					type="button"
+					onClick={handleThemeToggle}
+					className={cn(
+						buttonVariants({ variant: 'outline', size: 'icon-sm' }),
+						'rounded-full bg-card/90 backdrop-blur',
+					)}
+					aria-label={m.homeLandingThemeToggle({}, { locale })}
+				>
+					{isDarkMode ? (
+						<SunIcon className="h-4 w-4" />
+					) : (
+						<MoonIcon className="h-4 w-4" />
+					)}
+				</button>
+				<Link
+					to={localePath('/register', nextLocale)}
+					className={cn(
+						buttonVariants({ variant: 'outline', size: 'sm' }),
+						'rounded-full bg-card/90 px-3 text-xs font-semibold backdrop-blur',
+					)}
+				>
+					EN/ES
+				</Link>
+			</div>
+
 			<img
 				src="/images/register-background.svg"
 				alt=""
@@ -625,12 +695,15 @@ export default function RegisterPage() {
 													{(field) => (
 														<div className="max-h-60 space-y-2 overflow-y-auto pr-1">
 															{hospitals.map((hospital) => {
-																const selected = field.state.value === hospital.id;
+																const selected =
+																	field.state.value === hospital.id;
 																return (
 																	<button
 																		key={hospital.id}
 																		type="button"
-																		onClick={() => field.handleChange(hospital.id)}
+																		onClick={() =>
+																			field.handleChange(hospital.id)
+																		}
 																		className={[
 																			'flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors',
 																			selected
@@ -644,7 +717,8 @@ export default function RegisterPage() {
 																				{hospital.nombre}
 																			</p>
 																			<p className="text-xs text-muted-foreground">
-																				{hospital.ciudad}, {hospital.departamento}
+																				{hospital.ciudad},{' '}
+																				{hospital.departamento}
 																			</p>
 																		</div>
 																		{selected && (

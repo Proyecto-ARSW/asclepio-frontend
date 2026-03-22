@@ -1,5 +1,6 @@
 import {
 	ArrowRightIcon,
+	Bars3Icon,
 	BeakerIcon,
 	ChartBarSquareIcon,
 	CheckBadgeIcon,
@@ -11,6 +12,7 @@ import {
 	SparklesIcon,
 	SunIcon,
 	UserGroupIcon,
+	XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
 import { Link, redirect, useLocation } from 'react-router';
@@ -52,13 +54,13 @@ export default function HomePage() {
 	const location = useLocation();
 	const locale = currentLocale(location.pathname);
 	const [isDarkMode, setIsDarkMode] = useState(false);
+	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const nextLocale = locale === 'es' ? 'en' : 'es';
 	const localeTogglePath = `${localePath(location.pathname, nextLocale)}${location.search}${location.hash}`;
 	const navItems = [
 		{ id: 'home', label: m.homeLandingNavHome({}, { locale }) },
 		{ id: 'about', label: m.homeLandingNavAbout({}, { locale }) },
 		{ id: 'services', label: m.homeLandingNavServices({}, { locale }) },
-		{ id: 'blog', label: m.homeLandingNavBlog({}, { locale }) },
 	];
 	const services = [
 		{
@@ -117,6 +119,7 @@ export default function HomePage() {
 			behavior: 'smooth',
 			block: 'start',
 		});
+		setMobileMenuOpen(false);
 	};
 
 	useEffect(() => {
@@ -144,16 +147,64 @@ export default function HomePage() {
 				className="sticky top-0 z-40 border-b border-border/50 bg-background/80 px-4 py-4 backdrop-blur-xl motion-safe:animate-step-in sm:px-6 lg:px-8"
 			>
 				<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card/80 px-4 py-3 shadow-sm sm:px-6">
-					<nav className="flex items-center justify-between gap-4">
-						<div className="flex items-center gap-2">
+					<nav className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+						<div className="flex items-center justify-between gap-3">
+							<div className="flex min-w-0 items-center gap-2">
 							<img
 								src="/favicon.png"
 								alt={m.homeLandingBrand({}, { locale })}
 								className="h-10 w-10 rounded-full border border-border/70 bg-card object-contain"
 							/>
-							<span className="text-sm font-semibold tracking-tight">
+							<span className="truncate text-sm font-semibold tracking-tight">
 								{m.homeLandingBrand({}, { locale })}
 							</span>
+						</div>
+
+							<div className="flex items-center gap-2 md:hidden">
+								<button
+									type="button"
+									onClick={handleThemeToggle}
+									aria-label={m.homeLandingThemeToggle({}, { locale })}
+									className={cn(
+										buttonVariants({ variant: 'outline', size: 'sm' }),
+										'h-8 w-8 shrink-0 rounded-full px-0',
+									)}
+								>
+									{isDarkMode ? (
+										<SunIcon className="h-4 w-4" />
+									) : (
+										<MoonIcon className="h-4 w-4" />
+									)}
+								</button>
+								<Link
+									to={localeTogglePath}
+									className={cn(
+										buttonVariants({ variant: 'outline', size: 'sm' }),
+										'h-8 shrink-0 rounded-full px-3 text-xs font-semibold',
+									)}
+								>
+									EN/ES
+								</Link>
+								<button
+									type="button"
+									onClick={() => setMobileMenuOpen((prev) => !prev)}
+									aria-label={
+										mobileMenuOpen
+											? m.dashboardSidebarCloseMenu({}, { locale })
+											: m.dashboardSidebarOpenMenu({}, { locale })
+									}
+									className={cn(
+										buttonVariants({ variant: 'outline', size: 'sm' }),
+										'h-8 w-8 shrink-0 rounded-full px-0',
+									)}
+								>
+									{mobileMenuOpen ? (
+										<XMarkIcon className="h-4 w-4" />
+									) : (
+										<Bars3Icon className="h-4 w-4" />
+									)}
+								</button>
+							</div>
 						</div>
 
 						<ul className="hidden items-center gap-2 text-sm md:flex">
@@ -170,14 +221,14 @@ export default function HomePage() {
 							))}
 						</ul>
 
-						<div className="flex items-center gap-2 sm:gap-3">
+						<div className="hidden items-center gap-2 md:flex lg:gap-3">
 							<button
 								type="button"
 								onClick={handleThemeToggle}
 								aria-label={m.homeLandingThemeToggle({}, { locale })}
 								className={cn(
 									buttonVariants({ variant: 'outline', size: 'sm' }),
-									'h-8 w-10 shrink-0 rounded-full px-0',
+									'h-8 w-8 shrink-0 rounded-full px-0',
 								)}
 							>
 								{isDarkMode ? (
@@ -190,7 +241,7 @@ export default function HomePage() {
 								to={localeTogglePath}
 								className={cn(
 									buttonVariants({ variant: 'outline', size: 'sm' }),
-									'h-8 w-16 shrink-0 rounded-full px-0 font-semibold',
+									'h-8 shrink-0 rounded-full px-3 text-xs font-semibold',
 								)}
 							>
 								EN/ES
@@ -199,7 +250,7 @@ export default function HomePage() {
 								to={localePath('/register', locale)}
 								className={cn(
 									buttonVariants({ variant: 'ghost', size: 'sm' }),
-									'h-8 w-30 shrink-0 rounded-full px-0',
+									'h-8 shrink-0 rounded-full px-3',
 								)}
 							>
 								{m.homeLandingGetStarted({}, { locale })}
@@ -208,7 +259,7 @@ export default function HomePage() {
 								to={localePath('/login', locale)}
 								className={cn(
 									buttonVariants({ size: 'sm' }),
-									'h-8 w-30 shrink-0 rounded-full px-0',
+									'h-8 shrink-0 rounded-full px-3',
 								)}
 							>
 								{m.homeLandingContactUs({}, { locale })}
@@ -216,18 +267,46 @@ export default function HomePage() {
 							</Link>
 						</div>
 					</nav>
-					<div className="mt-3 flex gap-2 overflow-x-auto md:hidden">
-						{navItems.map((item) => (
-							<button
-								key={item.id}
-								type="button"
-								onClick={() => scrollToSection(item.id)}
-								className="shrink-0 rounded-full border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-							>
-								{item.label}
-							</button>
-						))}
-					</div>
+					{mobileMenuOpen && (
+						<div className="mt-1 space-y-4 border-t border-border/60 pt-4 md:hidden">
+							<div className="flex flex-col gap-1.5">
+								{navItems.map((item) => (
+									<button
+										key={item.id}
+										type="button"
+										onClick={() => scrollToSection(item.id)}
+										className="w-full rounded-xl border border-border bg-background px-4 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+									>
+										{item.label}
+									</button>
+								))}
+							</div>
+
+							<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+								<Link
+									to={localePath('/register', locale)}
+									onClick={() => setMobileMenuOpen(false)}
+									className={cn(
+										buttonVariants({ variant: 'ghost', size: 'sm' }),
+										'justify-center rounded-full px-4',
+									)}
+								>
+									{m.homeLandingGetStarted({}, { locale })}
+								</Link>
+								<Link
+									to={localePath('/login', locale)}
+									onClick={() => setMobileMenuOpen(false)}
+									className={cn(
+										buttonVariants({ size: 'sm' }),
+										'justify-center rounded-full px-4',
+									)}
+								>
+									{m.homeLandingContactUs({}, { locale })}
+									<ArrowRightIcon className="h-3.5 w-3.5" />
+								</Link>
+							</div>
+						</div>
+					)}
 				</div>
 			</section>
 
@@ -334,26 +413,6 @@ export default function HomePage() {
 						</div>
 					</div>
 				</div>
-			</section>
-
-			<section
-				id="blog"
-				className="scroll-mt-28 px-4 pb-12 motion-safe:animate-step-in sm:px-6 lg:px-8"
-			>
-				<Card className="mx-auto max-w-7xl rounded-[2rem] border-border/50 bg-card px-6 py-10 text-center shadow-sm">
-					<p className="text-2xl font-semibold tracking-tight text-foreground">
-						{m.homeLandingSocialProofTitle({}, { locale })}
-					</p>
-					<div className="mt-8 grid grid-cols-3 gap-5 text-muted-foreground grayscale sm:grid-cols-6">
-						{['Invert', 'hues', 'Orbit', 'hues', 'Pulse', 'Labs'].map(
-							(logo) => (
-								<div key={logo} className="text-sm font-semibold tracking-wide">
-									{logo}
-								</div>
-							),
-						)}
-					</div>
-				</Card>
 			</section>
 
 			<section

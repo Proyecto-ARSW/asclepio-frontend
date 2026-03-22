@@ -366,16 +366,25 @@ export default function RegisterPage() {
 	}
 
 	return (
-		<div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-8">
-			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.14),transparent_50%)]" />
-			<Card className="relative z-10 w-full max-w-3xl">
-				<CardHeader className="space-y-3 border-b">
-					<div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+		<div className="relative min-h-screen overflow-hidden bg-background px-4 py-8 sm:px-6 lg:px-8">
+			<img
+				src="/images/register-background.svg"
+				alt=""
+				aria-hidden="true"
+				className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
+			/>
+			<div className="pointer-events-none absolute inset-0 bg-background/60" />
+			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_65%_20%,hsl(var(--primary)/0.12),transparent_45%)]" />
+
+			<div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-7xl items-center justify-center">
+				<Card className="w-full max-w-3xl border-border/70 bg-card/95 shadow-lg backdrop-blur">
+				<CardHeader className="space-y-3 border-b px-5 py-5 text-center sm:px-6">
+					<div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
 						<HeartIcon className="h-6 w-6" />
 					</div>
 					<CardTitle>{content.register.title}</CardTitle>
 					<CardDescription>{content.register.subtitle}</CardDescription>
-					<div className="flex flex-wrap items-center gap-3 pt-1">
+					<div className="flex flex-wrap items-center justify-center gap-3 pt-1">
 						<StepIndicator
 							step={step}
 							index={1}
@@ -395,7 +404,7 @@ export default function RegisterPage() {
 						/>
 					</div>
 				</CardHeader>
-				<CardContent className="space-y-5 pt-5">
+				<CardContent className="space-y-5 px-5 pt-4 pb-5 sm:px-6">
 					<form
 						onSubmit={(event) => {
 							event.preventDefault();
@@ -405,7 +414,7 @@ export default function RegisterPage() {
 							}
 							void form.handleSubmit();
 						}}
-						className="space-y-5"
+						className="mx-auto w-full max-w-2xl space-y-5"
 					>
 						{step === 1 && (
 							<div className="space-y-4">
@@ -1036,7 +1045,8 @@ export default function RegisterPage() {
 						</Link>
 					</FieldDescription>
 				</CardContent>
-			</Card>
+				</Card>
+			</div>
 		</div>
 	);
 }

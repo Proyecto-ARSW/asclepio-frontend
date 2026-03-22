@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 export interface Hospital {
 	id: number;
@@ -40,7 +40,13 @@ export const useAuthStore = create<AuthState>()(
 			hospitals: [],
 			selectedHospital: null,
 			setPreAuth: (preToken, user, hospitals) =>
-				set({ preToken, user, hospitals, accessToken: null, selectedHospital: null }),
+				set({
+					preToken,
+					user,
+					hospitals,
+					accessToken: null,
+					selectedHospital: null,
+				}),
 			setFullAuth: (accessToken, user, selectedHospital) =>
 				set({ accessToken, user, selectedHospital, preToken: null }),
 			logout: () =>
@@ -55,9 +61,11 @@ export const useAuthStore = create<AuthState>()(
 		{
 			name: 'asclepio-auth',
 			storage: createJSONStorage(() =>
-				typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {} }
+				typeof window !== 'undefined'
+					? localStorage
+					: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
 			),
 			skipHydration: true,
-		}
-	)
+		},
+	),
 );

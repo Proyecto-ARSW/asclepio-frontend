@@ -81,16 +81,16 @@ export function TypographyMuted({ children, className }: TypographyProps) {
 }
 
 export {
+	blockquoteVariants,
 	h1Variants,
 	h2Variants,
 	h3Variants,
 	h4Variants,
-	pVariants,
-	blockquoteVariants,
-	listVariants,
 	inlineCodeVariants,
-	leadVariants,
 	largeVariants,
-	smallVariants,
+	leadVariants,
+	listVariants,
 	mutedVariants,
+	pVariants,
+	smallVariants,
 };

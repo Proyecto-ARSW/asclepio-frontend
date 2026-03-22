@@ -1,4 +1,10 @@
 import type { ComponentType, SVGProps } from 'react';
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from '@/components/ui/card/card.component';
 
 interface StatCardProps {
 	title: string;
@@ -10,29 +16,24 @@ interface StatCardProps {
 
 const colorMap = {
 	blue: {
-		bg: 'bg-blue-50',
-		icon: 'bg-blue-100 text-blue-600',
-		value: 'text-blue-700',
+		icon: 'bg-primary/15 text-primary',
+		value: 'text-primary',
 	},
 	green: {
-		bg: 'bg-emerald-50',
-		icon: 'bg-emerald-100 text-emerald-600',
-		value: 'text-emerald-700',
+		icon: 'bg-secondary text-secondary-foreground',
+		value: 'text-secondary-foreground',
 	},
 	violet: {
-		bg: 'bg-violet-50',
-		icon: 'bg-violet-100 text-violet-600',
-		value: 'text-violet-700',
+		icon: 'bg-tertiary/20 text-tertiary',
+		value: 'text-tertiary',
 	},
 	amber: {
-		bg: 'bg-amber-50',
-		icon: 'bg-amber-100 text-amber-600',
-		value: 'text-amber-700',
+		icon: 'bg-accent text-accent-foreground',
+		value: 'text-accent-foreground',
 	},
 	rose: {
-		bg: 'bg-rose-50',
-		icon: 'bg-rose-100 text-rose-600',
-		value: 'text-rose-700',
+		icon: 'bg-destructive/10 text-destructive',
+		value: 'text-destructive',
 	},
 };
 
@@ -46,21 +47,21 @@ export function StatCard({
 	const colors = colorMap[color];
 
 	return (
-		<div className={`rounded-xl border border-gray-200 bg-white p-5 shadow-sm`}>
-			<div className="flex items-start justify-between">
-				<div>
-					<p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-						{title}
-					</p>
-					<p className={`mt-1 text-2xl font-bold ${colors.value}`}>{value}</p>
-					{subtitle && (
-						<p className="mt-0.5 text-xs text-gray-400">{subtitle}</p>
-					)}
-				</div>
+		<Card className="h-full">
+			<CardHeader className="flex flex-row items-start justify-between pb-0">
+				<CardTitle className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">
+					{title}
+				</CardTitle>
 				<div className={`rounded-lg p-2.5 ${colors.icon}`}>
 					<Icon className="h-5 w-5" />
 				</div>
-			</div>
-		</div>
+			</CardHeader>
+			<CardContent>
+				<p className={`text-2xl font-bold ${colors.value}`}>{value}</p>
+				{subtitle && (
+					<p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
+				)}
+			</CardContent>
+		</Card>
 	);
 }

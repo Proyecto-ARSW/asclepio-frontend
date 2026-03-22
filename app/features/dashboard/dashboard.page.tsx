@@ -1,25 +1,42 @@
-import { useEffect, useState } from 'react';
-import { redirect, useNavigate } from 'react-router';
-import type { Route } from './+types/dashboard.page';
 import {
 	BuildingOffice2Icon,
-	UserGroupIcon,
 	CalendarDaysIcon,
-	QueueListIcon,
 	ExclamationCircleIcon,
-	PlusIcon,
 	ExclamationTriangleIcon,
+	PlusIcon,
+	QueueListIcon,
+	UserGroupIcon,
 } from '@heroicons/react/24/outline';
-import { useAuthStore } from '@/store/auth.store';
+import { useCallback, useEffect, useState } from 'react';
+import { redirect, useNavigate } from 'react-router';
+import { CreateHospitalModal } from '@/components/medical/create-hospital-modal';
+import {
+	HospitalCard,
+	type HospitalCardData,
+} from '@/components/medical/hospital-card';
+import { PageHeader } from '@/components/medical/page-header';
+import {
+	type PatientRow,
+	PatientTable,
+} from '@/components/medical/patient-table';
+import { type NavSection, SidebarNav } from '@/components/medical/sidebar-nav';
+import { StatCard } from '@/components/medical/stat-card';
+import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
+import { Badge } from '@/components/ui/badge/badge.component';
+import { Button } from '@/components/ui/button/button.component';
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from '@/components/ui/card/card.component';
+import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
+import { getDashboardContent } from '@/features/dashboard/dashboard.content';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { apiGet } from '@/lib/api';
 import { gqlQuery } from '@/lib/graphql-client';
-import { SidebarNav, type NavSection } from '@/components/medical/sidebar-nav';
-import { StatCard } from '@/components/medical/stat-card';
-import { HospitalCard, type HospitalCardData } from '@/components/medical/hospital-card';
-import { PatientTable, type PatientRow } from '@/components/medical/patient-table';
-import { PageHeader } from '@/components/medical/page-header';
-import { CreateHospitalModal } from '@/components/medical/create-hospital-modal';
+import { useAuthStore } from '@/store/auth.store';
+import type { Route } from './+types/dashboard.page';
 
 interface GqlPatientsData {
 	patients: PatientRow[];
@@ -48,7 +65,8 @@ export async function clientLoader() {
 	if (!raw) return redirect(localePath('/login', locale));
 	try {
 		const parsed = JSON.parse(raw);
-		if (!parsed.state?.accessToken) return redirect(localePath('/login', locale));
+		if (!parsed.state?.accessToken)
+			return redirect(localePath('/login', locale));
 	} catch {
 		return redirect(localePath('/login', locale));
 	}
@@ -62,6 +80,7 @@ export function meta(_: Route.MetaArgs) {
 export default function DashboardPage() {
 	const navigate = useNavigate();
 	const locale = currentLocale();
+	const content = getDashboardContent(locale);
 	const { user, selectedHospital, logout, accessToken } = useAuthStore();
 
 	const [activeSection, setActiveSection] = useState<NavSection>('overview');
@@ -79,58 +98,63 @@ export default function DashboardPage() {
 		useAuthStore.persist.rehydrate();
 	}, []);
 
-	useEffect(() => {
-		if (activeSection === 'hospitals' && hospitals.length === 0) {
-			loadHospitals();
-		}
-		if (activeSection === 'patients' && patients.length === 0) {
-			loadPatients();
-		}
-	}, [activeSection]);
-
-	async function loadHospitals() {
+	const loadHospitals = useCallback(async () => {
 		setLoadingHospitals(true);
 		setError('');
 		try {
-			const data = await apiGet<HospitalCardData[]>('/hospitals', accessToken ?? undefined);
+			const data = await apiGet<HospitalCardData[]>(
+				'/hospitals',
+				accessToken ?? undefined,
+			);
 			setHospitals(data);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error al cargar hospitales');
+			setError(
+				err instanceof Error ? err.message : content.alerts.hospitalsLoadError,
+			);
 		} finally {
 			setLoadingHospitals(false);
 		}
-	}
+	}, [accessToken, content.alerts.hospitalsLoadError]);
 
-	async function loadPatients() {
+	const loadPatients = useCallback(async () => {
 		setLoadingPatients(true);
 		setError('');
 		try {
 			const data = await gqlQuery<GqlPatientsData>(PATIENTS_QUERY);
 			setPatients(data.patients);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error al cargar pacientes');
+			setError(
+				err instanceof Error ? err.message : content.alerts.patientsLoadError,
+			);
 		} finally {
 			setLoadingPatients(false);
 		}
-	}
+	}, [content.alerts.patientsLoadError]);
+
+	useEffect(() => {
+		if (activeSection === 'hospitals' && hospitals.length === 0) {
+			void loadHospitals();
+		}
+		if (activeSection === 'patients' && patients.length === 0) {
+			void loadPatients();
+		}
+	}, [
+		activeSection,
+		hospitals.length,
+		loadHospitals,
+		loadPatients,
+		patients.length,
+	]);
 
 	function handleLogout() {
 		logout();
 		navigate(localePath('/login', locale));
 	}
 
-	const sectionMap: Record<NavSection, string> = {
-		overview: 'Inicio',
-		hospitals: 'Hospitales',
-		patients: 'Pacientes',
-		appointments: 'Citas',
-		queue: 'Turnos',
-		medicines: 'Medicamentos',
-		doctors: 'Médicos',
-	};
+	const sectionMap = content.sidebar.sections;
 
 	return (
-		<div className="flex h-screen overflow-hidden bg-slate-50">
+		<div className="flex h-screen overflow-hidden bg-background">
 			<SidebarNav
 				active={activeSection}
 				onNavigate={setActiveSection}
@@ -138,6 +162,11 @@ export default function DashboardPage() {
 				userName={user ? `${user.nombre} ${user.apellido}` : undefined}
 				userRole={user?.rol}
 				onLogout={handleLogout}
+				labels={{
+					brandName: content.sidebar.brandName,
+					logout: content.sidebar.logout,
+					sections: content.sidebar.sections,
+				}}
 			/>
 
 			<CreateHospitalModal
@@ -152,33 +181,42 @@ export default function DashboardPage() {
 			<main className="flex-1 overflow-y-auto">
 				<div className="mx-auto max-w-6xl px-4 py-6 pt-16 sm:px-6 sm:pt-6 lg:p-8">
 					{isTempSession && isAdmin && (
-						<div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-							<ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
-							<p className="text-sm text-amber-800">
-								Sesión temporal activa. Ve a{' '}
-								<button
+						<Alert className="mb-5 border-l-4 border-l-accent">
+							<ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-accent-foreground" />
+							<AlertDescription className="text-sm text-foreground">
+								{content.alerts.tempSession}{' '}
+								<Button
 									type="button"
-									className="font-semibold underline"
+									variant="link"
+									className="h-auto p-0 font-semibold"
 									onClick={() => setActiveSection('hospitals')}
 								>
-									Hospitales
-								</button>{' '}
-								para crear y vincular tu primer hospital.
-							</p>
-						</div>
+									{content.alerts.tempSessionAction}
+								</Button>
+							</AlertDescription>
+						</Alert>
 					)}
 
 					{error && (
-						<div className="mb-6 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-							<ExclamationCircleIcon className="h-5 w-5 shrink-0 text-red-500" />
-							<p className="text-sm text-red-700">{error}</p>
-						</div>
+						<Alert variant="destructive" className="mb-6">
+							<ExclamationCircleIcon className="h-5 w-5 shrink-0" />
+							<AlertDescription>{error}</AlertDescription>
+						</Alert>
 					)}
 
 					{activeSection === 'overview' && (
 						<OverviewSection
-							hospitalName={selectedHospital?.id !== 0 ? selectedHospital?.nombre : undefined}
-							hospitalCity={selectedHospital?.id !== 0 && selectedHospital ? `${selectedHospital.ciudad}, ${selectedHospital.departamento}` : undefined}
+							content={content}
+							hospitalName={
+								selectedHospital?.id !== 0
+									? selectedHospital?.nombre
+									: undefined
+							}
+							hospitalCity={
+								selectedHospital?.id !== 0 && selectedHospital
+									? `${selectedHospital.ciudad}, ${selectedHospital.departamento}`
+									: undefined
+							}
 							hospitalsCount={hospitals.length}
 							patientsCount={patients.length}
 							isAdmin={isAdmin}
@@ -191,78 +229,102 @@ export default function DashboardPage() {
 						<>
 							<div className="mb-6 flex items-start justify-between gap-4">
 								<div>
-									<h2 className="text-xl font-bold text-gray-900">Hospitales</h2>
-									<p className="mt-0.5 text-sm text-gray-500">
-										REST — <code className="text-xs bg-gray-100 px-1 rounded">GET /hospitals</code>
+									<h2 className="text-xl font-bold text-foreground">
+										{content.hospitals.title}
+									</h2>
+									<p className="mt-0.5 text-sm text-muted-foreground">
+										{content.hospitals.subtitle}
 									</p>
 								</div>
 								<div className="flex shrink-0 gap-2">
 									{isAdmin && (
-										<button
+										<Button
 											type="button"
 											onClick={() => setShowCreateHospital(true)}
-											className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+											className="gap-2"
 										>
 											<PlusIcon className="h-4 w-4" />
-											<span className="hidden sm:inline">Crear hospital</span>
-											<span className="sm:hidden">Crear</span>
-										</button>
+											<span className="hidden sm:inline">
+												{content.hospitals.createHospital}
+											</span>
+											<span className="sm:hidden">
+												{content.hospitals.createHospital}
+											</span>
+										</Button>
 									)}
-									<button
+									<Button
 										type="button"
 										onClick={loadHospitals}
 										disabled={loadingHospitals}
-										className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+										variant="outline"
 									>
-										{loadingHospitals ? 'Cargando...' : 'Actualizar'}
-									</button>
+										{loadingHospitals
+											? content.hospitals.refreshLoading
+											: content.hospitals.refresh}
+									</Button>
 								</div>
 							</div>
 
-						{loadingHospitals ? (
-							<HospitalsLoading />
-						) : hospitals.length === 0 ? (
-							<div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white py-16 text-center">
-								<BuildingOffice2Icon className="h-12 w-12 text-gray-300 mb-3" />
-								<p className="text-sm font-medium text-gray-500">No hay hospitales registrados.</p>
-								{isAdmin && (
-									<button
-										type="button"
-										onClick={() => setShowCreateHospital(true)}
-										className="mt-4 flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-									>
-										<PlusIcon className="h-4 w-4" />
-										Crear primer hospital
-									</button>
-								)}
-							</div>
-						) : (
-							<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-								{hospitals.map((h) => (
-									<HospitalCard key={h.id} hospital={h} />
-								))}
-							</div>
-						)}
+							{loadingHospitals ? (
+								<HospitalsLoading />
+							) : hospitals.length === 0 ? (
+								<Card className="border-dashed py-10 text-center">
+									<CardContent className="flex flex-col items-center justify-center">
+										<BuildingOffice2Icon className="mb-3 h-12 w-12 text-muted-foreground/40" />
+										<p className="text-sm font-medium text-muted-foreground">
+											{content.hospitals.empty}
+										</p>
+										{isAdmin && (
+											<Button
+												type="button"
+												onClick={() => setShowCreateHospital(true)}
+												className="mt-4 gap-2"
+											>
+												<PlusIcon className="h-4 w-4" />
+												{content.hospitals.createFirstHospital}
+											</Button>
+										)}
+									</CardContent>
+								</Card>
+							) : (
+								<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+									{hospitals.map((h) => (
+										<HospitalCard key={h.id} hospital={h} />
+									))}
+								</div>
+							)}
 						</>
 					)}
 
 					{activeSection === 'patients' && (
 						<>
 							<PageHeader
-								title="Pacientes"
-								subtitle={`GraphQL — query patients { ... }`}
-								badge={patients.length > 0 ? String(patients.length) : undefined}
+								title={content.patients.title}
+								subtitle={content.patients.subtitle}
+								badge={
+									patients.length > 0 ? String(patients.length) : undefined
+								}
 							/>
 							<PatientTable
 								patients={patients}
 								loading={loadingPatients}
 								onRefresh={loadPatients}
+								labels={{
+									title: content.patients.tableTitle,
+									refresh: content.patients.refresh,
+									emptyTitle: content.patients.emptyTitle,
+									emptyDescription: content.patients.emptyDescription,
+									headers: content.patients.headers,
+								}}
 							/>
 						</>
 					)}
 
 					{!['overview', 'hospitals', 'patients'].includes(activeSection) && (
-						<ComingSoonSection label={sectionMap[activeSection]} />
+						<ComingSoonSection
+							label={sectionMap[activeSection]}
+							description={content.comingSoon.description}
+						/>
 					)}
 				</div>
 			</main>
@@ -271,6 +333,7 @@ export default function DashboardPage() {
 }
 
 function OverviewSection({
+	content,
 	hospitalName,
 	hospitalCity,
 	hospitalsCount,
@@ -279,6 +342,7 @@ function OverviewSection({
 	isTempSession,
 	onGoToHospitals,
 }: {
+	content: ReturnType<typeof getDashboardContent>;
 	hospitalName?: string;
 	hospitalCity?: string;
 	hospitalsCount: number;
@@ -290,10 +354,13 @@ function OverviewSection({
 	return (
 		<div>
 			<div className="mb-8">
-				<h2 className="text-2xl font-bold text-gray-900">Panel de Control</h2>
+				<h2 className="text-2xl font-bold text-foreground">
+					{content.overview.title}
+				</h2>
 				{hospitalName && !isTempSession && (
-					<p className="mt-1 text-sm text-gray-500">
-						{hospitalName}{hospitalCity ? ` — ${hospitalCity}` : ''}
+					<p className="mt-1 text-sm text-muted-foreground">
+						{hospitalName}
+						{hospitalCity ? ` — ${hospitalCity}` : ''}
 					</p>
 				)}
 			</div>
@@ -329,39 +396,53 @@ function OverviewSection({
 				/>
 			</div>
 
-		{isAdmin && (
-				<div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 p-5">
-					<h3 className="mb-3 font-semibold text-blue-900">Acciones de administrador</h3>
-					<div className="flex flex-wrap gap-3">
-						<button
-							type="button"
-							onClick={onGoToHospitals}
-							className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-						>
-							<BuildingOffice2Icon className="h-4 w-4" />
-							Gestionar hospitales
-						</button>
-					</div>
-				</div>
+			{isAdmin && (
+				<Card className="mb-4 border-primary/30 bg-primary/5">
+					<CardHeader className="pb-0">
+						<CardTitle className="text-base text-foreground">
+							{content.overview.adminActionsTitle}
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<div className="flex flex-wrap gap-3">
+							<Button type="button" onClick={onGoToHospitals} className="gap-2">
+								<BuildingOffice2Icon className="h-4 w-4" />
+								{content.overview.manageHospitals}
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
 			)}
 
-			<div className="rounded-xl border border-gray-200 bg-white p-5">
-				<h3 className="mb-3 font-semibold text-gray-800">Conexiones activas</h3>
-				<div className="space-y-2">
-					<div className="flex items-center gap-2">
-						<span className="h-2 w-2 rounded-full bg-emerald-500" />
-						<span className="text-sm text-gray-700">
-							REST API — <code className="text-xs bg-gray-100 px-1 rounded">http://localhost:3000</code>
-						</span>
+			<Card>
+				<CardHeader className="pb-0">
+					<CardTitle className="text-base">
+						{content.overview.activeConnections}
+					</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div className="space-y-2">
+						<div className="flex items-center gap-2">
+							<Badge variant="secondary" className="h-2 w-2 p-0" />
+							<span className="text-sm text-muted-foreground">
+								{content.overview.restLabel} -{' '}
+								<code className="rounded bg-muted px-1 text-xs">
+									http://localhost:3000
+								</code>
+							</span>
+						</div>
+						<div className="flex items-center gap-2">
+							<Badge variant="secondary" className="h-2 w-2 p-0" />
+							<span className="text-sm text-muted-foreground">
+								{content.overview.graphqlLabel} -{' '}
+								<code className="rounded bg-muted px-1 text-xs">
+									http://localhost:3000/graphql
+								</code>
+							</span>
+						</div>
 					</div>
-					<div className="flex items-center gap-2">
-						<span className="h-2 w-2 rounded-full bg-emerald-500" />
-						<span className="text-sm text-gray-700">
-							GraphQL — <code className="text-xs bg-gray-100 px-1 rounded">http://localhost:3000/graphql</code>
-						</span>
-					</div>
-				</div>
-			</div>
+				</CardContent>
+			</Card>
 		</div>
 	);
 }
@@ -369,26 +450,30 @@ function OverviewSection({
 function HospitalsLoading() {
 	return (
 		<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-			{Array.from({ length: 6 }).map((_, i) => (
-				<div
-					key={i}
-					className="h-48 animate-pulse rounded-xl border border-gray-200 bg-gray-100"
-				/>
+			{Array.from(
+				{ length: 6 },
+				(_, index) => `hospital-skeleton-${index}`,
+			).map((key) => (
+				<Skeleton key={key} className="h-48 rounded-xl" />
 			))}
 		</div>
 	);
 }
 
-function ComingSoonSection({ label }: { label: string }) {
+function ComingSoonSection({
+	label,
+	description,
+}: {
+	label: string;
+	description: string;
+}) {
 	return (
 		<div className="flex flex-col items-center justify-center py-24 text-center">
-			<div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100">
-				<CalendarDaysIcon className="h-8 w-8 text-gray-400" />
+			<div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+				<CalendarDaysIcon className="h-8 w-8 text-muted-foreground" />
 			</div>
-			<h3 className="text-lg font-semibold text-gray-700">{label}</h3>
-			<p className="mt-1 text-sm text-gray-400">
-				Sección disponible — conectar con GraphQL resolver correspondiente.
-			</p>
+			<h3 className="text-lg font-semibold text-foreground">{label}</h3>
+			<p className="mt-1 text-sm text-muted-foreground">{description}</p>
 		</div>
 	);
 }

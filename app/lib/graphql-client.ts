@@ -25,7 +25,7 @@ export interface GqlResponse<T> {
 
 export async function gqlQuery<T>(
 	query: string,
-	variables?: Record<string, unknown>
+	variables?: Record<string, unknown>,
 ): Promise<T> {
 	const token = getAccessToken();
 	const res = await fetch(`${API_URL}/graphql`, {
@@ -56,7 +56,7 @@ export async function gqlQuery<T>(
 
 export async function gqlMutation<T>(
 	mutation: string,
-	variables?: Record<string, unknown>
+	variables?: Record<string, unknown>,
 ): Promise<T> {
 	return gqlQuery<T>(mutation, variables);
 }

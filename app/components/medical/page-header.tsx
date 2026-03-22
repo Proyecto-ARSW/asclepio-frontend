@@ -1,4 +1,6 @@
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import { Badge } from '@/components/ui/badge/badge.component';
+import { Button } from '@/components/ui/button/button.component';
 
 interface PageHeaderProps {
 	title: string;
@@ -11,35 +13,36 @@ interface PageHeaderProps {
 	};
 }
 
-export function PageHeader({ title, subtitle, badge, action }: PageHeaderProps) {
+export function PageHeader({
+	title,
+	subtitle,
+	badge,
+	action,
+}: PageHeaderProps) {
 	return (
-		<div className="mb-6 flex items-start justify-between">
+		<div className="mb-6 flex items-start justify-between gap-3">
 			<div>
 				<div className="flex items-center gap-2">
-					<h2 className="text-xl font-bold text-gray-900">{title}</h2>
-					{badge && (
-						<span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-							{badge}
-						</span>
-					)}
+					<h2 className="text-xl font-bold text-foreground">{title}</h2>
+					{badge && <Badge variant="secondary">{badge}</Badge>}
 				</div>
 				{subtitle && (
-					<p className="mt-0.5 text-sm text-gray-500">{subtitle}</p>
+					<p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>
 				)}
 			</div>
 
 			{action && (
-				<button
+				<Button
 					type="button"
 					onClick={action.onClick}
 					disabled={action.loading}
-					className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+					className="gap-2"
 				>
 					<ArrowPathIcon
 						className={`h-4 w-4 ${action.loading ? 'animate-spin' : ''}`}
 					/>
 					{action.loading ? 'Cargando...' : action.label}
-				</button>
+				</Button>
 			)}
 		</div>
 	);

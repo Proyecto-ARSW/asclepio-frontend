@@ -1,4 +1,4 @@
-import { currentLocale, type AppLocale } from '@/features/i18n/locale-path';
+import { type AppLocale, currentLocale } from '@/features/i18n/locale-path';
 
 interface AuthContent {
 	appName: string;
@@ -66,7 +66,8 @@ const authContentByLocale: Record<AppLocale, AuthContent> = {
 			emptyUserTitle: 'Sin hospitales asignados',
 			emptyUserHint: 'Contacta a un administrador para obtener acceso.',
 			backToLogin: 'Volver al inicio de sesion',
-			listHint: 'Selecciona el hospital en el que deseas trabajar en esta sesion.',
+			listHint:
+				'Selecciona el hospital en el que deseas trabajar en esta sesion.',
 			submit: 'Continuar',
 			submitLoading: 'Ingresando...',
 			errors: {

@@ -8,8 +8,10 @@ export async function clientLoader() {
 	if (raw) {
 		try {
 			const parsed = JSON.parse(raw);
-			if (parsed.state?.accessToken) return redirect(localePath('/dashboard', locale));
-			if (parsed.state?.preToken) return redirect(localePath('/select-hospital', locale));
+			if (parsed.state?.accessToken)
+				return redirect(localePath('/dashboard', locale));
+			if (parsed.state?.preToken)
+				return redirect(localePath('/select-hospital', locale));
 		} catch {}
 	}
 	return redirect(localePath('/login', locale));

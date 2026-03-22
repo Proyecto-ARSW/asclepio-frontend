@@ -1,26 +1,27 @@
-import { useState } from 'react';
 import {
-	HomeIcon,
-	BuildingOffice2Icon,
-	UserGroupIcon,
-	CalendarDaysIcon,
-	QueueListIcon,
-	BeakerIcon,
-	UserIcon,
 	ArrowRightStartOnRectangleIcon,
-	HeartIcon,
 	Bars3Icon,
+	BeakerIcon,
+	BuildingOffice2Icon,
+	CalendarDaysIcon,
+	HeartIcon,
+	HomeIcon,
+	QueueListIcon,
+	UserGroupIcon,
+	UserIcon,
 	XMarkIcon,
 } from '@heroicons/react/24/outline';
 import {
-	HomeIcon as HomeIconSolid,
-	BuildingOffice2Icon as BuildingOffice2IconSolid,
-	UserGroupIcon as UserGroupIconSolid,
-	CalendarDaysIcon as CalendarDaysIconSolid,
-	QueueListIcon as QueueListIconSolid,
 	BeakerIcon as BeakerIconSolid,
+	BuildingOffice2Icon as BuildingOffice2IconSolid,
+	CalendarDaysIcon as CalendarDaysIconSolid,
+	HomeIcon as HomeIconSolid,
+	QueueListIcon as QueueListIconSolid,
+	UserGroupIcon as UserGroupIconSolid,
 	UserIcon as UserIconSolid,
 } from '@heroicons/react/24/solid';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button/button.component';
 
 export type NavSection =
 	| 'overview'
@@ -39,13 +40,48 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-	{ key: 'overview', label: 'Inicio', icon: HomeIcon, iconActive: HomeIconSolid },
-	{ key: 'hospitals', label: 'Hospitales', icon: BuildingOffice2Icon, iconActive: BuildingOffice2IconSolid },
-	{ key: 'patients', label: 'Pacientes', icon: UserGroupIcon, iconActive: UserGroupIconSolid },
-	{ key: 'appointments', label: 'Citas', icon: CalendarDaysIcon, iconActive: CalendarDaysIconSolid },
-	{ key: 'queue', label: 'Turnos', icon: QueueListIcon, iconActive: QueueListIconSolid },
-	{ key: 'medicines', label: 'Medicamentos', icon: BeakerIcon, iconActive: BeakerIconSolid },
-	{ key: 'doctors', label: 'Médicos', icon: UserIcon, iconActive: UserIconSolid },
+	{
+		key: 'overview',
+		label: 'Inicio',
+		icon: HomeIcon,
+		iconActive: HomeIconSolid,
+	},
+	{
+		key: 'hospitals',
+		label: 'Hospitales',
+		icon: BuildingOffice2Icon,
+		iconActive: BuildingOffice2IconSolid,
+	},
+	{
+		key: 'patients',
+		label: 'Pacientes',
+		icon: UserGroupIcon,
+		iconActive: UserGroupIconSolid,
+	},
+	{
+		key: 'appointments',
+		label: 'Citas',
+		icon: CalendarDaysIcon,
+		iconActive: CalendarDaysIconSolid,
+	},
+	{
+		key: 'queue',
+		label: 'Turnos',
+		icon: QueueListIcon,
+		iconActive: QueueListIconSolid,
+	},
+	{
+		key: 'medicines',
+		label: 'Medicamentos',
+		icon: BeakerIcon,
+		iconActive: BeakerIconSolid,
+	},
+	{
+		key: 'doctors',
+		label: 'Médicos',
+		icon: UserIcon,
+		iconActive: UserIconSolid,
+	},
 ];
 
 interface SidebarNavProps {
@@ -55,7 +91,22 @@ interface SidebarNavProps {
 	userName?: string;
 	userRole?: string;
 	onLogout?: () => void;
+	labels?: {
+		brandName?: string;
+		logout?: string;
+		sections?: Partial<Record<NavSection, string>>;
+	};
 }
+
+const defaultSectionLabels: Record<NavSection, string> = {
+	overview: 'Inicio',
+	hospitals: 'Hospitales',
+	patients: 'Pacientes',
+	appointments: 'Citas',
+	queue: 'Turnos',
+	medicines: 'Medicamentos',
+	doctors: 'Medicos',
+};
 
 function SidebarContent({
 	active,
@@ -64,85 +115,94 @@ function SidebarContent({
 	userName,
 	userRole,
 	onLogout,
+	labels,
 	onClose,
 }: SidebarNavProps & { onClose?: () => void }) {
+	const sectionLabels = { ...defaultSectionLabels, ...labels?.sections };
 	return (
 		<div className="flex h-full flex-col">
-			<div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+			<div className="flex items-center justify-between border-b border-border px-5 py-4">
 				<div className="flex items-center gap-3">
-					<div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 flex-shrink-0">
-						<HeartIcon className="h-5 w-5 text-white" />
+					<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+						<HeartIcon className="h-5 w-5" />
 					</div>
 					<div className="min-w-0">
-						<p className="font-bold text-gray-900 text-sm">Asclepio</p>
+						<p className="text-sm font-bold text-foreground">
+							{labels?.brandName ?? 'Asclepio'}
+						</p>
 						{hospitalName && (
-							<p className="truncate text-xs text-gray-400 max-w-[120px]" title={hospitalName}>
+							<p
+								className="max-w-30 truncate text-xs text-muted-foreground"
+								title={hospitalName}
+							>
 								{hospitalName}
 							</p>
 						)}
 					</div>
 				</div>
 				{onClose && (
-					<button
+					<Button
 						type="button"
 						onClick={onClose}
-						className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors lg:hidden"
+						variant="ghost"
+						size="icon-sm"
+						className="lg:hidden"
 					>
 						<XMarkIcon className="h-5 w-5" />
-					</button>
+					</Button>
 				)}
 			</div>
 
 			<nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
-				{navItems.map(({ key, label, icon: Icon, iconActive: IconActive }) => {
+				{navItems.map(({ key, icon: Icon, iconActive: IconActive }) => {
 					const isActive = active === key;
 					return (
-						<button
+						<Button
 							key={key}
 							type="button"
 							onClick={() => {
 								onNavigate(key);
 								onClose?.();
 							}}
-							className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-								isActive
-									? 'bg-blue-50 text-blue-700'
-									: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-							}`}
+							variant={isActive ? 'secondary' : 'ghost'}
+							className="h-10 w-full justify-start gap-3"
 						>
 							{isActive ? (
-								<IconActive className="h-[18px] w-[18px] flex-shrink-0" />
+								<IconActive className="h-4.5 w-4.5 shrink-0" />
 							) : (
-								<Icon className="h-[18px] w-[18px] flex-shrink-0" />
+								<Icon className="h-4.5 w-4.5 shrink-0" />
 							)}
-							{label}
-						</button>
+							{sectionLabels[key]}
+						</Button>
 					);
 				})}
 			</nav>
 
-			<div className="border-t border-gray-100 px-3 py-3">
+			<div className="border-t border-border px-3 py-3">
 				{(userName || userRole) && (
 					<div className="mb-2 flex items-center gap-3 rounded-lg px-3 py-2">
-						<div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 flex-shrink-0">
-							<span className="text-xs font-semibold text-blue-600">
+						<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15">
+							<span className="text-xs font-semibold text-primary">
 								{userName?.[0] ?? '?'}
 							</span>
 						</div>
 						<div className="min-w-0">
-							<p className="truncate text-sm font-medium text-gray-800">{userName}</p>
-							<p className="text-xs text-gray-400">{userRole}</p>
+							<p className="truncate text-sm font-medium text-foreground">
+								{userName}
+							</p>
+							<p className="text-xs text-muted-foreground">{userRole}</p>
 						</div>
 					</div>
 				)}
-				<button
+				<Button
 					type="button"
 					onClick={onLogout}
-					className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+					variant="destructive"
+					className="w-full justify-start gap-3"
 				>
-					<ArrowRightStartOnRectangleIcon className="h-[18px] w-[18px] flex-shrink-0" />
-					Cerrar sesión
-				</button>
+					<ArrowRightStartOnRectangleIcon className="h-4.5 w-4.5 shrink-0" />
+					{labels?.logout ?? 'Cerrar sesion'}
+				</Button>
 			</div>
 		</div>
 	);
@@ -153,26 +213,28 @@ export function SidebarNav(props: SidebarNavProps) {
 
 	return (
 		<>
-			<button
+			<Button
 				type="button"
 				onClick={() => setMobileOpen(true)}
-				className="fixed left-4 top-4 z-40 flex h-9 w-9 items-center justify-center rounded-lg bg-white shadow-md border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors lg:hidden"
+				variant="outline"
+				size="icon"
+				className="fixed top-4 left-4 z-40 lg:hidden"
 			>
 				<Bars3Icon className="h-5 w-5" />
-			</button>
+			</Button>
 
 			{mobileOpen && (
-				<div
-					className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+				<button
+					type="button"
+					aria-label="Close menu"
+					className="fixed inset-0 z-40 bg-foreground/30 lg:hidden"
 					onClick={() => setMobileOpen(false)}
 					onKeyDown={(e) => e.key === 'Escape' && setMobileOpen(false)}
-					role="button"
-					tabIndex={-1}
 				/>
 			)}
 
 			<aside
-				className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-gray-200 bg-white transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 lg:flex-shrink-0 ${
+				className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-sidebar text-sidebar-foreground transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 lg:shrink-0 ${
 					mobileOpen ? 'translate-x-0' : '-translate-x-full'
 				}`}
 			>

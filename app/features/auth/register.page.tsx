@@ -39,8 +39,9 @@ import {
 	SelectValue,
 } from '@/components/ui/select/select.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
-import { getAuthContent } from '@/features/auth/auth.content';
+import { getAuthContent } from '@/features/auth/auth-content';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
 import { apiGet, apiPost } from '@/lib/api';
 import { type Hospital, type Usuario, useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/register.page';
@@ -120,7 +121,8 @@ export async function clientLoader() {
 }
 
 export function meta(_: Route.MetaArgs) {
-	return [{ title: 'Asclepio - Crear cuenta' }];
+	const locale = currentLocale();
+	return [{ title: m.pageTitleRegister({}, { locale }) }];
 }
 
 function StepIndicator({
@@ -255,7 +257,7 @@ export default function RegisterPage() {
 				);
 				const hospitalForStore: Hospital = response.hospital ?? {
 					id: 0,
-					nombre: 'Sin hospital',
+					nombre: content.register.defaultHospitalName,
 					ciudad: '',
 					departamento: '',
 				};
@@ -570,7 +572,9 @@ export default function RegisterPage() {
 															{roleOption.label}
 														</span>
 														{selected && (
-															<Badge variant="secondary">Activo</Badge>
+															<Badge variant="secondary">
+																{content.register.selectedRoleBadge}
+															</Badge>
 														)}
 													</div>
 													<p className="mt-1 text-xs text-muted-foreground">

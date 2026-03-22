@@ -20,8 +20,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
-import { getAuthContent } from '@/features/auth/auth.content';
+import { getAuthContent } from '@/features/auth/auth-content';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
 import { apiPost } from '@/lib/api';
 import { type Hospital, type Usuario, useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/select-hospital.page';
@@ -47,7 +48,8 @@ export async function clientLoader() {
 }
 
 export function meta(_: Route.MetaArgs) {
-	return [{ title: 'Asclepio - Seleccionar Hospital' }];
+	const locale = currentLocale();
+	return [{ title: m.pageTitleSelectHospital({}, { locale }) }];
 }
 
 export default function SelectHospitalPage() {

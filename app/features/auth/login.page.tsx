@@ -17,8 +17,9 @@ import {
 	FieldLabel,
 } from '@/components/ui/field/field.component';
 import { Input } from '@/components/ui/input/input.component';
-import { getAuthContent } from '@/features/auth/auth.content';
+import { getAuthContent } from '@/features/auth/auth-content';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
 import { apiPost } from '@/lib/api';
 import { type Hospital, type Usuario, useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/login.page';
@@ -45,7 +46,8 @@ export async function clientLoader() {
 }
 
 export function meta(_: Route.MetaArgs) {
-	return [{ title: 'Asclepio - Iniciar Sesión' }];
+	const locale = currentLocale();
+	return [{ title: m.pageTitleLogin({}, { locale }) }];
 }
 
 export default function LoginPage() {

@@ -21,7 +21,7 @@ import {
 	FieldLabel,
 } from '@/components/ui/field/field.component';
 import { Input } from '@/components/ui/input/input.component';
-import { getDashboardContent } from '@/features/dashboard/dashboard.content';
+import { getDashboardContent } from '@/features/dashboard/dashboard-content';
 import { currentLocale } from '@/features/i18n/locale-path';
 import { apiPost } from '@/lib/api';
 import { type Hospital, useAuthStore } from '@/store/auth.store';

@@ -22,6 +22,8 @@ import {
 	TableHeader,
 	TableRow,
 } from '@/components/ui/table/table.component';
+import { currentLocale } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
 
 export interface PatientRow {
 	id: string;
@@ -103,19 +105,29 @@ export function PatientTable({
 	onRefresh,
 	labels,
 }: PatientTableProps) {
+	const locale = currentLocale();
 	const text = {
-		title: labels?.title ?? 'Pacientes',
-		refresh: labels?.refresh ?? 'Actualizar',
-		emptyTitle: labels?.emptyTitle ?? 'Sin pacientes registrados',
+		title: labels?.title ?? m.dashboardPatientsTableTitle({}, { locale }),
+		refresh: labels?.refresh ?? m.dashboardPatientsRefresh({}, { locale }),
+		emptyTitle:
+			labels?.emptyTitle ?? m.dashboardPatientsEmptyTitle({}, { locale }),
 		emptyDescription:
 			labels?.emptyDescription ??
-			'Los pacientes apareceran aqui una vez registrados en el sistema.',
+			m.dashboardPatientsEmptyDescription({}, { locale }),
 		headers: {
-			patient: labels?.headers?.patient ?? 'Paciente',
-			document: labels?.headers?.document ?? 'Documento',
-			eps: labels?.headers?.eps ?? 'EPS',
-			blood: labels?.headers?.blood ?? 'Sangre',
-			registry: labels?.headers?.registry ?? 'Registro',
+			patient:
+				labels?.headers?.patient ??
+				m.dashboardPatientsHeaderPatient({}, { locale }),
+			document:
+				labels?.headers?.document ??
+				m.dashboardPatientsHeaderDocument({}, { locale }),
+			eps: labels?.headers?.eps ?? m.dashboardPatientsHeaderEps({}, { locale }),
+			blood:
+				labels?.headers?.blood ??
+				m.dashboardPatientsHeaderBlood({}, { locale }),
+			registry:
+				labels?.headers?.registry ??
+				m.dashboardPatientsHeaderRegistry({}, { locale }),
 		},
 	};
 
@@ -240,7 +252,9 @@ export function PatientTable({
 										)}
 									</TableCell>
 									<TableCell className="px-4 py-3 text-xs text-muted-foreground">
-										{new Date(p.creadoEn).toLocaleDateString('es-CO')}
+										{new Date(p.creadoEn).toLocaleDateString(
+											locale === 'en' ? 'en-US' : 'es-CO',
+										)}
 									</TableCell>
 								</TableRow>
 							))}

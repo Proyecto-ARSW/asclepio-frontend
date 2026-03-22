@@ -77,29 +77,6 @@ export default function HomePage() {
 			icon: LifebuoyIcon,
 		},
 	];
-	const doctors = [
-		{
-			name: m.homeLandingDoctor1Name({}, { locale }),
-			specialty: m.homeLandingDoctor1Specialty({}, { locale }),
-			image: '/images/doctor-image.webp',
-		},
-		{
-			name: m.homeLandingDoctor2Name({}, { locale }),
-			specialty: m.homeLandingDoctor2Specialty({}, { locale }),
-			image: '/images/doctor-image-2.webp',
-			highlight: true,
-		},
-		{
-			name: m.homeLandingDoctor3Name({}, { locale }),
-			specialty: m.homeLandingDoctor3Specialty({}, { locale }),
-			image: '/images/doctor-image.webp',
-		},
-		{
-			name: m.homeLandingDoctor4Name({}, { locale }),
-			specialty: m.homeLandingDoctor4Specialty({}, { locale }),
-			image: '/images/doctor-image-2.webp',
-		},
-	];
 	const stats = [
 		{ value: '30M+', label: m.homeLandingStatUsers({}, { locale }) },
 		{ value: '30%', label: m.homeLandingStatSavings({}, { locale }) },
@@ -159,12 +136,12 @@ export default function HomePage() {
 	}
 
 	return (
-		<main className="relative overflow-x-clip bg-background text-foreground">
+		<main className="relative overflow-x-clip bg-background text-foreground selection:bg-primary/20">
 			<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_10%,color-mix(in_oklch,var(--color-primary)_20%,transparent),transparent_34%),radial-gradient(circle_at_80%_18%,color-mix(in_oklch,var(--color-secondary)_35%,white),transparent_30%),linear-gradient(180deg,color-mix(in_oklch,var(--color-background)_96%,white)_0%,color-mix(in_oklch,var(--color-secondary)_20%,white)_52%,var(--color-background)_100%)]" />
 
 			<section
 				id="home"
-				className="sticky top-0 z-40 border-b border-border/50 bg-background/80 px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8"
+				className="sticky top-0 z-40 border-b border-border/50 bg-background/80 px-4 py-4 backdrop-blur-xl motion-safe:animate-step-in sm:px-6 lg:px-8"
 			>
 				<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card/80 px-4 py-3 shadow-sm sm:px-6">
 					<nav className="flex items-center justify-between gap-4">
@@ -254,7 +231,10 @@ export default function HomePage() {
 				</div>
 			</section>
 
-			<section id="about" className="px-4 pb-10 pt-8 sm:px-6 lg:px-8">
+			<section
+				id="about"
+				className="scroll-mt-28 px-4 pb-10 pt-8 motion-safe:animate-step-in-left sm:px-6 lg:px-8"
+			>
 				<div className="mx-auto grid max-w-7xl gap-8 rounded-[2rem] border border-border/60 bg-card/80 p-6 shadow-sm backdrop-blur-xl lg:grid-cols-[1.08fr_0.92fr] lg:p-8">
 					<div className="space-y-6">
 						<Badge
@@ -322,7 +302,10 @@ export default function HomePage() {
 						<img
 							src="/images/doctor-image.webp"
 							alt={m.homeLandingDoctorImageAlt({}, { locale })}
-							className="relative z-10 mx-auto h-100 w-80 rounded-[1.75rem] object-cover object-top shadow-md"
+							loading="eager"
+							decoding="async"
+							fetchPriority="high"
+							className="relative z-10 mt-20 mx-auto h-110 w-80 rounded-[1.75rem] object-cover object-top shadow-md sm:mt-8"
 						/>
 
 						<div className="absolute left-4 top-4 rounded-2xl border border-border bg-card/90 p-3 shadow-sm backdrop-blur md:left-6 md:top-6">
@@ -353,7 +336,10 @@ export default function HomePage() {
 				</div>
 			</section>
 
-			<section id="blog" className="px-4 pb-12 sm:px-6 lg:px-8">
+			<section
+				id="blog"
+				className="scroll-mt-28 px-4 pb-12 motion-safe:animate-step-in sm:px-6 lg:px-8"
+			>
 				<Card className="mx-auto max-w-7xl rounded-[2rem] border-border/50 bg-card px-6 py-10 text-center shadow-sm">
 					<p className="text-2xl font-semibold tracking-tight text-foreground">
 						{m.homeLandingSocialProofTitle({}, { locale })}
@@ -370,7 +356,10 @@ export default function HomePage() {
 				</Card>
 			</section>
 
-			<section id="services" className="px-4 pb-14 sm:px-6 lg:px-8">
+			<section
+				id="services"
+				className="scroll-mt-28 px-4 pb-14 motion-safe:animate-step-in-right sm:px-6 lg:px-8"
+			>
 				<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card/85 px-6 py-12 shadow-sm backdrop-blur">
 					<div className="mx-auto max-w-2xl text-center">
 						<p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
@@ -388,7 +377,7 @@ export default function HomePage() {
 						{services.map((service) => (
 							<Card
 								key={service.title}
-								className="rounded-3xl border-border/60 bg-background/95 p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+								className="rounded-3xl border-border/60 bg-background/95 p-6 transition-all duration-500 motion-reduce:transition-none hover:-translate-y-1 hover:shadow-md"
 							>
 								<CardContent className="px-0">
 									<div className="grid h-12 w-12 place-items-center rounded-full border border-border bg-card">
@@ -407,7 +396,7 @@ export default function HomePage() {
 				</div>
 			</section>
 
-			<section className="px-4 pb-14 sm:px-6 lg:px-8">
+			<section className="px-4 pb-14 motion-safe:animate-step-in sm:px-6 lg:px-8">
 				<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card px-6 py-12 shadow-sm">
 					<h2 className="mx-auto max-w-xl text-center text-4xl font-bold tracking-tight text-foreground">
 						{m.homeLandingIntegrationsTitle({}, { locale })}
@@ -441,56 +430,7 @@ export default function HomePage() {
 				</div>
 			</section>
 
-			<section className="px-4 pb-14 sm:px-6 lg:px-8">
-				<div className="mx-auto max-w-7xl">
-					<h2 className="text-center text-4xl font-bold tracking-tight text-foreground">
-						{m.homeLandingDoctorsTitle({}, { locale })}
-					</h2>
-					<p className="mt-2 text-center text-sm text-muted-foreground">
-						{m.homeLandingDoctorsSubtitle({}, { locale })}
-					</p>
-
-					<div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-						{doctors.map((doctor) => (
-							<Card
-								key={doctor.name}
-								className={`rounded-3xl border bg-card p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${
-									doctor.highlight
-										? 'border-primary/40 shadow-sm'
-										: 'border-border/60'
-								}`}
-							>
-								<CardContent className="px-0">
-									<img
-										src={doctor.image}
-										alt={`${doctor.name} profile`}
-										className="h-52 w-full rounded-2xl object-cover"
-									/>
-									<h3 className="mt-4 text-base font-semibold tracking-tight text-foreground">
-										{doctor.name}
-									</h3>
-									<p className="mt-1 text-xs text-muted-foreground">
-										{doctor.specialty}
-									</p>
-									<div className="mt-3 flex items-center gap-2 text-muted-foreground">
-										<span className="grid h-6 w-6 place-items-center rounded-full border border-border text-[10px]">
-											in
-										</span>
-										<span className="grid h-6 w-6 place-items-center rounded-full border border-border text-[10px]">
-											x
-										</span>
-										<span className="grid h-6 w-6 place-items-center rounded-full border border-border text-[10px]">
-											f
-										</span>
-									</div>
-								</CardContent>
-							</Card>
-						))}
-					</div>
-				</div>
-			</section>
-
-			<section className="px-4 pb-14 sm:px-6 lg:px-8">
+			<section className="px-4 pb-14 motion-safe:animate-step-in sm:px-6 lg:px-8">
 				<div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-linear-to-r from-primary via-secondary to-primary px-6 py-16 text-center text-primary-foreground shadow-md">
 					<div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.45)_1.5px,transparent_2px)] bg-size-[14px_14px] opacity-45" />
 					<h2 className="mx-auto max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">
@@ -500,7 +440,7 @@ export default function HomePage() {
 						to={localePath('/register', locale)}
 						className={cn(
 							buttonVariants({ variant: 'secondary', size: 'lg' }),
-							'mt-6 inline-flex rounded-full border border-white/30 bg-white/90 px-5 text-primary transition-all duration-300 hover:-translate-y-0.5 hover:bg-white',
+							'mt-6 inline-flex rounded-full border border-white/30 bg-white/90 px-5 text-primary transition-all duration-500 motion-reduce:transition-none hover:-translate-y-0.5 hover:bg-white',
 						)}
 					>
 						{m.homeLandingCtaButton({}, { locale })}
@@ -509,11 +449,11 @@ export default function HomePage() {
 				</div>
 			</section>
 
-			<section className="px-4 pb-20 sm:px-6 lg:px-8">
+			<section className="px-4 pb-20 motion-safe:animate-step-in sm:px-6 lg:px-8">
 				<div className="mx-auto max-w-7xl space-y-8 rounded-[2rem] border border-border/60 bg-card/80 p-6 shadow-sm backdrop-blur">
-					<div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+					<div className="mx-auto grid max-w-4xl grid-cols-2 justify-items-center gap-6 text-center sm:grid-cols-4">
 						{stats.map((stat) => (
-							<div key={stat.label}>
+							<div key={stat.label} className="flex flex-col items-center">
 								<p className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
 									{stat.value}
 								</p>
@@ -539,6 +479,8 @@ export default function HomePage() {
 						<img
 							src="/images/doctor-image-2.webp"
 							alt={m.homeLandingTestimonialImageAlt({}, { locale })}
+							loading="lazy"
+							decoding="async"
 							className="h-56 w-full rounded-3xl object-cover md:h-64"
 						/>
 					</div>

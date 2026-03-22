@@ -1,6 +1,25 @@
-import { useState } from 'react';
+import { useForm } from '@tanstack/react-form';
+import { HeartIcon } from '@heroicons/react/24/outline';
 import { redirect, useNavigate, Link } from 'react-router';
 import type { Route } from './+types/login.page';
+import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
+import { Button } from '@/components/ui/button/button.component';
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from '@/components/ui/card/card.component';
+import {
+	Field,
+	FieldDescription,
+	FieldError,
+	FieldLabel,
+} from '@/components/ui/field/field.component';
+import { Input } from '@/components/ui/input/input.component';
+import { getAuthContent } from '@/features/auth/auth.content';
+import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { apiPost } from '@/lib/api';
 import { useAuthStore, type Hospital, type Usuario } from '@/store/auth.store';
 
@@ -12,12 +31,13 @@ interface LoginResponse {
 
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
+	const locale = currentLocale(window.location.pathname);
 	const raw = localStorage.getItem('asclepio-auth');
 	if (raw) {
 		try {
 			const parsed = JSON.parse(raw);
 			if (parsed.state?.accessToken) {
-				return redirect('/dashboard');
+				return redirect(localePath('/dashboard', locale));
 			}
 		} catch {}
 	}
@@ -31,95 +51,135 @@ export function meta(_: Route.MetaArgs) {
 export default function LoginPage() {
 	const navigate = useNavigate();
 	const setPreAuth = useAuthStore((s) => s.setPreAuth);
+	const locale = currentLocale();
+	const content = getAuthContent(locale);
 
-	const [email, setEmail] = useState('');
-	const [password, setPassword] = useState('');
-	const [error, setError] = useState('');
-	const [loading, setLoading] = useState(false);
-
-	async function handleSubmit(e: { preventDefault(): void }) {
-		e.preventDefault();
-		setError('');
-		setLoading(true);
-		try {
-			const data = await apiPost<LoginResponse>('/auth/login', { email, password });
-			setPreAuth(data.preToken, data.usuario, data.hospitales);
-			navigate('/select-hospital');
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Credenciales inválidas');
-		} finally {
-			setLoading(false);
-		}
-	}
+	const form = useForm({
+		defaultValues: {
+			email: '',
+			password: '',
+			submitError: '',
+		},
+		onSubmit: async ({ value }) => {
+			form.setFieldValue('submitError', '');
+			try {
+				const data = await apiPost<LoginResponse>('/auth/login', {
+					email: value.email,
+					password: value.password,
+				});
+				setPreAuth(data.preToken, data.usuario, data.hospitales);
+				navigate(localePath('/select-hospital', locale));
+			} catch (err) {
+				form.setFieldValue(
+					'submitError',
+					err instanceof Error ? err.message : content.login.errors.invalidCredentials,
+				);
+			}
+		},
+	});
 
 	return (
-		<div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-			<div className="w-full max-w-md">
-				<div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8">
-					<div className="flex flex-col items-center mb-8">
-						<div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-4">
-							<span className="text-white text-3xl font-bold select-none">+</span>
-						</div>
-						<h1 className="text-2xl font-bold text-gray-900">Asclepio</h1>
-						<p className="text-gray-500 text-sm mt-1">Sistema de Gestión Hospitalaria</p>
+		<div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-8">
+			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.14),transparent_50%)]" />
+			<Card className="relative z-10 w-full max-w-md">
+				<CardHeader className="space-y-2">
+					<div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+						<HeartIcon className="h-6 w-6" />
 					</div>
-
-					<form onSubmit={handleSubmit} className="space-y-5">
-						<div>
-							<label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-								Correo electrónico
-							</label>
-							<input
-								id="email"
-								type="email"
-								autoComplete="email"
-								required
-								value={email}
-								onChange={(e) => setEmail(e.target.value)}
-								className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-								placeholder="correo@hospital.com"
-							/>
-						</div>
-
-						<div>
-							<label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-								Contraseña
-							</label>
-							<input
-								id="password"
-								type="password"
-								autoComplete="current-password"
-								required
-								value={password}
-								onChange={(e) => setPassword(e.target.value)}
-								className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-								placeholder="••••••••"
-							/>
-						</div>
-
-						{error && (
-							<div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-								{error}
-							</div>
-						)}
-
-						<button
-							type="submit"
-							disabled={loading}
-							className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-2.5 rounded-lg transition text-sm"
+					<CardTitle>{content.appName}</CardTitle>
+					<CardDescription>{content.appSubtitle}</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-5">
+					<form
+						onSubmit={(e) => {
+							e.preventDefault();
+							void form.handleSubmit();
+						}}
+						className="space-y-4"
+					>
+						<form.Field
+							name="email"
+							validators={{
+								onBlur: ({ value }) =>
+									value.includes('@') ? undefined : content.login.errors.requiredEmail,
+							}}
 						>
-							{loading ? 'Ingresando...' : 'Iniciar sesión'}
-						</button>
+							{(field) => (
+								<Field data-invalid={Boolean(field.state.meta.errors.length)}>
+									<FieldLabel htmlFor={field.name}>{content.login.emailLabel}</FieldLabel>
+									<Input
+										id={field.name}
+										type="email"
+										autoComplete="email"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+										placeholder={content.login.emailPlaceholder}
+										required
+									/>
+									<FieldError
+										errors={field.state.meta.errors.map((message) => ({ message }))}
+									/>
+								</Field>
+							)}
+						</form.Field>
+
+						<form.Field
+							name="password"
+							validators={{
+								onBlur: ({ value }) =>
+									value.length > 0 ? undefined : content.login.errors.requiredPassword,
+							}}
+						>
+							{(field) => (
+								<Field data-invalid={Boolean(field.state.meta.errors.length)}>
+									<FieldLabel htmlFor={field.name}>{content.login.passwordLabel}</FieldLabel>
+									<Input
+										id={field.name}
+										type="password"
+										autoComplete="current-password"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+										placeholder={content.login.passwordPlaceholder}
+										required
+									/>
+									<FieldError
+										errors={field.state.meta.errors.map((message) => ({ message }))}
+									/>
+								</Field>
+							)}
+						</form.Field>
+
+						<form.Field name="submitError">
+							{(field) =>
+								field.state.value ? (
+									<Alert variant="destructive">
+										<AlertDescription>{field.state.value}</AlertDescription>
+									</Alert>
+								) : null
+							}
+						</form.Field>
+
+						<form.Subscribe
+							selector={(state) => [state.canSubmit, state.isSubmitting]}
+						>
+							{([canSubmit, isSubmitting]) => (
+								<Button type="submit" className="w-full" disabled={!canSubmit || isSubmitting}>
+									{isSubmitting ? content.login.submitLoading : content.login.submit}
+								</Button>
+							)}
+						</form.Subscribe>
 					</form>
 
-					<p className="text-center text-sm text-gray-500 mt-6">
-						¿No tienes cuenta?{' '}
-						<Link to="/register" className="font-medium text-blue-600 hover:underline">
-							Registrarse
+					<FieldDescription className="text-center">
+						{content.login.registerPrompt}{' '}
+						<Link to={localePath('/register', locale)} className="text-primary underline-offset-4 hover:underline">
+							{content.login.registerAction}
 						</Link>
-					</p>
-				</div>
-			</div>
+					</FieldDescription>
+				</CardContent>
+			</Card>
 		</div>
 	);
 }

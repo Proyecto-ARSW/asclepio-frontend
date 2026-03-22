@@ -14,6 +14,7 @@ import {
 	BeakerIcon,
 } from '@heroicons/react/24/outline';
 import type { Route } from './+types/register.page';
+import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { apiGet, apiPost } from '@/lib/api';
 import { useAuthStore, type Hospital, type Usuario } from '@/store/auth.store';
 
@@ -68,11 +69,12 @@ interface RegisterResponse {
 
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
+	const locale = currentLocale(window.location.pathname);
 	const raw = localStorage.getItem('asclepio-auth');
 	if (raw) {
 		try {
 			const parsed = JSON.parse(raw);
-			if (parsed.state?.accessToken) return redirect('/dashboard');
+			if (parsed.state?.accessToken) return redirect(localePath('/dashboard', locale));
 		} catch {}
 	}
 	return null;
@@ -84,6 +86,7 @@ export function meta(_: Route.MetaArgs) {
 
 export default function RegisterPage() {
 	const navigate = useNavigate();
+	const locale = currentLocale();
 	const setFullAuth = useAuthStore((s) => s.setFullAuth);
 
 	const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -214,7 +217,7 @@ export default function RegisterPage() {
 				departamento: '',
 			};
 			setFullAuth(res.accessToken, res.usuario, hospitalForStore);
-			navigate('/dashboard');
+			navigate(localePath('/dashboard', locale));
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Error al crear la cuenta');
 		} finally {
@@ -323,7 +326,7 @@ export default function RegisterPage() {
 
 						<p className="mt-5 text-center text-sm text-gray-500">
 							¿Ya tienes cuenta?{' '}
-							<Link to="/login" className="font-medium text-blue-600 hover:underline">
+							<Link to={localePath('/login', locale)} className="font-medium text-blue-600 hover:underline">
 								Iniciar sesión
 							</Link>
 						</p>
@@ -495,7 +498,7 @@ function Step2({
 									}`}
 								>
 									<BuildingOffice2Icon
-										className={`h-5 w-5 flex-shrink-0 ${form.hospitalId === h.id ? 'text-blue-600' : 'text-gray-400'}`}
+										className={`h-5 w-5 shrink-0 ${form.hospitalId === h.id ? 'text-blue-600' : 'text-gray-400'}`}
 									/>
 									<div className="min-w-0">
 										<p className={`truncate text-sm font-medium ${form.hospitalId === h.id ? 'text-blue-700' : 'text-gray-800'}`}>
@@ -504,7 +507,7 @@ function Step2({
 										<p className="text-xs text-gray-400">{h.ciudad}, {h.departamento}</p>
 									</div>
 									{form.hospitalId === h.id && (
-										<CheckCircleIcon className="ml-auto h-4 w-4 flex-shrink-0 text-blue-500" />
+										<CheckCircleIcon className="ml-auto h-4 w-4 shrink-0 text-blue-500" />
 									)}
 								</button>
 							))}

@@ -181,6 +181,18 @@
 	html {
 		@apply font-sans;
 	}
+	html.dyslexia-font,
+	html.dyslexia-font body,
+	html.dyslexia-font input,
+	html.dyslexia-font textarea,
+	html.dyslexia-font button,
+	html.dyslexia-font select {
+		font-family:
+			"OpenDyslexic", "Atkinson Hyperlegible", "Lexend", Verdana, Tahoma,
+			sans-serif;
+		letter-spacing: 0.02em;
+		line-height: 1.5;
+	}
 	.font-sans {
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;

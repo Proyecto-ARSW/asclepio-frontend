@@ -48,6 +48,28 @@ interface DashboardContent {
 	comingSoon: {
 		description: string;
 	};
+	settings: {
+		title: string;
+		description: string;
+		language: {
+			title: string;
+			description: string;
+			es: string;
+			en: string;
+		};
+		theme: {
+			title: string;
+			description: string;
+			light: string;
+			dark: string;
+			system: string;
+		};
+		dyslexia: {
+			title: string;
+			description: string;
+			toggle: string;
+		};
+	};
 	createHospitalModal: {
 		title: string;
 		description: string;
@@ -108,6 +130,7 @@ const byLocale: Record<AppLocale, DashboardContent> = {
 				queue: 'Turnos',
 				medicines: 'Medicamentos',
 				doctors: 'Medicos',
+				settings: 'Configuracion',
 			},
 		},
 		overview: {
@@ -153,6 +176,30 @@ const byLocale: Record<AppLocale, DashboardContent> = {
 		comingSoon: {
 			description:
 				'Seccion disponible - conectar con GraphQL resolver correspondiente.',
+		},
+		settings: {
+			title: 'Configuracion',
+			description:
+				'Personaliza idioma, apariencia y accesibilidad para tu sesion.',
+			language: {
+				title: 'Idioma',
+				description: 'Cambia entre espanol e ingles en toda la interfaz.',
+				es: 'Espanol',
+				en: 'Ingles',
+			},
+			theme: {
+				title: 'Tema',
+				description: 'Selecciona el modo de color de la aplicacion.',
+				light: 'Claro',
+				dark: 'Oscuro',
+				system: 'Sistema',
+			},
+			dyslexia: {
+				title: 'Tipografia para dislexia',
+				description:
+					'Activa una tipografia y espaciado que facilitan la lectura.',
+				toggle: 'Activar tipografia accesible',
+			},
 		},
 		createHospitalModal: {
 			title: 'Crear hospital',
@@ -212,6 +259,7 @@ const byLocale: Record<AppLocale, DashboardContent> = {
 				queue: 'Queue',
 				medicines: 'Medicines',
 				doctors: 'Doctors',
+				settings: 'Settings',
 			},
 		},
 		overview: {
@@ -257,6 +305,29 @@ const byLocale: Record<AppLocale, DashboardContent> = {
 		comingSoon: {
 			description:
 				'Section available - connect the corresponding GraphQL resolver.',
+		},
+		settings: {
+			title: 'Settings',
+			description:
+				'Customize language, appearance, and accessibility for your session.',
+			language: {
+				title: 'Language',
+				description: 'Switch between Spanish and English across the interface.',
+				es: 'Spanish',
+				en: 'English',
+			},
+			theme: {
+				title: 'Theme',
+				description: 'Select the color mode for the application.',
+				light: 'Light',
+				dark: 'Dark',
+				system: 'System',
+			},
+			dyslexia: {
+				title: 'Dyslexia-friendly typography',
+				description: 'Enable a reading-friendly font and spacing profile.',
+				toggle: 'Enable accessible typography',
+			},
 		},
 		createHospitalModal: {
 			title: 'Create hospital',

@@ -3,8 +3,11 @@ import {
 	CalendarDaysIcon,
 	ExclamationCircleIcon,
 	ExclamationTriangleIcon,
+	LanguageIcon,
+	MoonIcon,
 	PlusIcon,
 	QueueListIcon,
+	SunIcon,
 	UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { useCallback, useEffect, useState } from 'react';
@@ -30,9 +33,33 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
+import {
+	Field,
+	FieldDescription,
+	FieldLabel,
+} from '@/components/ui/field/field.component';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select/select.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
+import { Switch } from '@/components/ui/switch/switch.component';
 import { getDashboardContent } from '@/features/dashboard/dashboard.content';
-import { currentLocale, localePath } from '@/features/i18n/locale-path';
+import {
+	type AppLocale,
+	currentLocale,
+	localePath,
+} from '@/features/i18n/locale-path';
+import {
+	applyUiPreferences,
+	readUiPreferences,
+	saveUiPreferences,
+	type ThemeMode,
+	type UiPreferences,
+} from '@/features/preferences/ui-preferences';
 import { apiGet } from '@/lib/api';
 import { gqlQuery } from '@/lib/graphql-client';
 import { useAuthStore } from '@/store/auth.store';
@@ -90,6 +117,9 @@ export default function DashboardPage() {
 	const [loadingPatients, setLoadingPatients] = useState(false);
 	const [error, setError] = useState('');
 	const [showCreateHospital, setShowCreateHospital] = useState(false);
+	const [uiPreferences, setUiPreferences] = useState<UiPreferences>(() =>
+		readUiPreferences(),
+	);
 
 	const isAdmin = user?.rol === 'ADMIN';
 	const isTempSession = selectedHospital?.id === 0;
@@ -97,6 +127,11 @@ export default function DashboardPage() {
 	useEffect(() => {
 		useAuthStore.persist.rehydrate();
 	}, []);
+
+	useEffect(() => {
+		applyUiPreferences(uiPreferences);
+		saveUiPreferences(uiPreferences);
+	}, [uiPreferences]);
 
 	const loadHospitals = useCallback(async () => {
 		setLoadingHospitals(true);
@@ -149,6 +184,18 @@ export default function DashboardPage() {
 	function handleLogout() {
 		logout();
 		navigate(localePath('/login', locale));
+	}
+
+	function handleLanguageChange(nextLocale: AppLocale) {
+		navigate(localePath('/dashboard', nextLocale));
+	}
+
+	function handleThemeChange(theme: ThemeMode) {
+		setUiPreferences((prev) => ({ ...prev, theme }));
+	}
+
+	function handleDyslexiaToggle(enabled: boolean) {
+		setUiPreferences((prev) => ({ ...prev, dyslexiaFont: enabled }));
 	}
 
 	const sectionMap = content.sidebar.sections;
@@ -320,7 +367,21 @@ export default function DashboardPage() {
 						</>
 					)}
 
-					{!['overview', 'hospitals', 'patients'].includes(activeSection) && (
+					{activeSection === 'settings' && (
+						<SettingsSection
+							content={content}
+							locale={locale}
+							theme={uiPreferences.theme}
+							dyslexiaFont={uiPreferences.dyslexiaFont}
+							onLanguageChange={handleLanguageChange}
+							onThemeChange={handleThemeChange}
+							onDyslexiaToggle={handleDyslexiaToggle}
+						/>
+					)}
+
+					{!['overview', 'hospitals', 'patients', 'settings'].includes(
+						activeSection,
+					) && (
 						<ComingSoonSection
 							label={sectionMap[activeSection]}
 							description={content.comingSoon.description}
@@ -328,6 +389,135 @@ export default function DashboardPage() {
 					)}
 				</div>
 			</main>
+		</div>
+	);
+}
+
+function SettingsSection({
+	content,
+	locale,
+	theme,
+	dyslexiaFont,
+	onLanguageChange,
+	onThemeChange,
+	onDyslexiaToggle,
+}: {
+	content: ReturnType<typeof getDashboardContent>;
+	locale: AppLocale;
+	theme: ThemeMode;
+	dyslexiaFont: boolean;
+	onLanguageChange: (locale: AppLocale) => void;
+	onThemeChange: (theme: ThemeMode) => void;
+	onDyslexiaToggle: (enabled: boolean) => void;
+}) {
+	return (
+		<div className="space-y-6">
+			<div>
+				<h2 className="text-xl font-bold text-foreground">
+					{content.settings.title}
+				</h2>
+				<p className="mt-1 text-sm text-muted-foreground">
+					{content.settings.description}
+				</p>
+			</div>
+
+			<Card>
+				<CardHeader className="pb-0">
+					<CardTitle className="flex items-center gap-2 text-base">
+						<LanguageIcon className="h-4 w-4" />
+						{content.settings.language.title}
+					</CardTitle>
+				</CardHeader>
+				<CardContent className="space-y-3">
+					<FieldDescription>
+						{content.settings.language.description}
+					</FieldDescription>
+					<div className="flex flex-wrap gap-2">
+						<Button
+							type="button"
+							variant={locale === 'es' ? 'default' : 'outline'}
+							onClick={() => onLanguageChange('es')}
+						>
+							{content.settings.language.es}
+						</Button>
+						<Button
+							type="button"
+							variant={locale === 'en' ? 'default' : 'outline'}
+							onClick={() => onLanguageChange('en')}
+						>
+							{content.settings.language.en}
+						</Button>
+					</div>
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader className="pb-0">
+					<CardTitle className="flex items-center gap-2 text-base">
+						<MoonIcon className="h-4 w-4" />
+						{content.settings.theme.title}
+					</CardTitle>
+				</CardHeader>
+				<CardContent className="space-y-3">
+					<FieldDescription>
+						{content.settings.theme.description}
+					</FieldDescription>
+					<Field>
+						<FieldLabel>{content.settings.theme.title}</FieldLabel>
+						<Select
+							value={theme}
+							onValueChange={(value) =>
+								onThemeChange((value as ThemeMode | null) ?? 'system')
+							}
+						>
+							<SelectTrigger className="w-full sm:w-64">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="light">
+									<span className="inline-flex items-center gap-2">
+										<SunIcon className="h-4 w-4" />
+										{content.settings.theme.light}
+									</span>
+								</SelectItem>
+								<SelectItem value="dark">
+									<span className="inline-flex items-center gap-2">
+										<MoonIcon className="h-4 w-4" />
+										{content.settings.theme.dark}
+									</span>
+								</SelectItem>
+								<SelectItem value="system">
+									{content.settings.theme.system}
+								</SelectItem>
+							</SelectContent>
+						</Select>
+					</Field>
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader className="pb-0">
+					<CardTitle className="text-base">
+						{content.settings.dyslexia.title}
+					</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+						<div>
+							<p className="text-sm font-medium text-foreground">
+								{content.settings.dyslexia.toggle}
+							</p>
+							<p className="text-xs text-muted-foreground">
+								{content.settings.dyslexia.description}
+							</p>
+						</div>
+						<Switch
+							checked={dyslexiaFont}
+							onCheckedChange={(checked) => onDyslexiaToggle(Boolean(checked))}
+						/>
+					</div>
+				</CardContent>
+			</Card>
 		</div>
 	);
 }

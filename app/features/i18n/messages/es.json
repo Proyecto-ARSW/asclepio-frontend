@@ -65,6 +65,8 @@
 	"dashboardSettingsOverviewBlocksTitle": "Bloques de inicio",
 	"dashboardSettingsOverviewBlocksDescription": "Elige qué bloques quieres ver en el panel de inicio.",
 	"dashboardSettingsOverviewBlocksReset": "Restablecer",
+	"dashboardSettingsOverviewBlocksReorderTitle": "Orden de bloques visibles",
+	"dashboardSettingsOverviewBlocksReorderHint": "Arrastra y suelta para reordenar los bloques activos.",
 	"dashboardSettingsOverviewCardRecent": "Tarjeta de citas recientes",
 	"dashboardSettingsOverviewCardQueue": "Tarjeta de vista previa de turnos",
 	"dashboardOverviewNoBlocksSelected": "No hay bloques seleccionados para Inicio. Activa al menos uno desde Configuración.",

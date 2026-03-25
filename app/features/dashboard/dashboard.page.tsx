@@ -52,6 +52,21 @@ import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/dashboard.page';
 
+const DASHBOARD_SECTION_STORAGE_KEY = 'asclepio-dashboard-active-section';
+
+function isNavSection(value: string | null): value is NavSection {
+	return (
+		value === 'overview' ||
+		value === 'hospitals' ||
+		value === 'patients' ||
+		value === 'appointments' ||
+		value === 'queue' ||
+		value === 'medicines' ||
+		value === 'doctors' ||
+		value === 'settings'
+	);
+}
+
 function getRoleLabel(role: string | null | undefined, locale: 'es' | 'en') {
 	switch (role) {
 		case 'ADMIN':
@@ -138,11 +153,43 @@ export default function DashboardPage() {
 		}));
 	}
 
+	function handleOverviewBlocksReorder(
+		from: OverviewBlockKey,
+		to: OverviewBlockKey,
+	) {
+		if (from === to) return;
+		setUiPreferences((prev) => {
+			const fromIndex = prev.overviewBlocks.indexOf(from);
+			const toIndex = prev.overviewBlocks.indexOf(to);
+			if (fromIndex === -1 || toIndex === -1) return prev;
+			const next = [...prev.overviewBlocks];
+			next.splice(fromIndex, 1);
+			next.splice(toIndex, 0, from);
+			return { ...prev, overviewBlocks: next };
+		});
+	}
+
+	function handleSidebarNavigate(section: NavSection) {
+		setActiveSection(section);
+		if (typeof window !== 'undefined') {
+			localStorage.setItem(DASHBOARD_SECTION_STORAGE_KEY, section);
+		}
+	}
+
+	const hasSidebarNavigation = user?.rol === 'ADMIN';
+
+	useEffect(() => {
+		if (!hasSidebarNavigation || typeof window === 'undefined') return;
+		const storedSection = localStorage.getItem(DASHBOARD_SECTION_STORAGE_KEY);
+		if (isNavSection(storedSection)) {
+			setActiveSection(storedSection);
+		}
+	}, [hasSidebarNavigation]);
+
 	if (!user) {
 		return null;
 	}
 
-	const hasSidebarNavigation = user.rol === 'ADMIN';
 	const roleLabel = getRoleLabel(user.rol, locale);
 	const overviewBlockChoices: Array<{ key: OverviewBlockKey; label: string }> =
 		[
@@ -258,7 +305,7 @@ export default function DashboardPage() {
 					<div className="flex gap-4">
 						<SidebarNav
 							active={activeSection}
-							onNavigate={setActiveSection}
+							onNavigate={handleSidebarNavigate}
 							hospitalName={selectedHospital?.nombre}
 							userName={`${user.nombre} ${user.apellido}`}
 							userRole={roleLabel}
@@ -284,6 +331,7 @@ export default function DashboardPage() {
 								overviewBlockChoices={overviewBlockChoices}
 								onOverviewBlockToggle={handleOverviewBlockToggle}
 								onOverviewBlockReset={handleOverviewBlocksReset}
+								onOverviewBlocksReorder={handleOverviewBlocksReorder}
 							/>
 						</div>
 					</div>
@@ -308,6 +356,7 @@ export default function DashboardPage() {
 							}
 							onOverviewBlockToggle={handleOverviewBlockToggle}
 							onOverviewBlockReset={handleOverviewBlocksReset}
+							onOverviewBlocksReorder={handleOverviewBlocksReorder}
 						/>
 					</div>
 				)}
@@ -330,6 +379,7 @@ function SidebarSectionRenderer({
 	overviewBlockChoices,
 	onOverviewBlockToggle,
 	onOverviewBlockReset,
+	onOverviewBlocksReorder,
 }: {
 	section: NavSection;
 	user: DashboardUser;
@@ -344,6 +394,10 @@ function SidebarSectionRenderer({
 	overviewBlockChoices: Array<{ key: OverviewBlockKey; label: string }>;
 	onOverviewBlockToggle: (block: OverviewBlockKey, checked: boolean) => void;
 	onOverviewBlockReset: () => void;
+	onOverviewBlocksReorder: (
+		from: OverviewBlockKey,
+		to: OverviewBlockKey,
+	) => void;
 }) {
 	if (section === 'settings') {
 		return (
@@ -358,6 +412,7 @@ function SidebarSectionRenderer({
 				onDyslexiaToggle={onDyslexiaToggle}
 				onOverviewBlockToggle={onOverviewBlockToggle}
 				onOverviewBlockReset={onOverviewBlockReset}
+				onOverviewBlocksReorder={onOverviewBlocksReorder}
 			/>
 		);
 	}
@@ -420,6 +475,7 @@ function SettingsPanel({
 	onDyslexiaToggle,
 	onOverviewBlockToggle,
 	onOverviewBlockReset,
+	onOverviewBlocksReorder,
 }: {
 	locale: 'es' | 'en';
 	theme: ThemeMode;
@@ -431,7 +487,18 @@ function SettingsPanel({
 	onDyslexiaToggle: (enabled: boolean) => void;
 	onOverviewBlockToggle: (block: OverviewBlockKey, checked: boolean) => void;
 	onOverviewBlockReset: () => void;
+	onOverviewBlocksReorder: (
+		from: OverviewBlockKey,
+		to: OverviewBlockKey,
+	) => void;
 }) {
+	const [draggingBlock, setDraggingBlock] = useState<OverviewBlockKey | null>(
+		null,
+	);
+
+	const overviewChoiceMap = Object.fromEntries(
+		overviewBlockChoices.map((choice) => [choice.key, choice.label]),
+	) as Record<OverviewBlockKey, string>;
 	return (
 		<Card className="h-fit border-border/70 bg-card/90 shadow-sm">
 			<CardHeader>
@@ -514,6 +581,37 @@ function SettingsPanel({
 					<p className="text-xs text-muted-foreground">
 						{m.dashboardSettingsOverviewBlocksDescription({}, { locale })}
 					</p>
+					<div className="space-y-2 rounded-md border border-border/60 bg-background/70 p-2">
+						<p className="text-xs font-medium text-foreground">
+							{m.dashboardSettingsOverviewBlocksReorderTitle({}, { locale })}
+						</p>
+						<p className="text-xs text-muted-foreground">
+							{m.dashboardSettingsOverviewBlocksReorderHint({}, { locale })}
+						</p>
+						<ul className="space-y-1">
+							{overviewBlocks.map((block) => (
+								<li
+									key={block}
+									draggable
+									onDragStart={() => setDraggingBlock(block)}
+									onDragOver={(event) => event.preventDefault()}
+									onDrop={() => {
+										if (!draggingBlock) return;
+										onOverviewBlocksReorder(draggingBlock, block);
+										setDraggingBlock(null);
+									}}
+									onDragEnd={() => setDraggingBlock(null)}
+									className={cn(
+										'flex cursor-grab items-center justify-between rounded-md border border-border/60 bg-card px-2 py-1.5 text-xs text-foreground active:cursor-grabbing',
+										draggingBlock === block && 'opacity-50',
+									)}
+								>
+									<span>{overviewChoiceMap[block]}</span>
+									<span className="text-muted-foreground">::</span>
+								</li>
+							))}
+						</ul>
+					</div>
 					<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 						{overviewBlockChoices.map((choice) => (
 							<div

@@ -65,6 +65,8 @@
 	"dashboardSettingsOverviewBlocksTitle": "Home blocks",
 	"dashboardSettingsOverviewBlocksDescription": "Choose which blocks are visible in your Home overview.",
 	"dashboardSettingsOverviewBlocksReset": "Reset",
+	"dashboardSettingsOverviewBlocksReorderTitle": "Visible blocks order",
+	"dashboardSettingsOverviewBlocksReorderHint": "Drag and drop to reorder active blocks.",
 	"dashboardSettingsOverviewCardRecent": "Recent appointments card",
 	"dashboardSettingsOverviewCardQueue": "Queue preview card",
 	"dashboardOverviewNoBlocksSelected": "No Home blocks selected. Enable at least one block from Settings.",

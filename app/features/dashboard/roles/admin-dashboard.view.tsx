@@ -22,12 +22,14 @@ import {
 } from '@/components/ui/card/card.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import { m } from '@/features/i18n/paraglide/messages';
+import { DEFAULT_OVERVIEW_BLOCKS } from '@/features/preferences/ui-preferences';
 import { apiGet } from '@/lib/api';
 import { gqlMutation, gqlQuery } from '@/lib/graphql-client';
 import type { Hospital } from '@/store/auth.store';
 import { AdminRoleRowForm } from './admin-role-row.form';
 import type {
 	DashboardSection,
+	OverviewBlockKey,
 	RoleUpdatePayload,
 	RoleViewProps,
 	UserRole,
@@ -234,15 +236,120 @@ export function AdminDashboardView({
 	);
 
 	const visibleBlocks = useMemo(
-		() => new Set(overviewBlocks ?? []),
+		() => new Set(overviewBlocks ?? DEFAULT_OVERVIEW_BLOCKS),
 		[overviewBlocks],
+	);
+
+	const overviewOrder = useMemo(
+		() =>
+			overviewBlocks && overviewBlocks.length > 0
+				? overviewBlocks
+				: [...DEFAULT_OVERVIEW_BLOCKS],
+		[overviewBlocks],
+	);
+
+	const orderedKpiBlocks = useMemo(
+		() =>
+			overviewOrder.filter((block) =>
+				[
+					'kpiUsers',
+					'kpiHospitals',
+					'kpiPatients',
+					'kpiDoctors',
+					'kpiNurses',
+					'kpiAppointments',
+					'kpiQueue',
+					'kpiMedicines',
+				].includes(block),
+			) as OverviewBlockKey[],
+		[overviewOrder],
+	);
+
+	const orderedCardBlocks = useMemo(
+		() =>
+			overviewOrder.filter((block) =>
+				['recentAppointments', 'queuePreview'].includes(block),
+			) as OverviewBlockKey[],
+		[overviewOrder],
 	);
 
 	const showBlock = useCallback(
 		(block: string) =>
-			overviewBlocks === undefined || visibleBlocks.has(block as never),
+			overviewBlocks === undefined ||
+			visibleBlocks.has(block as OverviewBlockKey),
 		[overviewBlocks, visibleBlocks],
 	);
+
+	function renderKpiBlock(block: OverviewBlockKey) {
+		switch (block) {
+			case 'kpiUsers':
+				return (
+					<MetricTile
+						label={m.dashboardAdminUsersSectionTitle({}, { locale })}
+						value={counts.users}
+						icon={<UserGroupIcon className="h-4 w-4" />}
+					/>
+				);
+			case 'kpiHospitals':
+				return (
+					<MetricTile
+						label={m.dashboardSidebarHospitals({}, { locale })}
+						value={counts.hospitals}
+						icon={<BuildingOffice2Icon className="h-4 w-4" />}
+					/>
+				);
+			case 'kpiPatients':
+				return (
+					<MetricTile
+						label={m.authRolePatient({}, { locale })}
+						value={counts.patients}
+						icon={<UserGroupIcon className="h-4 w-4" />}
+					/>
+				);
+			case 'kpiDoctors':
+				return (
+					<MetricTile
+						label={m.authRoleDoctor({}, { locale })}
+						value={counts.doctors}
+						icon={<ShieldCheckIcon className="h-4 w-4" />}
+					/>
+				);
+			case 'kpiNurses':
+				return (
+					<MetricTile
+						label={m.authRoleNurse({}, { locale })}
+						value={counts.nurses}
+						icon={<ShieldCheckIcon className="h-4 w-4" />}
+					/>
+				);
+			case 'kpiAppointments':
+				return (
+					<MetricTile
+						label={m.dashboardSidebarAppointments({}, { locale })}
+						value={counts.appointments}
+						icon={<ClipboardDocumentListIcon className="h-4 w-4" />}
+					/>
+				);
+			case 'kpiQueue':
+				return (
+					<MetricTile
+						label={m.dashboardSidebarQueue({}, { locale })}
+						value={counts.queue}
+						icon={<ClockIcon className="h-4 w-4" />}
+					/>
+				);
+			case 'kpiMedicines':
+				return (
+					<MetricTile
+						label={m.dashboardSidebarMedicines({}, { locale })}
+						value={counts.medicines}
+						icon={<CubeIcon className="h-4 w-4" />}
+					/>
+				);
+			default:
+				return null;
+		}
+	}
 
 	useEffect(() => {
 		if (currentPage > totalPages) {
@@ -619,144 +726,97 @@ export function AdminDashboardView({
 			{section === 'overview' && (
 				<>
 					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-						{showBlock('kpiUsers') && (
-							<MetricTile
-								label={m.dashboardAdminUsersSectionTitle({}, { locale })}
-								value={counts.users}
-								icon={<UserGroupIcon className="h-4 w-4" />}
-							/>
-						)}
-						{showBlock('kpiHospitals') && (
-							<MetricTile
-								label={m.dashboardSidebarHospitals({}, { locale })}
-								value={counts.hospitals}
-								icon={<BuildingOffice2Icon className="h-4 w-4" />}
-							/>
-						)}
-						{showBlock('kpiPatients') && (
-							<MetricTile
-								label={m.authRolePatient({}, { locale })}
-								value={counts.patients}
-								icon={<UserGroupIcon className="h-4 w-4" />}
-							/>
-						)}
-						{showBlock('kpiDoctors') && (
-							<MetricTile
-								label={m.authRoleDoctor({}, { locale })}
-								value={counts.doctors}
-								icon={<ShieldCheckIcon className="h-4 w-4" />}
-							/>
-						)}
-						{showBlock('kpiNurses') && (
-							<MetricTile
-								label={m.authRoleNurse({}, { locale })}
-								value={counts.nurses}
-								icon={<ShieldCheckIcon className="h-4 w-4" />}
-							/>
-						)}
-						{showBlock('kpiAppointments') && (
-							<MetricTile
-								label={m.dashboardSidebarAppointments({}, { locale })}
-								value={counts.appointments}
-								icon={<ClipboardDocumentListIcon className="h-4 w-4" />}
-							/>
-						)}
-						{showBlock('kpiQueue') && (
-							<MetricTile
-								label={m.dashboardSidebarQueue({}, { locale })}
-								value={counts.queue}
-								icon={<ClockIcon className="h-4 w-4" />}
-							/>
-						)}
-						{showBlock('kpiMedicines') && (
-							<MetricTile
-								label={m.dashboardSidebarMedicines({}, { locale })}
-								value={counts.medicines}
-								icon={<CubeIcon className="h-4 w-4" />}
-							/>
-						)}
+						{orderedKpiBlocks
+							.filter((block) => showBlock(block))
+							.map((block) => (
+								<div key={block}>{renderKpiBlock(block)}</div>
+							))}
 					</div>
 
 					<div className="grid gap-4 lg:grid-cols-2">
-						{showBlock('recentAppointments') && (
-							<Card className="border-border/70">
-								<CardHeader className="pb-2">
-									<CardTitle className="text-base">
-										{m.dashboardSidebarAppointments({}, { locale })}
-									</CardTitle>
-									<CardDescription>
-										{m.dashboardOverviewActiveConnections({}, { locale })}
-									</CardDescription>
-								</CardHeader>
-								<CardContent className="space-y-2">
-									{loading ? (
-										<Skeleton className="h-20 rounded-lg" />
-									) : recentAppointments.length ? (
-										recentAppointments.map((appointment) => (
-											<div
-												key={appointment.id}
-												className="rounded-lg border border-border/60 bg-muted/20 p-2"
-											>
-												<div className="flex items-center justify-between gap-2">
-													<p className="text-xs text-muted-foreground">
-														{appointment.id}
+						{orderedCardBlocks.includes('recentAppointments') &&
+							showBlock('recentAppointments') && (
+								<Card className="border-border/70">
+									<CardHeader className="pb-2">
+										<CardTitle className="text-base">
+											{m.dashboardSidebarAppointments({}, { locale })}
+										</CardTitle>
+										<CardDescription>
+											{m.dashboardOverviewActiveConnections({}, { locale })}
+										</CardDescription>
+									</CardHeader>
+									<CardContent className="space-y-2">
+										{loading ? (
+											<Skeleton className="h-20 rounded-lg" />
+										) : recentAppointments.length ? (
+											recentAppointments.map((appointment) => (
+												<div
+													key={appointment.id}
+													className="rounded-lg border border-border/60 bg-muted/20 p-2"
+												>
+													<div className="flex items-center justify-between gap-2">
+														<p className="text-xs text-muted-foreground">
+															{appointment.id}
+														</p>
+														<Badge variant="outline">
+															{appointment.estado}
+														</Badge>
+													</div>
+													<p className="text-xs text-foreground">
+														{new Date(appointment.fechaHora).toLocaleString(
+															locale,
+														)}
 													</p>
-													<Badge variant="outline">{appointment.estado}</Badge>
 												</div>
-												<p className="text-xs text-foreground">
-													{new Date(appointment.fechaHora).toLocaleString(
-														locale,
-													)}
-												</p>
-											</div>
-										))
-									) : (
-										<p className="text-xs text-muted-foreground">
-											{m.dashboardPatientsEmptyDescription({}, { locale })}
-										</p>
-									)}
-								</CardContent>
-							</Card>
-						)}
+											))
+										) : (
+											<p className="text-xs text-muted-foreground">
+												{m.dashboardPatientsEmptyDescription({}, { locale })}
+											</p>
+										)}
+									</CardContent>
+								</Card>
+							)}
 
-						{showBlock('queuePreview') && (
-							<Card className="border-border/70">
-								<CardHeader className="pb-2">
-									<CardTitle className="text-base">
-										{m.dashboardSidebarQueue({}, { locale })}
-									</CardTitle>
-									<CardDescription>
-										{m.dashboardOverviewManageHospitals({}, { locale })}
-									</CardDescription>
-								</CardHeader>
-								<CardContent className="space-y-2">
-									{loading ? (
-										<Skeleton className="h-20 rounded-lg" />
-									) : queuePreview.length ? (
-										queuePreview.map((turn) => (
-											<div
-												key={turn.id}
-												className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-2"
-											>
-												<div>
-													<p className="text-sm font-medium text-foreground">
-														#{turn.numeroTurno}
-													</p>
-													<p className="text-xs text-muted-foreground">
-														{turn.tipo}
-													</p>
+						{orderedCardBlocks.includes('queuePreview') &&
+							showBlock('queuePreview') && (
+								<Card className="border-border/70">
+									<CardHeader className="pb-2">
+										<CardTitle className="text-base">
+											{m.dashboardSidebarQueue({}, { locale })}
+										</CardTitle>
+										<CardDescription>
+											{m.dashboardOverviewManageHospitals({}, { locale })}
+										</CardDescription>
+									</CardHeader>
+									<CardContent className="space-y-2">
+										{loading ? (
+											<Skeleton className="h-20 rounded-lg" />
+										) : queuePreview.length ? (
+											queuePreview.map((turn) => (
+												<div
+													key={turn.id}
+													className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-2"
+												>
+													<div>
+														<p className="text-sm font-medium text-foreground">
+															#{turn.numeroTurno}
+														</p>
+														<p className="text-xs text-muted-foreground">
+															{turn.tipo}
+														</p>
+													</div>
+													<Badge variant="secondary">{turn.estado}</Badge>
 												</div>
-												<Badge variant="secondary">{turn.estado}</Badge>
-											</div>
-										))
-									) : (
-										<p className="text-xs text-muted-foreground">
-											{m.dashboardPatientsEmptyDescription({}, { locale })}
-										</p>
-									)}
-								</CardContent>
-							</Card>
-						)}
+											))
+										) : (
+											<p className="text-xs text-muted-foreground">
+												{m.dashboardPatientsEmptyDescription({}, { locale })}
+											</p>
+										)}
+									</CardContent>
+								</Card>
+							)}
 					</div>
 
 					{showBlock('roleManagement') && roleManagementSection}

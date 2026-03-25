@@ -6,6 +6,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
 import { Link, redirect, useNavigate } from 'react-router';
+import { type NavSection, SidebarNav } from '@/components/medical/sidebar-nav';
 import { Badge } from '@/components/ui/badge/badge.component';
 import {
 	Button,
@@ -74,6 +75,7 @@ export default function DashboardPage() {
 	const [uiPreferences, setUiPreferences] = useState<UiPreferences>(() =>
 		readUiPreferences(),
 	);
+	const [activeSection, setActiveSection] = useState<NavSection>('overview');
 
 	useEffect(() => {
 		useAuthStore.persist.rehydrate();
@@ -100,6 +102,9 @@ export default function DashboardPage() {
 	if (!user) {
 		return null;
 	}
+
+	const hasSidebarNavigation =
+		user.rol === 'ADMIN' || user.rol === 'RECEPCIONISTA';
 
 	const roleUser: DashboardUser = {
 		id: user.id,
@@ -160,34 +165,119 @@ export default function DashboardPage() {
 							<LanguageIcon className="h-4 w-4" />
 							EN/ES
 						</Button>
-						<Button
-							type="button"
-							variant="destructive"
-							size="sm"
-							onClick={handleLogout}
-							className="gap-2"
-						>
-							<ArrowRightStartOnRectangleIcon className="h-4 w-4" />
-							{m.dashboardSidebarLogout({}, { locale })}
-						</Button>
+						{!hasSidebarNavigation && (
+							<Button
+								type="button"
+								variant="destructive"
+								size="sm"
+								onClick={handleLogout}
+								className="gap-2"
+							>
+								<ArrowRightStartOnRectangleIcon className="h-4 w-4" />
+								{m.dashboardSidebarLogout({}, { locale })}
+							</Button>
+						)}
 					</div>
 				</header>
 
-				<div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-					<RoleRenderer user={roleUser} locale={locale} />
-					<SettingsPanel
-						locale={locale}
-						theme={uiPreferences.theme}
-						dyslexiaFont={uiPreferences.dyslexiaFont}
-						onThemeChange={handleThemeChange}
-						onLanguageChange={handleLanguageChange}
-						onDyslexiaToggle={(enabled) =>
-							setUiPreferences((prev) => ({ ...prev, dyslexiaFont: enabled }))
-						}
-					/>
-				</div>
+				{hasSidebarNavigation ? (
+					<div className="flex gap-4">
+						<SidebarNav
+							active={activeSection}
+							onNavigate={setActiveSection}
+							hospitalName={selectedHospital?.nombre}
+							userName={`${user.nombre} ${user.apellido}`}
+							userRole={user.rol}
+							onLogout={handleLogout}
+						/>
+						<div className="w-full min-w-0 pt-14 lg:pt-0">
+							<SidebarSectionRenderer
+								section={activeSection}
+								user={roleUser}
+								locale={locale}
+								theme={uiPreferences.theme}
+								dyslexiaFont={uiPreferences.dyslexiaFont}
+								onThemeChange={handleThemeChange}
+								onLanguageChange={handleLanguageChange}
+								onDyslexiaToggle={(enabled) =>
+									setUiPreferences((prev) => ({
+										...prev,
+										dyslexiaFont: enabled,
+									}))
+								}
+							/>
+						</div>
+					</div>
+				) : (
+					<div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+						<RoleRenderer user={roleUser} locale={locale} />
+						<SettingsPanel
+							locale={locale}
+							theme={uiPreferences.theme}
+							dyslexiaFont={uiPreferences.dyslexiaFont}
+							onThemeChange={handleThemeChange}
+							onLanguageChange={handleLanguageChange}
+							onDyslexiaToggle={(enabled) =>
+								setUiPreferences((prev) => ({ ...prev, dyslexiaFont: enabled }))
+							}
+						/>
+					</div>
+				)}
 			</div>
 		</div>
+	);
+}
+
+function SidebarSectionRenderer({
+	section,
+	user,
+	locale,
+	theme,
+	dyslexiaFont,
+	onThemeChange,
+	onLanguageChange,
+	onDyslexiaToggle,
+}: {
+	section: NavSection;
+	user: DashboardUser;
+	locale: 'es' | 'en';
+	theme: ThemeMode;
+	dyslexiaFont: boolean;
+	onThemeChange: (theme: ThemeMode) => void;
+	onLanguageChange: (locale: AppLocale) => void;
+	onDyslexiaToggle: (enabled: boolean) => void;
+}) {
+	if (section === 'settings') {
+		return (
+			<SettingsPanel
+				locale={locale}
+				theme={theme}
+				dyslexiaFont={dyslexiaFont}
+				onThemeChange={onThemeChange}
+				onLanguageChange={onLanguageChange}
+				onDyslexiaToggle={onDyslexiaToggle}
+			/>
+		);
+	}
+
+	if (section === 'overview') {
+		return <RoleRenderer user={user} locale={locale} />;
+	}
+
+	return (
+		<Card className="border-border/80 bg-card/90 shadow-sm">
+			<CardHeader>
+				<CardTitle>{m.dashboardSidebarSettings({}, { locale })}</CardTitle>
+				<CardDescription>
+					{m.dashboardComingSoonDescription({}, { locale })}
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<p className="text-sm text-muted-foreground">
+					{m.dashboardComingSoonDescription({}, { locale })}
+				</p>
+			</CardContent>
+		</Card>
 	);
 }
 

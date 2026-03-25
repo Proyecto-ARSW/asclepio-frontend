@@ -1,43 +1,23 @@
 import {
-	BuildingOffice2Icon,
-	CalendarDaysIcon,
-	ExclamationCircleIcon,
-	ExclamationTriangleIcon,
+	ArrowRightStartOnRectangleIcon,
 	LanguageIcon,
 	MoonIcon,
-	PlusIcon,
-	QueueListIcon,
 	SunIcon,
-	UserGroupIcon,
 } from '@heroicons/react/24/outline';
-import { useCallback, useEffect, useState } from 'react';
-import { redirect, useNavigate } from 'react-router';
-import { CreateHospitalModal } from '@/components/medical/create-hospital-modal';
-import {
-	HospitalCard,
-	type HospitalCardData,
-} from '@/components/medical/hospital-card';
-import { PageHeader } from '@/components/medical/page-header';
-import {
-	type PatientRow,
-	PatientTable,
-} from '@/components/medical/patient-table';
-import { type NavSection, SidebarNav } from '@/components/medical/sidebar-nav';
-import { StatCard } from '@/components/medical/stat-card';
-import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
+import { useEffect, useState } from 'react';
+import { Link, redirect, useNavigate } from 'react-router';
 import { Badge } from '@/components/ui/badge/badge.component';
-import { Button } from '@/components/ui/button/button.component';
+import {
+	Button,
+	buttonVariants,
+} from '@/components/ui/button/button.component';
 import {
 	Card,
 	CardContent,
+	CardDescription,
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
-import {
-	Field,
-	FieldDescription,
-	FieldLabel,
-} from '@/components/ui/field/field.component';
 import {
 	Select,
 	SelectContent,
@@ -45,14 +25,15 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select/select.component';
-import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import { Switch } from '@/components/ui/switch/switch.component';
-import { getDashboardContent } from '@/features/dashboard/dashboard-content';
-import {
-	type AppLocale,
-	currentLocale,
-	localePath,
-} from '@/features/i18n/locale-path';
+import { AdminDashboardView } from '@/features/dashboard/roles/admin-dashboard.view';
+import type { DashboardUser } from '@/features/dashboard/roles/dashboard-role.types';
+import { DoctorDashboardView } from '@/features/dashboard/roles/doctor-dashboard.view';
+import { NurseDashboardView } from '@/features/dashboard/roles/nurse-dashboard.view';
+import { PatientDashboardView } from '@/features/dashboard/roles/patient-dashboard.view';
+import { ReceptionistDashboardView } from '@/features/dashboard/roles/receptionist-dashboard.view';
+import type { AppLocale } from '@/features/i18n/locale-path';
+import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import {
 	applyUiPreferences,
@@ -61,30 +42,9 @@ import {
 	type ThemeMode,
 	type UiPreferences,
 } from '@/features/preferences/ui-preferences';
-import { apiGet } from '@/lib/api';
-import { gqlQuery } from '@/lib/graphql-client';
+import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/dashboard.page';
-
-interface GqlPatientsData {
-	patients: PatientRow[];
-}
-
-const PATIENTS_QUERY = `
-	query {
-		patients {
-			id
-			nombre
-			apellido
-			email
-			tipoDocumento
-			numeroDocumento
-			eps
-			tipoSangre
-			creadoEn
-		}
-	}
-`;
 
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
@@ -109,40 +69,11 @@ export function meta(_: Route.MetaArgs) {
 export default function DashboardPage() {
 	const navigate = useNavigate();
 	const locale = currentLocale();
-	const content = getDashboardContent(locale);
-	const { user, selectedHospital, logout, accessToken } = useAuthStore();
-
-	const [activeSection, setActiveSection] = useState<NavSection>('overview');
-	const [hospitals, setHospitals] = useState<HospitalCardData[]>([]);
-	const [patients, setPatients] = useState<PatientRow[]>([]);
-	const [loadingHospitals, setLoadingHospitals] = useState(false);
-	const [loadingPatients, setLoadingPatients] = useState(false);
-	const [error, setError] = useState('');
-	const [showCreateHospital, setShowCreateHospital] = useState(false);
+	const nextLocale = locale === 'es' ? 'en' : 'es';
+	const { user, selectedHospital, logout } = useAuthStore();
 	const [uiPreferences, setUiPreferences] = useState<UiPreferences>(() =>
 		readUiPreferences(),
 	);
-
-	const isAdmin = user?.rol === 'ADMIN';
-	const isTempSession = selectedHospital?.id === 0;
-	const localizedUserRole = user?.rol
-		? ((
-				{
-					ADMIN: m.authRoleAdmin({}, { locale }),
-					MEDICO: m.authRoleDoctor({}, { locale }),
-					ENFERMERO: m.authRoleNurse({}, { locale }),
-					RECEPCIONISTA: m.authRoleReceptionist({}, { locale }),
-					PACIENTE: m.authRolePatient({}, { locale }),
-				} as const
-			)[
-				user.rol as
-					| 'ADMIN'
-					| 'MEDICO'
-					| 'ENFERMERO'
-					| 'RECEPCIONISTA'
-					| 'PACIENTE'
-			] ?? user.rol)
-		: undefined;
 
 	useEffect(() => {
 		useAuthStore.persist.rehydrate();
@@ -153,543 +84,215 @@ export default function DashboardPage() {
 		saveUiPreferences(uiPreferences);
 	}, [uiPreferences]);
 
-	const loadHospitals = useCallback(async () => {
-		setLoadingHospitals(true);
-		setError('');
-		try {
-			const data = await apiGet<HospitalCardData[]>(
-				'/hospitals',
-				accessToken ?? undefined,
-			);
-			setHospitals(data);
-		} catch (err) {
-			setError(
-				err instanceof Error ? err.message : content.alerts.hospitalsLoadError,
-			);
-		} finally {
-			setLoadingHospitals(false);
-		}
-	}, [accessToken, content.alerts.hospitalsLoadError]);
-
-	const loadPatients = useCallback(async () => {
-		setLoadingPatients(true);
-		setError('');
-		try {
-			const data = await gqlQuery<GqlPatientsData>(PATIENTS_QUERY);
-			setPatients(data.patients);
-		} catch (err) {
-			setError(
-				err instanceof Error ? err.message : content.alerts.patientsLoadError,
-			);
-		} finally {
-			setLoadingPatients(false);
-		}
-	}, [content.alerts.patientsLoadError]);
-
-	useEffect(() => {
-		if (activeSection === 'hospitals' && hospitals.length === 0) {
-			void loadHospitals();
-		}
-		if (activeSection === 'patients' && patients.length === 0) {
-			void loadPatients();
-		}
-	}, [
-		activeSection,
-		hospitals.length,
-		loadHospitals,
-		loadPatients,
-		patients.length,
-	]);
-
 	function handleLogout() {
 		logout();
 		navigate(localePath('/login', locale));
 	}
 
-	function handleLanguageChange(nextLocale: AppLocale) {
-		navigate(localePath('/dashboard', nextLocale));
+	function handleLanguageChange(next: AppLocale) {
+		navigate(localePath('/dashboard', next));
 	}
 
 	function handleThemeChange(theme: ThemeMode) {
 		setUiPreferences((prev) => ({ ...prev, theme }));
 	}
 
-	function handleDyslexiaToggle(enabled: boolean) {
-		setUiPreferences((prev) => ({ ...prev, dyslexiaFont: enabled }));
+	if (!user) {
+		return null;
 	}
 
-	const sectionMap = content.sidebar.sections;
+	const roleUser: DashboardUser = {
+		id: user.id,
+		nombre: user.nombre,
+		apellido: user.apellido,
+		email: user.email,
+		rol: (user.rol ?? 'PACIENTE') as DashboardUser['rol'],
+	};
 
 	return (
-		<div className="flex h-screen overflow-hidden bg-background">
-			<SidebarNav
-				active={activeSection}
-				onNavigate={setActiveSection}
-				hospitalName={selectedHospital?.nombre}
-				userName={user ? `${user.nombre} ${user.apellido}` : undefined}
-				userRole={localizedUserRole}
-				onLogout={handleLogout}
-				labels={{
-					brandName: content.sidebar.brandName,
-					logout: content.sidebar.logout,
-					openMenu: content.sidebar.openMenu,
-					closeMenu: content.sidebar.closeMenu,
-					sections: content.sidebar.sections,
-				}}
-			/>
+		<div className="min-h-screen bg-background">
+			<div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+				<header className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/90 p-3 shadow-sm backdrop-blur sm:p-4">
+					<div className="min-w-0">
+						<div className="flex items-center gap-2">
+							<Link
+								to={localePath('/', locale)}
+								className={cn(
+									buttonVariants({ variant: 'ghost', size: 'sm' }),
+									'h-8 px-2',
+								)}
+							>
+								{m.dashboardSidebarBrandName({}, { locale })}
+							</Link>
+							<Badge variant="secondary">{user.rol}</Badge>
+						</div>
+						<p className="truncate text-sm text-muted-foreground">
+							{user.nombre} {user.apellido}
+							{selectedHospital?.nombre ? ` - ${selectedHospital.nombre}` : ''}
+						</p>
+					</div>
 
-			<CreateHospitalModal
-				open={showCreateHospital}
-				onClose={() => setShowCreateHospital(false)}
-				onCreated={(h) => {
-					setHospitals((prev) => [...prev, h as HospitalCardData]);
-					setShowCreateHospital(false);
-				}}
-			/>
-
-			<main className="flex-1 overflow-y-auto">
-				<div className="mx-auto max-w-6xl px-4 py-6 pt-16 sm:px-6 sm:pt-6 lg:p-8">
-					{isTempSession && isAdmin && (
-						<Alert className="mb-5 border-l-4 border-l-accent">
-							<ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-accent-foreground" />
-							<AlertDescription className="text-sm text-foreground">
-								{content.alerts.tempSession}{' '}
-								<Button
-									type="button"
-									variant="link"
-									className="h-auto p-0 font-semibold"
-									onClick={() => setActiveSection('hospitals')}
-								>
-									{content.alerts.tempSessionAction}
-								</Button>
-							</AlertDescription>
-						</Alert>
-					)}
-
-					{error && (
-						<Alert variant="destructive" className="mb-6">
-							<ExclamationCircleIcon className="h-5 w-5 shrink-0" />
-							<AlertDescription>{error}</AlertDescription>
-						</Alert>
-					)}
-
-					{activeSection === 'overview' && (
-						<OverviewSection
-							content={content}
-							hospitalName={
-								selectedHospital?.id !== 0
-									? selectedHospital?.nombre
-									: undefined
+					<div className="flex flex-wrap items-center gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							size="icon-sm"
+							onClick={() =>
+								handleThemeChange(
+									uiPreferences.theme === 'dark' ? 'light' : 'dark',
+								)
 							}
-							hospitalCity={
-								selectedHospital?.id !== 0 && selectedHospital
-									? `${selectedHospital.ciudad}, ${selectedHospital.departamento}`
-									: undefined
-							}
-							hospitalsCount={hospitals.length}
-							patientsCount={patients.length}
-							isAdmin={isAdmin}
-							isTempSession={isTempSession}
-							onGoToHospitals={() => setActiveSection('hospitals')}
-						/>
-					)}
-
-					{activeSection === 'hospitals' && (
-						<>
-							<div className="mb-6 flex items-start justify-between gap-4">
-								<div>
-									<h2 className="text-xl font-bold text-foreground">
-										{content.hospitals.title}
-									</h2>
-									<p className="mt-0.5 text-sm text-muted-foreground">
-										{content.hospitals.subtitle}
-									</p>
-								</div>
-								<div className="flex shrink-0 gap-2">
-									{isAdmin && (
-										<Button
-											type="button"
-											onClick={() => setShowCreateHospital(true)}
-											className="gap-2"
-										>
-											<PlusIcon className="h-4 w-4" />
-											<span className="hidden sm:inline">
-												{content.hospitals.createHospital}
-											</span>
-											<span className="sm:hidden">
-												{content.hospitals.createHospital}
-											</span>
-										</Button>
-									)}
-									<Button
-										type="button"
-										onClick={loadHospitals}
-										disabled={loadingHospitals}
-										variant="outline"
-									>
-										{loadingHospitals
-											? content.hospitals.refreshLoading
-											: content.hospitals.refresh}
-									</Button>
-								</div>
-							</div>
-
-							{loadingHospitals ? (
-								<HospitalsLoading />
-							) : hospitals.length === 0 ? (
-								<Card className="border-dashed py-10 text-center">
-									<CardContent className="flex flex-col items-center justify-center">
-										<BuildingOffice2Icon className="mb-3 h-12 w-12 text-muted-foreground/40" />
-										<p className="text-sm font-medium text-muted-foreground">
-											{content.hospitals.empty}
-										</p>
-										{isAdmin && (
-											<Button
-												type="button"
-												onClick={() => setShowCreateHospital(true)}
-												className="mt-4 gap-2"
-											>
-												<PlusIcon className="h-4 w-4" />
-												{content.hospitals.createFirstHospital}
-											</Button>
-										)}
-									</CardContent>
-								</Card>
+							aria-label={m.homeLandingThemeToggle({}, { locale })}
+						>
+							{uiPreferences.theme === 'dark' ? (
+								<SunIcon className="h-4 w-4" />
 							) : (
-								<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-									{hospitals.map((h) => (
-										<HospitalCard
-											key={h.id}
-											hospital={h}
-											labels={content.hospitals.card}
-										/>
-									))}
-								</div>
+								<MoonIcon className="h-4 w-4" />
 							)}
-						</>
-					)}
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => handleLanguageChange(nextLocale)}
+							className="gap-1"
+						>
+							<LanguageIcon className="h-4 w-4" />
+							EN/ES
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							size="sm"
+							onClick={handleLogout}
+							className="gap-2"
+						>
+							<ArrowRightStartOnRectangleIcon className="h-4 w-4" />
+							{m.dashboardSidebarLogout({}, { locale })}
+						</Button>
+					</div>
+				</header>
 
-					{activeSection === 'patients' && (
-						<>
-							<PageHeader
-								title={content.patients.title}
-								subtitle={content.patients.subtitle}
-								badge={
-									patients.length > 0 ? String(patients.length) : undefined
-								}
-							/>
-							<PatientTable
-								patients={patients}
-								loading={loadingPatients}
-								onRefresh={loadPatients}
-								labels={{
-									title: content.patients.tableTitle,
-									refresh: content.patients.refresh,
-									emptyTitle: content.patients.emptyTitle,
-									emptyDescription: content.patients.emptyDescription,
-									headers: content.patients.headers,
-								}}
-							/>
-						</>
-					)}
-
-					{activeSection === 'settings' && (
-						<SettingsSection
-							content={content}
-							locale={locale}
-							theme={uiPreferences.theme}
-							dyslexiaFont={uiPreferences.dyslexiaFont}
-							onLanguageChange={handleLanguageChange}
-							onThemeChange={handleThemeChange}
-							onDyslexiaToggle={handleDyslexiaToggle}
-						/>
-					)}
-
-					{!['overview', 'hospitals', 'patients', 'settings'].includes(
-						activeSection,
-					) && (
-						<ComingSoonSection
-							label={sectionMap[activeSection]}
-							description={content.comingSoon.description}
-						/>
-					)}
+				<div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+					<RoleRenderer user={roleUser} locale={locale} />
+					<SettingsPanel
+						locale={locale}
+						theme={uiPreferences.theme}
+						dyslexiaFont={uiPreferences.dyslexiaFont}
+						onThemeChange={handleThemeChange}
+						onLanguageChange={handleLanguageChange}
+						onDyslexiaToggle={(enabled) =>
+							setUiPreferences((prev) => ({ ...prev, dyslexiaFont: enabled }))
+						}
+					/>
 				</div>
-			</main>
+			</div>
 		</div>
 	);
 }
 
-function SettingsSection({
-	content,
+function RoleRenderer({
+	user,
+	locale,
+}: {
+	user: DashboardUser;
+	locale: 'es' | 'en';
+}) {
+	switch (user.rol) {
+		case 'ADMIN':
+			return <AdminDashboardView user={user} locale={locale} />;
+		case 'MEDICO':
+			return <DoctorDashboardView user={user} locale={locale} />;
+		case 'ENFERMERO':
+			return <NurseDashboardView user={user} locale={locale} />;
+		case 'RECEPCIONISTA':
+			return <ReceptionistDashboardView user={user} locale={locale} />;
+		default:
+			return <PatientDashboardView user={user} locale={locale} />;
+	}
+}
+
+function SettingsPanel({
 	locale,
 	theme,
 	dyslexiaFont,
-	onLanguageChange,
 	onThemeChange,
+	onLanguageChange,
 	onDyslexiaToggle,
 }: {
-	content: ReturnType<typeof getDashboardContent>;
-	locale: AppLocale;
+	locale: 'es' | 'en';
 	theme: ThemeMode;
 	dyslexiaFont: boolean;
-	onLanguageChange: (locale: AppLocale) => void;
 	onThemeChange: (theme: ThemeMode) => void;
+	onLanguageChange: (locale: AppLocale) => void;
 	onDyslexiaToggle: (enabled: boolean) => void;
 }) {
 	return (
-		<div className="space-y-6">
-			<div>
-				<h2 className="text-xl font-bold text-foreground">
-					{content.settings.title}
-				</h2>
-				<p className="mt-1 text-sm text-muted-foreground">
-					{content.settings.description}
-				</p>
-			</div>
-
-			<Card>
-				<CardHeader className="pb-0">
-					<CardTitle className="flex items-center gap-2 text-base">
-						<LanguageIcon className="h-4 w-4" />
-						{content.settings.language.title}
-					</CardTitle>
-				</CardHeader>
-				<CardContent className="space-y-3">
-					<FieldDescription>
-						{content.settings.language.description}
-					</FieldDescription>
-					<div className="flex flex-wrap gap-2">
+		<Card className="h-fit border-border/70 bg-card/90 shadow-sm">
+			<CardHeader>
+				<CardTitle>{m.dashboardSettingsTitle({}, { locale })}</CardTitle>
+				<CardDescription>
+					{m.dashboardSettingsDescription({}, { locale })}
+				</CardDescription>
+			</CardHeader>
+			<CardContent className="space-y-4">
+				<div className="space-y-2">
+					<p className="text-sm font-medium text-foreground">
+						{m.dashboardSettingsLanguageTitle({}, { locale })}
+					</p>
+					<div className="flex gap-2">
 						<Button
 							type="button"
 							variant={locale === 'es' ? 'default' : 'outline'}
 							onClick={() => onLanguageChange('es')}
 						>
-							{content.settings.language.es}
+							{m.dashboardSettingsLanguageEs({}, { locale })}
 						</Button>
 						<Button
 							type="button"
 							variant={locale === 'en' ? 'default' : 'outline'}
 							onClick={() => onLanguageChange('en')}
 						>
-							{content.settings.language.en}
+							{m.dashboardSettingsLanguageEn({}, { locale })}
 						</Button>
 					</div>
-				</CardContent>
-			</Card>
-
-			<Card>
-				<CardHeader className="pb-0">
-					<CardTitle className="flex items-center gap-2 text-base">
-						<MoonIcon className="h-4 w-4" />
-						{content.settings.theme.title}
-					</CardTitle>
-				</CardHeader>
-				<CardContent className="space-y-3">
-					<FieldDescription>
-						{content.settings.theme.description}
-					</FieldDescription>
-					<Field>
-						<FieldLabel>{content.settings.theme.title}</FieldLabel>
-						<Select
-							value={theme}
-							onValueChange={(value) =>
-								onThemeChange((value as ThemeMode | null) ?? 'system')
-							}
-						>
-							<SelectTrigger className="w-full sm:w-64">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="light">
-									<span className="inline-flex items-center gap-2">
-										<SunIcon className="h-4 w-4" />
-										{content.settings.theme.light}
-									</span>
-								</SelectItem>
-								<SelectItem value="dark">
-									<span className="inline-flex items-center gap-2">
-										<MoonIcon className="h-4 w-4" />
-										{content.settings.theme.dark}
-									</span>
-								</SelectItem>
-								<SelectItem value="system">
-									{content.settings.theme.system}
-								</SelectItem>
-							</SelectContent>
-						</Select>
-					</Field>
-				</CardContent>
-			</Card>
-
-			<Card>
-				<CardHeader className="pb-0">
-					<CardTitle className="text-base">
-						{content.settings.dyslexia.title}
-					</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-4 py-3">
-						<div>
-							<p className="text-sm font-medium text-foreground">
-								{content.settings.dyslexia.toggle}
-							</p>
-							<p className="text-xs text-muted-foreground">
-								{content.settings.dyslexia.description}
-							</p>
-						</div>
-						<Switch
-							checked={dyslexiaFont}
-							onCheckedChange={(checked) => onDyslexiaToggle(Boolean(checked))}
-						/>
-					</div>
-				</CardContent>
-			</Card>
-		</div>
-	);
-}
-
-function OverviewSection({
-	content,
-	hospitalName,
-	hospitalCity,
-	hospitalsCount,
-	patientsCount,
-	isAdmin,
-	isTempSession,
-	onGoToHospitals,
-}: {
-	content: ReturnType<typeof getDashboardContent>;
-	hospitalName?: string;
-	hospitalCity?: string;
-	hospitalsCount: number;
-	patientsCount: number;
-	isAdmin?: boolean;
-	isTempSession?: boolean;
-	onGoToHospitals?: () => void;
-}) {
-	return (
-		<div>
-			<div className="mb-8">
-				<h2 className="text-2xl font-bold text-foreground">
-					{content.overview.title}
-				</h2>
-				{hospitalName && !isTempSession && (
-					<p className="mt-1 text-sm text-muted-foreground">
-						{hospitalName}
-						{hospitalCity ? ` — ${hospitalCity}` : ''}
+				</div>
+				<div className="space-y-2">
+					<p className="text-sm font-medium text-foreground">
+						{m.dashboardSettingsThemeTitle({}, { locale })}
 					</p>
-				)}
-			</div>
-
-			<div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-				<StatCard
-					title={content.overview.stats.hospitals.title}
-					value={hospitalsCount || '—'}
-					subtitle={content.overview.stats.hospitals.subtitle}
-					icon={BuildingOffice2Icon}
-					color="blue"
-				/>
-				<StatCard
-					title={content.overview.stats.patients.title}
-					value={patientsCount || '—'}
-					subtitle={content.overview.stats.patients.subtitle}
-					icon={UserGroupIcon}
-					color="green"
-				/>
-				<StatCard
-					title={content.overview.stats.appointments.title}
-					value="—"
-					subtitle={content.overview.stats.appointments.subtitle}
-					icon={CalendarDaysIcon}
-					color="violet"
-				/>
-				<StatCard
-					title={content.overview.stats.queue.title}
-					value="—"
-					subtitle={content.overview.stats.queue.subtitle}
-					icon={QueueListIcon}
-					color="amber"
-				/>
-			</div>
-
-			{isAdmin && (
-				<Card className="mb-4 border-primary/30 bg-primary/5">
-					<CardHeader className="pb-0">
-						<CardTitle className="text-base text-foreground">
-							{content.overview.adminActionsTitle}
-						</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<div className="flex flex-wrap gap-3">
-							<Button type="button" onClick={onGoToHospitals} className="gap-2">
-								<BuildingOffice2Icon className="h-4 w-4" />
-								{content.overview.manageHospitals}
-							</Button>
-						</div>
-					</CardContent>
-				</Card>
-			)}
-
-			<Card>
-				<CardHeader className="pb-0">
-					<CardTitle className="text-base">
-						{content.overview.activeConnections}
-					</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="space-y-2">
-						<div className="flex items-center gap-2">
-							<Badge variant="secondary" className="h-2 w-2 p-0" />
-							<span className="text-sm text-muted-foreground">
-								{content.overview.restLabel} -{' '}
-								<code className="rounded bg-muted px-1 text-xs">
-									http://localhost:3000
-								</code>
-							</span>
-						</div>
-						<div className="flex items-center gap-2">
-							<Badge variant="secondary" className="h-2 w-2 p-0" />
-							<span className="text-sm text-muted-foreground">
-								{content.overview.graphqlLabel} -{' '}
-								<code className="rounded bg-muted px-1 text-xs">
-									http://localhost:3000/graphql
-								</code>
-							</span>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-		</div>
-	);
-}
-
-function HospitalsLoading() {
-	return (
-		<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-			{Array.from(
-				{ length: 6 },
-				(_, index) => `hospital-skeleton-${index}`,
-			).map((key) => (
-				<Skeleton key={key} className="h-48 rounded-xl" />
-			))}
-		</div>
-	);
-}
-
-function ComingSoonSection({
-	label,
-	description,
-}: {
-	label: string;
-	description: string;
-}) {
-	return (
-		<div className="flex flex-col items-center justify-center py-24 text-center">
-			<div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
-				<CalendarDaysIcon className="h-8 w-8 text-muted-foreground" />
-			</div>
-			<h3 className="text-lg font-semibold text-foreground">{label}</h3>
-			<p className="mt-1 text-sm text-muted-foreground">{description}</p>
-		</div>
+					<Select
+						value={theme}
+						onValueChange={(value) =>
+							onThemeChange((value as ThemeMode | null) ?? 'system')
+						}
+					>
+						<SelectTrigger className="w-full">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="light">
+								{m.dashboardSettingsThemeLight({}, { locale })}
+							</SelectItem>
+							<SelectItem value="dark">
+								{m.dashboardSettingsThemeDark({}, { locale })}
+							</SelectItem>
+							<SelectItem value="system">
+								{m.dashboardSettingsThemeSystem({}, { locale })}
+							</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
+				<div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/30 px-3 py-2">
+					<p className="text-sm text-foreground">
+						{m.dashboardSettingsDyslexiaToggle({}, { locale })}
+					</p>
+					<Switch
+						checked={dyslexiaFont}
+						onCheckedChange={(checked) => onDyslexiaToggle(Boolean(checked))}
+					/>
+				</div>
+			</CardContent>
+		</Card>
 	);
 }

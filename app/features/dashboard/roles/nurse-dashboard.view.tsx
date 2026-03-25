@@ -55,18 +55,21 @@ export function NurseDashboardView({ user, locale }: RoleViewProps) {
 	const [availability, setAvailability] = useState<
 		NurseAvailabilityData['disponibilidadesByNurse']
 	>([]);
+	const [missingProfile, setMissingProfile] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 
 	const loadData = useCallback(async () => {
 		setLoading(true);
 		setError('');
+		setMissingProfile(false);
 		try {
 			const nurses = await gqlQuery<NursesData>(NURSES_QUERY);
 			const currentNurse = nurses.nurses.find(
 				(nurse) => nurse.usuarioId === user.id,
 			);
 			if (!currentNurse) {
+				setMissingProfile(true);
 				setAvailability([]);
 				return;
 			}
@@ -78,10 +81,14 @@ export function NurseDashboardView({ user, locale }: RoleViewProps) {
 			);
 			setAvailability(data.disponibilidadesByNurse);
 		} catch (err) {
+			const message = err instanceof Error ? err.message : '';
+			const lowerMessage = message.toLowerCase();
 			setError(
-				err instanceof Error
-					? err.message
-					: m.dashboardAlertPatientsLoadError({}, { locale }),
+				lowerMessage.includes('forbidden') ||
+					lowerMessage.includes('unauthorized') ||
+					lowerMessage.includes('permission')
+					? m.dashboardRolePermissionError({}, { locale })
+					: message || m.dashboardAlertPatientsLoadError({}, { locale }),
 			);
 		} finally {
 			setLoading(false);
@@ -125,7 +132,9 @@ export function NurseDashboardView({ user, locale }: RoleViewProps) {
 				</div>
 			) : availability.length === 0 ? (
 				<p className="text-sm text-muted-foreground">
-					{m.dashboardPatientsEmptyDescription({}, { locale })}
+					{missingProfile
+						? m.dashboardNurseMissingProfile({}, { locale })
+						: m.dashboardPatientsEmptyDescription({}, { locale })}
 				</p>
 			) : (
 				<ul className="space-y-2">

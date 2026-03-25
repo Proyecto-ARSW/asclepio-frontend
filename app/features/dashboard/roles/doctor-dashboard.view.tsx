@@ -51,6 +51,7 @@ const DOCTOR_APPOINTMENTS_QUERY = `
 
 export function DoctorDashboardView({ user, locale }: RoleViewProps) {
 	const [doctorId, setDoctorId] = useState<string | null>(null);
+	const [missingProfile, setMissingProfile] = useState(false);
 	const [appointments, setAppointments] = useState<
 		DoctorAppointmentsData['appoinmentsByDoctor']
 	>([]);
@@ -60,12 +61,14 @@ export function DoctorDashboardView({ user, locale }: RoleViewProps) {
 	const loadData = useCallback(async () => {
 		setLoading(true);
 		setError('');
+		setMissingProfile(false);
 		try {
 			const doctors = await gqlQuery<DoctorsData>(DOCTORS_QUERY);
 			const currentDoctor = doctors.doctors.find(
 				(doctor) => doctor.usuarioId === user.id,
 			);
 			if (!currentDoctor) {
+				setMissingProfile(true);
 				setDoctorId(null);
 				setAppointments([]);
 				return;
@@ -77,10 +80,14 @@ export function DoctorDashboardView({ user, locale }: RoleViewProps) {
 			);
 			setAppointments(doctorAppointments.appoinmentsByDoctor);
 		} catch (err) {
+			const message = err instanceof Error ? err.message : '';
+			const lowerMessage = message.toLowerCase();
 			setError(
-				err instanceof Error
-					? err.message
-					: m.dashboardAlertPatientsLoadError({}, { locale }),
+				lowerMessage.includes('forbidden') ||
+					lowerMessage.includes('unauthorized') ||
+					lowerMessage.includes('permission')
+					? m.dashboardRolePermissionError({}, { locale })
+					: message || m.dashboardAlertPatientsLoadError({}, { locale }),
 			);
 		} finally {
 			setLoading(false);
@@ -137,7 +144,9 @@ export function DoctorDashboardView({ user, locale }: RoleViewProps) {
 				</div>
 			) : !doctorId ? (
 				<p className="text-sm text-muted-foreground">
-					{m.dashboardPatientsEmptyDescription({}, { locale })}
+					{missingProfile
+						? m.dashboardDoctorMissingProfile({}, { locale })
+						: m.dashboardPatientsEmptyDescription({}, { locale })}
 				</p>
 			) : appointments.length === 0 ? (
 				<p className="text-sm text-muted-foreground">

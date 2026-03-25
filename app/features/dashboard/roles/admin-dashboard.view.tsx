@@ -1,10 +1,13 @@
 import {
 	ArrowPathIcon,
+	ChevronLeftIcon,
+	ChevronRightIcon,
 	ShieldCheckIcon,
 	UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
+import { Badge } from '@/components/ui/badge/badge.component';
 import { Button } from '@/components/ui/button/button.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import { m } from '@/features/i18n/paraglide/messages';
@@ -64,10 +67,19 @@ const UPDATE_USER_ROLE_MUTATION = `
 `;
 
 export function AdminDashboardView({ locale }: RoleViewProps) {
+	const pageSize = 8;
 	const [data, setData] = useState<AdminUsersData | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [savingUserId, setSavingUserId] = useState<string | null>(null);
+	const [currentPage, setCurrentPage] = useState(1);
+	const [lastRoleChange, setLastRoleChange] = useState<{
+		userId: string;
+		userName: string;
+		fromRole: UserRole;
+		toRole: UserRole;
+		timestamp: string;
+	} | null>(null);
 
 	const loadData = useCallback(async () => {
 		setLoading(true);
@@ -100,13 +112,33 @@ export function AdminDashboardView({ locale }: RoleViewProps) {
 		[data],
 	);
 
-	async function handleRoleUpdate(userId: string, role: UserRole) {
-		setSavingUserId(userId);
+	const totalPages = Math.max(
+		1,
+		Math.ceil((data?.users.length ?? 0) / pageSize),
+	);
+
+	const pagedUsers = useMemo(() => {
+		const allUsers = data?.users ?? [];
+		const start = (currentPage - 1) * pageSize;
+		return allUsers.slice(start, start + pageSize);
+	}, [currentPage, data?.users]);
+
+	useEffect(() => {
+		if (currentPage > totalPages) {
+			setCurrentPage(totalPages);
+		}
+	}, [currentPage, totalPages]);
+
+	async function handleRoleUpdate(
+		user: AdminUsersData['users'][number],
+		role: UserRole,
+	) {
+		setSavingUserId(user.id);
 		setError('');
 		try {
 			const response = await gqlMutation<UpdateUserRoleData>(
 				UPDATE_USER_ROLE_MUTATION,
-				{ input: { id: userId, rol: role } },
+				{ input: { id: user.id, rol: role } },
 			);
 			setData((prev) => {
 				if (!prev) return prev;
@@ -118,6 +150,13 @@ export function AdminDashboardView({ locale }: RoleViewProps) {
 							: user,
 					),
 				};
+			});
+			setLastRoleChange({
+				userId: user.id,
+				userName: `${user.nombre} ${user.apellido}`,
+				fromRole: user.rol,
+				toRole: response.updateUser.rol,
+				timestamp: new Date().toLocaleString(locale),
 			});
 		} catch (err) {
 			setError(
@@ -160,18 +199,42 @@ export function AdminDashboardView({ locale }: RoleViewProps) {
 
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<p className="text-sm font-medium text-foreground">
-					{m.authRegisterLabelRol({}, { locale })}
+					{m.dashboardAdminUsersSectionTitle({}, { locale })}
 				</p>
-				<Button
-					type="button"
-					variant="outline"
-					onClick={loadData}
-					disabled={loading}
-				>
-					<ArrowPathIcon className="mr-2 h-4 w-4" />
-					{m.dashboardPatientsRefresh({}, { locale })}
-				</Button>
+				<div className="flex items-center gap-2">
+					<Badge variant="outline">
+						{m.dashboardAdminUsersPageIndicator(
+							{ current: String(currentPage), total: String(totalPages) },
+							{ locale },
+						)}
+					</Badge>
+					<Button
+						type="button"
+						variant="outline"
+						onClick={loadData}
+						disabled={loading}
+					>
+						<ArrowPathIcon className="mr-2 h-4 w-4" />
+						{m.dashboardPatientsRefresh({}, { locale })}
+					</Button>
+				</div>
 			</div>
+
+			{lastRoleChange && (
+				<Alert>
+					<AlertDescription>
+						{m.dashboardAdminLastRoleChange(
+							{
+								user: lastRoleChange.userName,
+								from: lastRoleChange.fromRole,
+								to: lastRoleChange.toRole,
+								at: lastRoleChange.timestamp,
+							},
+							{ locale },
+						)}
+					</AlertDescription>
+				</Alert>
+			)}
 
 			{error && (
 				<Alert variant="destructive">
@@ -192,15 +255,50 @@ export function AdminDashboardView({ locale }: RoleViewProps) {
 				</div>
 			) : data?.users.length ? (
 				<div className="space-y-3">
-					{data.users.map((user) => (
+					{pagedUsers.map((user) => (
 						<AdminRoleRowForm
 							key={user.id}
 							user={user}
 							locale={locale}
 							saving={savingUserId === user.id}
-							onSubmit={(nextRole) => handleRoleUpdate(user.id, nextRole)}
+							lastUpdatedAt={
+								lastRoleChange?.userId === user.id
+									? lastRoleChange.timestamp
+									: undefined
+							}
+							onSubmit={(nextRole) => handleRoleUpdate(user, nextRole)}
 						/>
 					))}
+					{totalPages > 1 && (
+						<div className="flex items-center justify-between gap-2 rounded-xl border border-border/70 bg-muted/20 p-2">
+							<Button
+								type="button"
+								variant="outline"
+								disabled={currentPage === 1}
+								onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+							>
+								<ChevronLeftIcon className="mr-2 h-4 w-4" />
+								{m.dashboardAdminPaginationPrev({}, { locale })}
+							</Button>
+							<p className="text-xs text-muted-foreground sm:text-sm">
+								{m.dashboardAdminUsersPageIndicator(
+									{ current: String(currentPage), total: String(totalPages) },
+									{ locale },
+								)}
+							</p>
+							<Button
+								type="button"
+								variant="outline"
+								disabled={currentPage === totalPages}
+								onClick={() =>
+									setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+								}
+							>
+								{m.dashboardAdminPaginationNext({}, { locale })}
+								<ChevronRightIcon className="ml-2 h-4 w-4" />
+							</Button>
+						</div>
+					)}
 				</div>
 			) : (
 				<p className="text-sm text-muted-foreground">

@@ -1,5 +1,15 @@
 import { useForm } from '@tanstack/react-form';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog/alert-dialog.component';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Button } from '@/components/ui/button/button.component';
 import {
@@ -30,12 +40,15 @@ export function AdminRoleRowForm({
 	locale,
 	onSubmit,
 	saving,
+	lastUpdatedAt,
 }: {
 	user: DashboardUser;
 	locale: 'es' | 'en';
 	onSubmit: (nextRole: UserRole) => Promise<void>;
 	saving: boolean;
+	lastUpdatedAt?: string;
 }) {
+	const [confirmOpen, setConfirmOpen] = useState(false);
 	const form = useForm({
 		defaultValues: { role: user.rol },
 		onSubmit: async ({ value }) => {
@@ -47,6 +60,20 @@ export function AdminRoleRowForm({
 	useEffect(() => {
 		form.setFieldValue('role', user.rol);
 	}, [form, user.rol]);
+
+	const selectedRole = useMemo(
+		() =>
+			((form.state.values as { role: UserRole }).role ?? user.rol) as UserRole,
+		[form.state.values, user.rol],
+	);
+
+	const roleLabelMap: Record<UserRole, string> = {
+		ADMIN: m.authRoleAdmin({}, { locale }),
+		MEDICO: m.authRoleDoctor({}, { locale }),
+		ENFERMERO: m.authRoleNurse({}, { locale }),
+		RECEPCIONISTA: m.authRoleReceptionist({}, { locale }),
+		PACIENTE: m.authRolePatient({}, { locale }),
+	};
 
 	return (
 		<div className="grid gap-3 rounded-xl border border-border/70 bg-muted/20 p-3 sm:grid-cols-[1fr_auto] sm:items-end">
@@ -64,7 +91,7 @@ export function AdminRoleRowForm({
 								<FieldLabel>
 									{m.authRegisterLabelRol({}, { locale })}
 								</FieldLabel>
-								<Badge variant="secondary">{user.rol}</Badge>
+								<Badge variant="secondary">{roleLabelMap[user.rol]}</Badge>
 							</div>
 							<Select
 								value={field.state.value}
@@ -78,13 +105,18 @@ export function AdminRoleRowForm({
 								<SelectContent>
 									{ROLE_OPTIONS.map((role) => (
 										<SelectItem key={role} value={role}>
-											{role}
+											{roleLabelMap[role]}
 										</SelectItem>
 									))}
 								</SelectContent>
 							</Select>
 							<FieldDescription>
-								{m.dashboardOverviewAdminActionsTitle({}, { locale })}
+								{lastUpdatedAt
+									? m.dashboardAdminRoleUpdatedAt(
+											{ at: lastUpdatedAt },
+											{ locale },
+										)
+									: m.dashboardOverviewAdminActionsTitle({}, { locale })}
 							</FieldDescription>
 						</Field>
 					)}
@@ -92,15 +124,51 @@ export function AdminRoleRowForm({
 			</div>
 			<form.Subscribe selector={(state) => state.canSubmit}>
 				{(canSubmit) => (
-					<Button
-						type="button"
-						disabled={!canSubmit || saving}
-						onClick={() => void form.handleSubmit()}
-					>
-						{saving
-							? m.authRegisterNavSubmitLoading({}, { locale })
-							: m.dashboardPatientsRefresh({}, { locale })}
-					</Button>
+					<>
+						<Button
+							type="button"
+							disabled={!canSubmit || saving || selectedRole === user.rol}
+							onClick={() => setConfirmOpen(true)}
+						>
+							{saving
+								? m.authRegisterNavSubmitLoading({}, { locale })
+								: m.dashboardAdminRoleApply({}, { locale })}
+						</Button>
+
+						<AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+							<AlertDialogContent>
+								<AlertDialogHeader>
+									<AlertDialogTitle>
+										{m.dashboardAdminRoleConfirmTitle({}, { locale })}
+									</AlertDialogTitle>
+									<AlertDialogDescription>
+										{m.dashboardAdminRoleConfirmDescription(
+											{
+												user: `${user.nombre} ${user.apellido}`,
+												from: roleLabelMap[user.rol],
+												to: roleLabelMap[selectedRole],
+											},
+											{ locale },
+										)}
+									</AlertDialogDescription>
+								</AlertDialogHeader>
+								<AlertDialogFooter>
+									<AlertDialogCancel>
+										{m.dashboardAdminRoleConfirmCancel({}, { locale })}
+									</AlertDialogCancel>
+									<AlertDialogAction
+										onClick={() => {
+											void form
+												.handleSubmit()
+												.finally(() => setConfirmOpen(false));
+										}}
+									>
+										{m.dashboardAdminRoleConfirmAction({}, { locale })}
+									</AlertDialogAction>
+								</AlertDialogFooter>
+							</AlertDialogContent>
+						</AlertDialog>
+					</>
 				)}
 			</form.Subscribe>
 		</div>

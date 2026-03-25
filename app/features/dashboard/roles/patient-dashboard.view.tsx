@@ -74,18 +74,21 @@ export function PatientDashboardView({ user, locale }: RoleViewProps) {
 		PatientAppointmentsData['appoinmentsByPatient']
 	>([]);
 	const [turns, setTurns] = useState<PatientTurnsData['turnosPorPaciente']>([]);
+	const [missingProfile, setMissingProfile] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 
 	const loadData = useCallback(async () => {
 		setLoading(true);
 		setError('');
+		setMissingProfile(false);
 		try {
 			const patients = await gqlQuery<PatientsData>(PATIENTS_QUERY);
 			const currentPatient = patients.patients.find(
 				(patient) => patient.usuarioId === user.id,
 			);
 			if (!currentPatient) {
+				setMissingProfile(true);
 				setAppointments([]);
 				setTurns([]);
 				return;
@@ -101,10 +104,14 @@ export function PatientDashboardView({ user, locale }: RoleViewProps) {
 			setAppointments(appointmentsResult.appoinmentsByPatient);
 			setTurns(turnsResult.turnosPorPaciente);
 		} catch (err) {
+			const message = err instanceof Error ? err.message : '';
+			const lowerMessage = message.toLowerCase();
 			setError(
-				err instanceof Error
-					? err.message
-					: m.dashboardAlertPatientsLoadError({}, { locale }),
+				lowerMessage.includes('forbidden') ||
+					lowerMessage.includes('unauthorized') ||
+					lowerMessage.includes('permission')
+					? m.dashboardRolePermissionError({}, { locale })
+					: message || m.dashboardAlertPatientsLoadError({}, { locale }),
 			);
 		} finally {
 			setLoading(false);
@@ -147,7 +154,9 @@ export function PatientDashboardView({ user, locale }: RoleViewProps) {
 						<Skeleton className="h-16 rounded-lg" />
 					) : appointments.length === 0 ? (
 						<p className="text-xs text-muted-foreground">
-							{m.dashboardPatientsEmptyDescription({}, { locale })}
+							{missingProfile
+								? m.dashboardPatientMissingProfile({}, { locale })
+								: m.dashboardPatientsEmptyDescription({}, { locale })}
 						</p>
 					) : (
 						<ul className="space-y-2">
@@ -176,7 +185,9 @@ export function PatientDashboardView({ user, locale }: RoleViewProps) {
 						<Skeleton className="h-16 rounded-lg" />
 					) : turns.length === 0 ? (
 						<p className="text-xs text-muted-foreground">
-							{m.dashboardPatientsEmptyDescription({}, { locale })}
+							{missingProfile
+								? m.dashboardPatientMissingProfile({}, { locale })
+								: m.dashboardPatientsEmptyDescription({}, { locale })}
 						</p>
 					) : (
 						<ul className="space-y-2">

@@ -13,6 +13,7 @@ export type DashboardSection =
 	| 'queue'
 	| 'medicines'
 	| 'doctors'
+	| 'userManagement'
 	| 'settings';
 
 export type OverviewBlockKey =
@@ -25,8 +26,7 @@ export type OverviewBlockKey =
 	| 'kpiQueue'
 	| 'kpiMedicines'
 	| 'recentAppointments'
-	| 'queuePreview'
-	| 'roleManagement';
+	| 'queuePreview';
 
 export interface RoleUpdatePayload {
 	role: UserRole;

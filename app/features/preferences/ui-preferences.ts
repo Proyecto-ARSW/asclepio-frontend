@@ -11,7 +11,6 @@ export const DEFAULT_OVERVIEW_BLOCKS = [
 	'kpiMedicines',
 	'recentAppointments',
 	'queuePreview',
-	'roleManagement',
 ] as const;
 
 type OverviewBlockKey = (typeof DEFAULT_OVERVIEW_BLOCKS)[number];

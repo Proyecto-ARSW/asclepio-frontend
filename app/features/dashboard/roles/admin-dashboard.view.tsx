@@ -20,6 +20,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
+import { Input } from '@/components/ui/input/input.component';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select/select.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import { m } from '@/features/i18n/paraglide/messages';
 import { DEFAULT_OVERVIEW_BLOCKS } from '@/features/preferences/ui-preferences';
@@ -46,6 +54,7 @@ interface AdminGqlData {
 	}>;
 	patients: Array<{
 		id: string;
+		usuarioId: string;
 		nombre: string;
 		apellido: string;
 		email: string;
@@ -103,6 +112,7 @@ const ADMIN_DASHBOARD_QUERY = `
 		}
 		patients {
 			id
+			usuarioId
 			nombre
 			apellido
 			email
@@ -167,6 +177,8 @@ export function AdminDashboardView({
 	const [error, setError] = useState('');
 	const [savingUserId, setSavingUserId] = useState<string | null>(null);
 	const [currentPage, setCurrentPage] = useState(1);
+	const [userSearch, setUserSearch] = useState('');
+	const [roleFilter, setRoleFilter] = useState<'ALL' | UserRole>('ALL');
 	const [lastRoleChange, setLastRoleChange] = useState<{
 		userId: string;
 		userName: string;
@@ -214,16 +226,36 @@ export function AdminDashboardView({
 		[data, hospitals.length],
 	);
 
-	const totalPages = Math.max(
-		1,
-		Math.ceil((data?.users.length ?? 0) / pageSize),
+	const usersById = useMemo(
+		() => new Map((data?.users ?? []).map((user) => [user.id, user])),
+		[data?.users],
 	);
 
+	const patientsOnly = useMemo(
+		() =>
+			(data?.patients ?? []).filter(
+				(patient) => usersById.get(patient.usuarioId)?.rol === 'PACIENTE',
+			),
+		[data?.patients, usersById],
+	);
+
+	const filteredUsers = useMemo(() => {
+		const term = userSearch.trim().toLowerCase();
+		return (data?.users ?? []).filter((user) => {
+			const matchesRole = roleFilter === 'ALL' || user.rol === roleFilter;
+			if (!matchesRole) return false;
+			if (!term) return true;
+			const fullName = `${user.nombre} ${user.apellido}`.toLowerCase();
+			return fullName.includes(term) || user.email.toLowerCase().includes(term);
+		});
+	}, [data?.users, roleFilter, userSearch]);
+
+	const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+
 	const pagedUsers = useMemo(() => {
-		const allUsers = data?.users ?? [];
 		const start = (currentPage - 1) * pageSize;
-		return allUsers.slice(start, start + pageSize);
-	}, [currentPage, data?.users]);
+		return filteredUsers.slice(start, start + pageSize);
+	}, [currentPage, filteredUsers]);
 
 	const recentAppointments = useMemo(
 		() => [...(data?.appoinments ?? [])].slice(0, 6),
@@ -426,26 +458,69 @@ export function AdminDashboardView({
 
 	const roleManagementSection = (
 		<>
-			<div className="flex flex-wrap items-center justify-between gap-2">
-				<p className="text-sm font-medium text-foreground">
-					{m.dashboardAdminUsersSectionTitle({}, { locale })}
-				</p>
-				<div className="flex items-center gap-2">
-					<Badge variant="outline">
-						{m.dashboardAdminUsersPageIndicator(
-							{ current: String(currentPage), total: String(totalPages) },
-							{ locale },
-						)}
-					</Badge>
-					<Button
-						type="button"
-						variant="outline"
-						onClick={loadData}
-						disabled={loading}
+			<div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3">
+				<div className="flex flex-wrap items-center justify-between gap-2">
+					<p className="text-sm font-medium text-foreground">
+						{m.dashboardAdminUsersSectionTitle({}, { locale })}
+					</p>
+					<div className="flex items-center gap-2">
+						<Badge variant="outline">
+							{m.dashboardAdminUsersPageIndicator(
+								{ current: String(currentPage), total: String(totalPages) },
+								{ locale },
+							)}
+						</Badge>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={loadData}
+							disabled={loading}
+						>
+							<ArrowPathIcon className="mr-2 h-4 w-4" />
+							{m.dashboardPatientsRefresh({}, { locale })}
+						</Button>
+					</div>
+				</div>
+				<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
+					<Input
+						value={userSearch}
+						onChange={(event) => {
+							setUserSearch(event.target.value);
+							setCurrentPage(1);
+						}}
+						placeholder={m.dashboardAdminSearchPlaceholder({}, { locale })}
+					/>
+					<Select
+						value={roleFilter}
+						onValueChange={(value) => {
+							setRoleFilter((value as 'ALL' | UserRole | null) ?? 'ALL');
+							setCurrentPage(1);
+						}}
 					>
-						<ArrowPathIcon className="mr-2 h-4 w-4" />
-						{m.dashboardPatientsRefresh({}, { locale })}
-					</Button>
+						<SelectTrigger>
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="ALL">
+								{m.dashboardAdminFilterAllRoles({}, { locale })}
+							</SelectItem>
+							<SelectItem value="ADMIN">
+								{m.authRoleAdmin({}, { locale })}
+							</SelectItem>
+							<SelectItem value="MEDICO">
+								{m.authRoleDoctor({}, { locale })}
+							</SelectItem>
+							<SelectItem value="ENFERMERO">
+								{m.authRoleNurse({}, { locale })}
+							</SelectItem>
+							<SelectItem value="RECEPCIONISTA">
+								{m.authRoleReceptionist({}, { locale })}
+							</SelectItem>
+							<SelectItem value="PACIENTE">
+								{m.authRolePatient({}, { locale })}
+							</SelectItem>
+						</SelectContent>
+					</Select>
 				</div>
 			</div>
 
@@ -476,7 +551,7 @@ export function AdminDashboardView({
 						<Skeleton key={key} className="h-30 rounded-xl" />
 					))}
 				</div>
-			) : data?.users.length ? (
+			) : filteredUsers.length ? (
 				<div className="space-y-3">
 					{pagedUsers.map((user) => (
 						<AdminRoleRowForm
@@ -525,7 +600,7 @@ export function AdminDashboardView({
 				</div>
 			) : (
 				<p className="text-sm text-muted-foreground">
-					{m.dashboardPatientsEmptyDescription({}, { locale })}
+					{m.dashboardAdminUsersNoMatches({}, { locale })}
 				</p>
 			)}
 		</>
@@ -539,6 +614,7 @@ export function AdminDashboardView({
 		queue: m.dashboardSidebarQueue({}, { locale }),
 		medicines: m.dashboardSidebarMedicines({}, { locale }),
 		doctors: m.dashboardSidebarDoctors({}, { locale }),
+		userManagement: m.dashboardSidebarUserManagement({}, { locale }),
 	} as const satisfies Record<Exclude<DashboardSection, 'settings'>, string>;
 
 	function sectionListItem(
@@ -592,7 +668,7 @@ export function AdminDashboardView({
 				);
 			case 'patients':
 				if (loading) return <Skeleton className="h-24 rounded-lg" />;
-				if (!data?.patients.length) {
+				if (!patientsOnly.length) {
 					return (
 						<p className="text-sm text-muted-foreground">
 							{m.dashboardPatientsEmptyDescription({}, { locale })}
@@ -601,7 +677,7 @@ export function AdminDashboardView({
 				}
 				return (
 					<div className="space-y-2">
-						{data.patients
+						{patientsOnly
 							.slice(0, 12)
 							.map((patient) =>
 								sectionListItem(
@@ -707,6 +783,8 @@ export function AdminDashboardView({
 							)}
 					</div>
 				);
+			case 'userManagement':
+				return roleManagementSection;
 			default:
 				return null;
 		}
@@ -819,8 +897,6 @@ export function AdminDashboardView({
 							)}
 					</div>
 
-					{showBlock('roleManagement') && roleManagementSection}
-
 					{!showBlock('kpiUsers') &&
 						!showBlock('kpiHospitals') &&
 						!showBlock('kpiPatients') &&
@@ -830,8 +906,7 @@ export function AdminDashboardView({
 						!showBlock('kpiQueue') &&
 						!showBlock('kpiMedicines') &&
 						!showBlock('recentAppointments') &&
-						!showBlock('queuePreview') &&
-						!showBlock('roleManagement') && (
+						!showBlock('queuePreview') && (
 							<p className="text-sm text-muted-foreground">
 								{m.dashboardOverviewNoBlocksSelected({}, { locale })}
 							</p>

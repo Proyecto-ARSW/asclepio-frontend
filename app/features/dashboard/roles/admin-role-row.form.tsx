@@ -1,5 +1,5 @@
 import { useForm } from '@tanstack/react-form';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -56,6 +56,7 @@ export function AdminRoleRowForm({
 }) {
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const [validationError, setValidationError] = useState('');
+	const [selectedRole, setSelectedRole] = useState<UserRole>(user.rol);
 	const form = useForm({
 		defaultValues: {
 			role: user.rol,
@@ -132,13 +133,8 @@ export function AdminRoleRowForm({
 
 	useEffect(() => {
 		form.setFieldValue('role', user.rol);
+		setSelectedRole(user.rol);
 	}, [form, user.rol]);
-
-	const selectedRole = useMemo(
-		() =>
-			((form.state.values as { role: UserRole }).role ?? user.rol) as UserRole,
-		[form.state.values, user.rol],
-	);
 
 	const roleLabelMap: Record<UserRole, string> = {
 		ADMIN: m.authRoleAdmin({}, { locale }),
@@ -168,9 +164,11 @@ export function AdminRoleRowForm({
 							</div>
 							<Select
 								value={field.state.value}
-								onValueChange={(value) =>
-									field.handleChange((value as UserRole | null) ?? user.rol)
-								}
+								onValueChange={(value) => {
+									const nextRole = (value as UserRole | null) ?? user.rol;
+									field.handleChange(nextRole);
+									setSelectedRole(nextRole);
+								}}
 							>
 								<SelectTrigger className="w-full sm:w-56">
 									<SelectValue />

@@ -5,8 +5,8 @@ import {
 	SunIcon,
 } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
-import { Link, redirect, useNavigate } from 'react-router';
-import { type NavSection, SidebarNav } from '@/components/medical/sidebar-nav';
+import { Link, redirect, useLocation, useNavigate } from 'react-router';
+import { SidebarNav } from '../../components/medical/sidebar-nav';
 import { Badge } from '@/components/ui/badge/badge.component';
 import {
 	Button,
@@ -30,6 +30,7 @@ import {
 import { Switch } from '@/components/ui/switch/switch.component';
 import { AdminDashboardView } from '@/features/dashboard/roles/admin-dashboard.view';
 import type {
+	DashboardSection as NavSection,
 	DashboardUser,
 	OverviewBlockKey,
 } from '@/features/dashboard/roles/dashboard-role.types';
@@ -38,7 +39,11 @@ import { NurseDashboardView } from '@/features/dashboard/roles/nurse-dashboard.v
 import { PatientDashboardView } from '@/features/dashboard/roles/patient-dashboard.view';
 import { ReceptionistDashboardView } from '@/features/dashboard/roles/receptionist-dashboard.view';
 import type { AppLocale } from '@/features/i18n/locale-path';
-import { currentLocale, localePath } from '@/features/i18n/locale-path';
+import {
+	currentLocale,
+	localeFromPathname,
+	localePath,
+} from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import {
 	applyUiPreferences,
@@ -63,6 +68,7 @@ function isNavSection(value: string | null): value is NavSection {
 		value === 'queue' ||
 		value === 'medicines' ||
 		value === 'doctors' ||
+		value === 'userManagement' ||
 		value === 'settings'
 	);
 }
@@ -103,8 +109,9 @@ export function meta(_: Route.MetaArgs) {
 }
 
 export default function DashboardPage() {
+	const location = useLocation();
 	const navigate = useNavigate();
-	const locale = currentLocale();
+	const locale = localeFromPathname(location.pathname);
 	const nextLocale = locale === 'es' ? 'en' : 'es';
 	const { user, selectedHospital, logout } = useAuthStore();
 	const [uiPreferences, setUiPreferences] = useState<UiPreferences>(() =>
@@ -221,10 +228,6 @@ export default function DashboardPage() {
 				key: 'queuePreview',
 				label: m.dashboardSettingsOverviewCardQueue({}, { locale }),
 			},
-			{
-				key: 'roleManagement',
-				label: m.dashboardAdminUsersSectionTitle({}, { locale }),
-			},
 		];
 
 	const roleUser: DashboardUser = {
@@ -306,6 +309,7 @@ export default function DashboardPage() {
 						<SidebarNav
 							active={activeSection}
 							onNavigate={handleSidebarNavigate}
+							locale={locale}
 							hospitalName={selectedHospital?.nombre}
 							userName={`${user.nombre} ${user.apellido}`}
 							userRole={roleLabel}

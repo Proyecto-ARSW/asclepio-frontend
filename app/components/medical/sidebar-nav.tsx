@@ -5,7 +5,6 @@ import {
 	BuildingOffice2Icon,
 	CalendarDaysIcon,
 	Cog6ToothIcon,
-	HeartIcon,
 	HomeIcon,
 	QueueListIcon,
 	UserGroupIcon,
@@ -155,9 +154,11 @@ function SidebarContent({
 		<div className="flex h-full flex-col">
 			<div className="flex items-center justify-between border-b border-border px-5 py-4">
 				<div className="flex items-center gap-3">
-					<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-						<HeartIcon className="h-5 w-5" />
-					</div>
+					<img
+						src="/favicon.png"
+						alt={brandName}
+						className="h-9 w-9 shrink-0 rounded-lg border border-border/60 bg-card object-contain p-1"
+					/>
 					<div className="min-w-0">
 						<p className="text-sm font-bold text-foreground">{brandName}</p>
 						{hospitalName && (

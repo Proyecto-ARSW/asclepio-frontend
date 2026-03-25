@@ -19,6 +19,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
+import { Checkbox } from '@/components/ui/checkbox/checkbox.component';
 import {
 	Select,
 	SelectContent,
@@ -28,7 +29,10 @@ import {
 } from '@/components/ui/select/select.component';
 import { Switch } from '@/components/ui/switch/switch.component';
 import { AdminDashboardView } from '@/features/dashboard/roles/admin-dashboard.view';
-import type { DashboardUser } from '@/features/dashboard/roles/dashboard-role.types';
+import type {
+	DashboardUser,
+	OverviewBlockKey,
+} from '@/features/dashboard/roles/dashboard-role.types';
 import { DoctorDashboardView } from '@/features/dashboard/roles/doctor-dashboard.view';
 import { NurseDashboardView } from '@/features/dashboard/roles/nurse-dashboard.view';
 import { PatientDashboardView } from '@/features/dashboard/roles/patient-dashboard.view';
@@ -38,6 +42,7 @@ import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import {
 	applyUiPreferences,
+	DEFAULT_OVERVIEW_BLOCKS,
 	readUiPreferences,
 	saveUiPreferences,
 	type ThemeMode,
@@ -46,6 +51,21 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/dashboard.page';
+
+function getRoleLabel(role: string | null | undefined, locale: 'es' | 'en') {
+	switch (role) {
+		case 'ADMIN':
+			return m.authRoleAdmin({}, { locale });
+		case 'MEDICO':
+			return m.authRoleDoctor({}, { locale });
+		case 'ENFERMERO':
+			return m.authRoleNurse({}, { locale });
+		case 'RECEPCIONISTA':
+			return m.authRoleReceptionist({}, { locale });
+		default:
+			return m.authRolePatient({}, { locale });
+	}
+}
 
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
@@ -99,12 +119,66 @@ export default function DashboardPage() {
 		setUiPreferences((prev) => ({ ...prev, theme }));
 	}
 
+	function handleOverviewBlockToggle(
+		block: OverviewBlockKey,
+		checked: boolean,
+	) {
+		setUiPreferences((prev) => ({
+			...prev,
+			overviewBlocks: checked
+				? [...new Set([...prev.overviewBlocks, block])]
+				: prev.overviewBlocks.filter((item) => item !== block),
+		}));
+	}
+
+	function handleOverviewBlocksReset() {
+		setUiPreferences((prev) => ({
+			...prev,
+			overviewBlocks: [...DEFAULT_OVERVIEW_BLOCKS],
+		}));
+	}
+
 	if (!user) {
 		return null;
 	}
 
-	const hasSidebarNavigation =
-		user.rol === 'ADMIN' || user.rol === 'RECEPCIONISTA';
+	const hasSidebarNavigation = user.rol === 'ADMIN';
+	const roleLabel = getRoleLabel(user.rol, locale);
+	const overviewBlockChoices: Array<{ key: OverviewBlockKey; label: string }> =
+		[
+			{
+				key: 'kpiUsers',
+				label: m.dashboardAdminUsersSectionTitle({}, { locale }),
+			},
+			{
+				key: 'kpiHospitals',
+				label: m.dashboardSidebarHospitals({}, { locale }),
+			},
+			{ key: 'kpiPatients', label: m.dashboardSidebarPatients({}, { locale }) },
+			{ key: 'kpiDoctors', label: m.dashboardSidebarDoctors({}, { locale }) },
+			{ key: 'kpiNurses', label: m.authRoleNurse({}, { locale }) },
+			{
+				key: 'kpiAppointments',
+				label: m.dashboardSidebarAppointments({}, { locale }),
+			},
+			{ key: 'kpiQueue', label: m.dashboardSidebarQueue({}, { locale }) },
+			{
+				key: 'kpiMedicines',
+				label: m.dashboardSidebarMedicines({}, { locale }),
+			},
+			{
+				key: 'recentAppointments',
+				label: m.dashboardSettingsOverviewCardRecent({}, { locale }),
+			},
+			{
+				key: 'queuePreview',
+				label: m.dashboardSettingsOverviewCardQueue({}, { locale }),
+			},
+			{
+				key: 'roleManagement',
+				label: m.dashboardAdminUsersSectionTitle({}, { locale }),
+			},
+		];
 
 	const roleUser: DashboardUser = {
 		id: user.id,
@@ -129,7 +203,7 @@ export default function DashboardPage() {
 							>
 								{m.dashboardSidebarBrandName({}, { locale })}
 							</Link>
-							<Badge variant="secondary">{user.rol}</Badge>
+							<Badge variant="secondary">{roleLabel}</Badge>
 						</div>
 						<p className="truncate text-sm text-muted-foreground">
 							{user.nombre} {user.apellido}
@@ -187,7 +261,7 @@ export default function DashboardPage() {
 							onNavigate={setActiveSection}
 							hospitalName={selectedHospital?.nombre}
 							userName={`${user.nombre} ${user.apellido}`}
-							userRole={user.rol}
+							userRole={roleLabel}
 							onLogout={handleLogout}
 						/>
 						<div className="w-full min-w-0 pt-14 lg:pt-0">
@@ -195,6 +269,8 @@ export default function DashboardPage() {
 								section={activeSection}
 								user={roleUser}
 								locale={locale}
+								selectedHospitalId={selectedHospital?.id}
+								overviewBlocks={uiPreferences.overviewBlocks}
 								theme={uiPreferences.theme}
 								dyslexiaFont={uiPreferences.dyslexiaFont}
 								onThemeChange={handleThemeChange}
@@ -205,21 +281,33 @@ export default function DashboardPage() {
 										dyslexiaFont: enabled,
 									}))
 								}
+								overviewBlockChoices={overviewBlockChoices}
+								onOverviewBlockToggle={handleOverviewBlockToggle}
+								onOverviewBlockReset={handleOverviewBlocksReset}
 							/>
 						</div>
 					</div>
 				) : (
 					<div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-						<RoleRenderer user={roleUser} locale={locale} />
+						<RoleRenderer
+							user={roleUser}
+							locale={locale}
+							selectedHospitalId={selectedHospital?.id}
+							overviewBlocks={uiPreferences.overviewBlocks}
+						/>
 						<SettingsPanel
 							locale={locale}
 							theme={uiPreferences.theme}
 							dyslexiaFont={uiPreferences.dyslexiaFont}
+							overviewBlocks={uiPreferences.overviewBlocks}
+							overviewBlockChoices={overviewBlockChoices}
 							onThemeChange={handleThemeChange}
 							onLanguageChange={handleLanguageChange}
 							onDyslexiaToggle={(enabled) =>
 								setUiPreferences((prev) => ({ ...prev, dyslexiaFont: enabled }))
 							}
+							onOverviewBlockToggle={handleOverviewBlockToggle}
+							onOverviewBlockReset={handleOverviewBlocksReset}
 						/>
 					</div>
 				)}
@@ -232,20 +320,30 @@ function SidebarSectionRenderer({
 	section,
 	user,
 	locale,
+	selectedHospitalId,
+	overviewBlocks,
 	theme,
 	dyslexiaFont,
 	onThemeChange,
 	onLanguageChange,
 	onDyslexiaToggle,
+	overviewBlockChoices,
+	onOverviewBlockToggle,
+	onOverviewBlockReset,
 }: {
 	section: NavSection;
 	user: DashboardUser;
 	locale: 'es' | 'en';
+	selectedHospitalId?: number;
+	overviewBlocks: OverviewBlockKey[];
 	theme: ThemeMode;
 	dyslexiaFont: boolean;
 	onThemeChange: (theme: ThemeMode) => void;
 	onLanguageChange: (locale: AppLocale) => void;
 	onDyslexiaToggle: (enabled: boolean) => void;
+	overviewBlockChoices: Array<{ key: OverviewBlockKey; label: string }>;
+	onOverviewBlockToggle: (block: OverviewBlockKey, checked: boolean) => void;
+	onOverviewBlockReset: () => void;
 }) {
 	if (section === 'settings') {
 		return (
@@ -253,44 +351,53 @@ function SidebarSectionRenderer({
 				locale={locale}
 				theme={theme}
 				dyslexiaFont={dyslexiaFont}
+				overviewBlocks={overviewBlocks}
+				overviewBlockChoices={overviewBlockChoices}
 				onThemeChange={onThemeChange}
 				onLanguageChange={onLanguageChange}
 				onDyslexiaToggle={onDyslexiaToggle}
+				onOverviewBlockToggle={onOverviewBlockToggle}
+				onOverviewBlockReset={onOverviewBlockReset}
 			/>
 		);
 	}
 
-	if (section === 'overview') {
-		return <RoleRenderer user={user} locale={locale} />;
+	if (user.rol === 'ADMIN') {
+		return (
+			<AdminDashboardView
+				user={user}
+				locale={locale}
+				section={section}
+				selectedHospitalId={selectedHospitalId}
+				overviewBlocks={overviewBlocks}
+			/>
+		);
 	}
 
-	return (
-		<Card className="border-border/80 bg-card/90 shadow-sm">
-			<CardHeader>
-				<CardTitle>{m.dashboardSidebarSettings({}, { locale })}</CardTitle>
-				<CardDescription>
-					{m.dashboardComingSoonDescription({}, { locale })}
-				</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<p className="text-sm text-muted-foreground">
-					{m.dashboardComingSoonDescription({}, { locale })}
-				</p>
-			</CardContent>
-		</Card>
-	);
+	return <RoleRenderer user={user} locale={locale} />;
 }
 
 function RoleRenderer({
 	user,
 	locale,
+	selectedHospitalId,
+	overviewBlocks,
 }: {
 	user: DashboardUser;
 	locale: 'es' | 'en';
+	selectedHospitalId?: number;
+	overviewBlocks?: OverviewBlockKey[];
 }) {
 	switch (user.rol) {
 		case 'ADMIN':
-			return <AdminDashboardView user={user} locale={locale} />;
+			return (
+				<AdminDashboardView
+					user={user}
+					locale={locale}
+					selectedHospitalId={selectedHospitalId}
+					overviewBlocks={overviewBlocks}
+				/>
+			);
 		case 'MEDICO':
 			return <DoctorDashboardView user={user} locale={locale} />;
 		case 'ENFERMERO':
@@ -306,16 +413,24 @@ function SettingsPanel({
 	locale,
 	theme,
 	dyslexiaFont,
+	overviewBlocks,
+	overviewBlockChoices,
 	onThemeChange,
 	onLanguageChange,
 	onDyslexiaToggle,
+	onOverviewBlockToggle,
+	onOverviewBlockReset,
 }: {
 	locale: 'es' | 'en';
 	theme: ThemeMode;
 	dyslexiaFont: boolean;
+	overviewBlocks: OverviewBlockKey[];
+	overviewBlockChoices: Array<{ key: OverviewBlockKey; label: string }>;
 	onThemeChange: (theme: ThemeMode) => void;
 	onLanguageChange: (locale: AppLocale) => void;
 	onDyslexiaToggle: (enabled: boolean) => void;
+	onOverviewBlockToggle: (block: OverviewBlockKey, checked: boolean) => void;
+	onOverviewBlockReset: () => void;
 }) {
 	return (
 		<Card className="h-fit border-border/70 bg-card/90 shadow-sm">
@@ -381,6 +496,40 @@ function SettingsPanel({
 						checked={dyslexiaFont}
 						onCheckedChange={(checked) => onDyslexiaToggle(Boolean(checked))}
 					/>
+				</div>
+				<div className="space-y-2 rounded-lg border border-border/70 bg-muted/30 p-3">
+					<div className="flex items-center justify-between gap-2">
+						<p className="text-sm font-medium text-foreground">
+							{m.dashboardSettingsOverviewBlocksTitle({}, { locale })}
+						</p>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={onOverviewBlockReset}
+						>
+							{m.dashboardSettingsOverviewBlocksReset({}, { locale })}
+						</Button>
+					</div>
+					<p className="text-xs text-muted-foreground">
+						{m.dashboardSettingsOverviewBlocksDescription({}, { locale })}
+					</p>
+					<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+						{overviewBlockChoices.map((choice) => (
+							<div
+								key={choice.key}
+								className="flex items-center gap-2 rounded-md border border-border/60 bg-background/70 px-2 py-1.5"
+							>
+								<Checkbox
+									checked={overviewBlocks.includes(choice.key)}
+									onCheckedChange={(checked) =>
+										onOverviewBlockToggle(choice.key, Boolean(checked))
+									}
+								/>
+								<span className="text-xs text-foreground">{choice.label}</span>
+							</div>
+						))}
+					</div>
 				</div>
 			</CardContent>
 		</Card>

@@ -1,7 +1,11 @@
 import {
 	ArrowPathIcon,
+	BuildingOffice2Icon,
 	ChevronLeftIcon,
 	ChevronRightIcon,
+	ClipboardDocumentListIcon,
+	ClockIcon,
+	CubeIcon,
 	ShieldCheckIcon,
 	UserGroupIcon,
 } from '@heroicons/react/24/outline';
@@ -9,14 +13,28 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Button } from '@/components/ui/button/button.component';
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from '@/components/ui/card/card.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import { m } from '@/features/i18n/paraglide/messages';
+import { apiGet } from '@/lib/api';
 import { gqlMutation, gqlQuery } from '@/lib/graphql-client';
+import type { Hospital } from '@/store/auth.store';
 import { AdminRoleRowForm } from './admin-role-row.form';
-import type { RoleViewProps, UserRole } from './dashboard-role.types';
+import type {
+	DashboardSection,
+	RoleUpdatePayload,
+	RoleViewProps,
+	UserRole,
+} from './dashboard-role.types';
 import { RoleDashboardShell } from './role-dashboard-shell';
 
-interface AdminUsersData {
+interface AdminGqlData {
 	users: Array<{
 		id: string;
 		nombre: string;
@@ -24,9 +42,45 @@ interface AdminUsersData {
 		email: string;
 		rol: UserRole;
 	}>;
-	patients: Array<{ id: string }>;
-	doctors: Array<{ id: string }>;
+	patients: Array<{
+		id: string;
+		nombre: string;
+		apellido: string;
+		email: string;
+		numeroDocumento?: string | null;
+		eps?: string | null;
+		tipoSangre?: string | null;
+	}>;
+	doctors: Array<{
+		id: string;
+		nombre: string;
+		apellido: string;
+		email: string;
+		numeroRegistro: string;
+		especialidadId: number;
+		consultorio?: string | null;
+	}>;
 	nurses: Array<{ id: string }>;
+	appoinments: Array<{
+		id: string;
+		pacienteId: string;
+		medicoId: string;
+		fechaHora: string;
+		estado: string;
+		motivo?: string | null;
+	}>;
+	turnosPorHospital: Array<{
+		id: string;
+		numeroTurno: number;
+		estado: string;
+		tipo: string;
+	}>;
+	medicines: Array<{
+		id: number;
+		nombreComercial: string;
+		requiereReceta: boolean;
+		activo: boolean;
+	}>;
 }
 
 interface UpdateUserRoleData {
@@ -36,8 +90,8 @@ interface UpdateUserRoleData {
 	};
 }
 
-const ADMIN_USERS_QUERY = `
-	query AdminDashboardUsers {
+const ADMIN_DASHBOARD_QUERY = `
+	query AdminDashboard {
 		users {
 			id
 			nombre
@@ -47,12 +101,44 @@ const ADMIN_USERS_QUERY = `
 		}
 		patients {
 			id
+			nombre
+			apellido
+			email
+			numeroDocumento
+			eps
+			tipoSangre
 		}
 		doctors {
 			id
+			nombre
+			apellido
+			email
+			numeroRegistro
+			especialidadId
+			consultorio
 		}
 		nurses {
 			id
+		}
+		appoinments {
+			id
+			pacienteId
+			medicoId
+			fechaHora
+			estado
+			motivo
+		}
+		turnosPorHospital {
+			id
+			numeroTurno
+			estado
+			tipo
+		}
+		medicines {
+			id
+			nombreComercial
+			requiereReceta
+			activo
 		}
 	}
 `;
@@ -66,9 +152,15 @@ const UPDATE_USER_ROLE_MUTATION = `
 	}
 `;
 
-export function AdminDashboardView({ locale }: RoleViewProps) {
+export function AdminDashboardView({
+	locale,
+	section = 'overview',
+	selectedHospitalId,
+	overviewBlocks,
+}: RoleViewProps) {
 	const pageSize = 8;
-	const [data, setData] = useState<AdminUsersData | null>(null);
+	const [data, setData] = useState<AdminGqlData | null>(null);
+	const [hospitals, setHospitals] = useState<Hospital[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [savingUserId, setSavingUserId] = useState<string | null>(null);
@@ -85,8 +177,12 @@ export function AdminDashboardView({ locale }: RoleViewProps) {
 		setLoading(true);
 		setError('');
 		try {
-			const response = await gqlQuery<AdminUsersData>(ADMIN_USERS_QUERY);
-			setData(response);
+			const [gqlResponse, hospitalsResponse] = await Promise.all([
+				gqlQuery<AdminGqlData>(ADMIN_DASHBOARD_QUERY),
+				apiGet<Hospital[]>('/hospitals').catch(() => []),
+			]);
+			setData(gqlResponse);
+			setHospitals(hospitalsResponse);
 		} catch (err) {
 			setError(
 				err instanceof Error
@@ -105,11 +201,15 @@ export function AdminDashboardView({ locale }: RoleViewProps) {
 	const counts = useMemo(
 		() => ({
 			users: data?.users.length ?? 0,
+			hospitals: hospitals.length,
 			patients: data?.patients.length ?? 0,
 			doctors: data?.doctors.length ?? 0,
 			nurses: data?.nurses.length ?? 0,
+			appointments: data?.appoinments.length ?? 0,
+			queue: data?.turnosPorHospital.length ?? 0,
+			medicines: data?.medicines.length ?? 0,
 		}),
-		[data],
+		[data, hospitals.length],
 	);
 
 	const totalPages = Math.max(
@@ -123,22 +223,70 @@ export function AdminDashboardView({ locale }: RoleViewProps) {
 		return allUsers.slice(start, start + pageSize);
 	}, [currentPage, data?.users]);
 
+	const recentAppointments = useMemo(
+		() => [...(data?.appoinments ?? [])].slice(0, 6),
+		[data?.appoinments],
+	);
+
+	const queuePreview = useMemo(
+		() => [...(data?.turnosPorHospital ?? [])].slice(0, 6),
+		[data?.turnosPorHospital],
+	);
+
+	const visibleBlocks = useMemo(
+		() => new Set(overviewBlocks ?? []),
+		[overviewBlocks],
+	);
+
+	const showBlock = useCallback(
+		(block: string) =>
+			overviewBlocks === undefined || visibleBlocks.has(block as never),
+		[overviewBlocks, visibleBlocks],
+	);
+
 	useEffect(() => {
 		if (currentPage > totalPages) {
 			setCurrentPage(totalPages);
 		}
 	}, [currentPage, totalPages]);
 
+	function roleLabel(role: UserRole) {
+		switch (role) {
+			case 'ADMIN':
+				return m.authRoleAdmin({}, { locale });
+			case 'MEDICO':
+				return m.authRoleDoctor({}, { locale });
+			case 'ENFERMERO':
+				return m.authRoleNurse({}, { locale });
+			case 'RECEPCIONISTA':
+				return m.authRoleReceptionist({}, { locale });
+			default:
+				return m.authRolePatient({}, { locale });
+		}
+	}
+
 	async function handleRoleUpdate(
-		user: AdminUsersData['users'][number],
-		role: UserRole,
+		user: AdminGqlData['users'][number],
+		payload: RoleUpdatePayload,
 	) {
 		setSavingUserId(user.id);
 		setError('');
 		try {
+			const input: Record<string, unknown> = {
+				id: user.id,
+				rol: payload.role,
+				hospitalId: selectedHospitalId,
+			};
+			if (payload.medicoData) {
+				input.medicoData = payload.medicoData;
+			}
+			if (payload.enfermeroData) {
+				input.enfermeroData = payload.enfermeroData;
+			}
+
 			const response = await gqlMutation<UpdateUserRoleData>(
 				UPDATE_USER_ROLE_MUTATION,
-				{ input: { id: user.id, rol: role } },
+				{ input },
 			);
 			setData((prev) => {
 				if (!prev) return prev;
@@ -169,34 +317,8 @@ export function AdminDashboardView({ locale }: RoleViewProps) {
 		}
 	}
 
-	return (
-		<RoleDashboardShell
-			title={m.dashboardOverviewTitle({}, { locale })}
-			subtitle={m.dashboardOverviewAdminActionsTitle({}, { locale })}
-		>
-			<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-				<MetricTile
-					label={m.authRoleAdmin({}, { locale })}
-					value={counts.users}
-					icon={<UserGroupIcon className="h-4 w-4" />}
-				/>
-				<MetricTile
-					label={m.authRolePatient({}, { locale })}
-					value={counts.patients}
-					icon={<UserGroupIcon className="h-4 w-4" />}
-				/>
-				<MetricTile
-					label={m.authRoleDoctor({}, { locale })}
-					value={counts.doctors}
-					icon={<ShieldCheckIcon className="h-4 w-4" />}
-				/>
-				<MetricTile
-					label={m.authRoleNurse({}, { locale })}
-					value={counts.nurses}
-					icon={<ShieldCheckIcon className="h-4 w-4" />}
-				/>
-			</div>
-
+	const roleManagementSection = (
+		<>
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<p className="text-sm font-medium text-foreground">
 					{m.dashboardAdminUsersSectionTitle({}, { locale })}
@@ -226,19 +348,13 @@ export function AdminDashboardView({ locale }: RoleViewProps) {
 						{m.dashboardAdminLastRoleChange(
 							{
 								user: lastRoleChange.userName,
-								from: lastRoleChange.fromRole,
-								to: lastRoleChange.toRole,
+								from: roleLabel(lastRoleChange.fromRole),
+								to: roleLabel(lastRoleChange.toRole),
 								at: lastRoleChange.timestamp,
 							},
 							{ locale },
 						)}
 					</AlertDescription>
-				</Alert>
-			)}
-
-			{error && (
-				<Alert variant="destructive">
-					<AlertDescription>{error}</AlertDescription>
 				</Alert>
 			)}
 
@@ -266,7 +382,7 @@ export function AdminDashboardView({ locale }: RoleViewProps) {
 									? lastRoleChange.timestamp
 									: undefined
 							}
-							onSubmit={(nextRole) => handleRoleUpdate(user, nextRole)}
+							onSubmit={(payload) => handleRoleUpdate(user, payload)}
 						/>
 					))}
 					{totalPages > 1 && (
@@ -305,6 +421,380 @@ export function AdminDashboardView({ locale }: RoleViewProps) {
 					{m.dashboardPatientsEmptyDescription({}, { locale })}
 				</p>
 			)}
+		</>
+	);
+
+	const sectionTitle = {
+		overview: m.dashboardSidebarOverview({}, { locale }),
+		hospitals: m.dashboardSidebarHospitals({}, { locale }),
+		patients: m.dashboardSidebarPatients({}, { locale }),
+		appointments: m.dashboardSidebarAppointments({}, { locale }),
+		queue: m.dashboardSidebarQueue({}, { locale }),
+		medicines: m.dashboardSidebarMedicines({}, { locale }),
+		doctors: m.dashboardSidebarDoctors({}, { locale }),
+	} as const satisfies Record<Exclude<DashboardSection, 'settings'>, string>;
+
+	function sectionListItem(
+		primary: string,
+		secondary: string,
+		badge: string,
+		key: string,
+	) {
+		return (
+			<div
+				key={key}
+				className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-2"
+			>
+				<div className="min-w-0">
+					<p className="truncate text-sm font-medium text-foreground">
+						{primary}
+					</p>
+					<p className="truncate text-xs text-muted-foreground">{secondary}</p>
+				</div>
+				<Badge variant="outline">{badge}</Badge>
+			</div>
+		);
+	}
+
+	function sectionContent() {
+		switch (section) {
+			case 'hospitals':
+				if (loading) return <Skeleton className="h-24 rounded-lg" />;
+				if (!hospitals.length) {
+					return (
+						<p className="text-sm text-muted-foreground">
+							{m.dashboardHospitalsEmpty({}, { locale })}
+						</p>
+					);
+				}
+				return (
+					<div className="space-y-2">
+						{hospitals
+							.slice(0, 12)
+							.map((hospital) =>
+								sectionListItem(
+									hospital.nombre,
+									`${hospital.ciudad} - ${hospital.departamento}`,
+									hospital.activo
+										? m.dashboardHospitalStatusActive({}, { locale })
+										: m.dashboardHospitalStatusInactive({}, { locale }),
+									`hospital-${hospital.id}`,
+								),
+							)}
+					</div>
+				);
+			case 'patients':
+				if (loading) return <Skeleton className="h-24 rounded-lg" />;
+				if (!data?.patients.length) {
+					return (
+						<p className="text-sm text-muted-foreground">
+							{m.dashboardPatientsEmptyDescription({}, { locale })}
+						</p>
+					);
+				}
+				return (
+					<div className="space-y-2">
+						{data.patients
+							.slice(0, 12)
+							.map((patient) =>
+								sectionListItem(
+									`${patient.nombre} ${patient.apellido}`,
+									patient.email,
+									patient.eps ?? patient.numeroDocumento ?? '-',
+									`patient-${patient.id}`,
+								),
+							)}
+					</div>
+				);
+			case 'appointments':
+				if (loading) return <Skeleton className="h-24 rounded-lg" />;
+				if (!data?.appoinments.length) {
+					return (
+						<p className="text-sm text-muted-foreground">
+							{m.dashboardPatientsEmptyDescription({}, { locale })}
+						</p>
+					);
+				}
+				return (
+					<div className="space-y-2">
+						{data.appoinments
+							.slice(0, 12)
+							.map((appointment) =>
+								sectionListItem(
+									new Date(appointment.fechaHora).toLocaleString(locale),
+									appointment.motivo || appointment.id,
+									appointment.estado,
+									`appointment-${appointment.id}`,
+								),
+							)}
+					</div>
+				);
+			case 'queue':
+				if (loading) return <Skeleton className="h-24 rounded-lg" />;
+				if (!data?.turnosPorHospital.length) {
+					return (
+						<p className="text-sm text-muted-foreground">
+							{m.dashboardPatientsEmptyDescription({}, { locale })}
+						</p>
+					);
+				}
+				return (
+					<div className="space-y-2">
+						{data.turnosPorHospital
+							.slice(0, 12)
+							.map((turn) =>
+								sectionListItem(
+									`#${turn.numeroTurno}`,
+									turn.tipo,
+									turn.estado,
+									`turn-${turn.id}`,
+								),
+							)}
+					</div>
+				);
+			case 'medicines':
+				if (loading) return <Skeleton className="h-24 rounded-lg" />;
+				if (!data?.medicines.length) {
+					return (
+						<p className="text-sm text-muted-foreground">
+							{m.dashboardPatientsEmptyDescription({}, { locale })}
+						</p>
+					);
+				}
+				return (
+					<div className="space-y-2">
+						{data.medicines
+							.slice(0, 12)
+							.map((medicine) =>
+								sectionListItem(
+									medicine.nombreComercial,
+									medicine.requiereReceta ? 'Rx' : 'OTC',
+									medicine.activo
+										? m.dashboardHospitalStatusActive({}, { locale })
+										: m.dashboardHospitalStatusInactive({}, { locale }),
+									`medicine-${medicine.id}`,
+								),
+							)}
+					</div>
+				);
+			case 'doctors':
+				if (loading) return <Skeleton className="h-24 rounded-lg" />;
+				if (!data?.doctors.length) {
+					return (
+						<p className="text-sm text-muted-foreground">
+							{m.dashboardPatientsEmptyDescription({}, { locale })}
+						</p>
+					);
+				}
+				return (
+					<div className="space-y-2">
+						{data.doctors
+							.slice(0, 12)
+							.map((doctor) =>
+								sectionListItem(
+									`${doctor.nombre} ${doctor.apellido}`,
+									doctor.email,
+									doctor.consultorio ?? String(doctor.especialidadId),
+									`doctor-${doctor.id}`,
+								),
+							)}
+					</div>
+				);
+			default:
+				return null;
+		}
+	}
+
+	return (
+		<RoleDashboardShell
+			title={sectionTitle[section as Exclude<DashboardSection, 'settings'>]}
+			subtitle={m.dashboardOverviewAdminActionsTitle({}, { locale })}
+		>
+			{error && (
+				<Alert variant="destructive">
+					<AlertDescription>{error}</AlertDescription>
+				</Alert>
+			)}
+
+			{section === 'overview' && (
+				<>
+					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+						{showBlock('kpiUsers') && (
+							<MetricTile
+								label={m.dashboardAdminUsersSectionTitle({}, { locale })}
+								value={counts.users}
+								icon={<UserGroupIcon className="h-4 w-4" />}
+							/>
+						)}
+						{showBlock('kpiHospitals') && (
+							<MetricTile
+								label={m.dashboardSidebarHospitals({}, { locale })}
+								value={counts.hospitals}
+								icon={<BuildingOffice2Icon className="h-4 w-4" />}
+							/>
+						)}
+						{showBlock('kpiPatients') && (
+							<MetricTile
+								label={m.authRolePatient({}, { locale })}
+								value={counts.patients}
+								icon={<UserGroupIcon className="h-4 w-4" />}
+							/>
+						)}
+						{showBlock('kpiDoctors') && (
+							<MetricTile
+								label={m.authRoleDoctor({}, { locale })}
+								value={counts.doctors}
+								icon={<ShieldCheckIcon className="h-4 w-4" />}
+							/>
+						)}
+						{showBlock('kpiNurses') && (
+							<MetricTile
+								label={m.authRoleNurse({}, { locale })}
+								value={counts.nurses}
+								icon={<ShieldCheckIcon className="h-4 w-4" />}
+							/>
+						)}
+						{showBlock('kpiAppointments') && (
+							<MetricTile
+								label={m.dashboardSidebarAppointments({}, { locale })}
+								value={counts.appointments}
+								icon={<ClipboardDocumentListIcon className="h-4 w-4" />}
+							/>
+						)}
+						{showBlock('kpiQueue') && (
+							<MetricTile
+								label={m.dashboardSidebarQueue({}, { locale })}
+								value={counts.queue}
+								icon={<ClockIcon className="h-4 w-4" />}
+							/>
+						)}
+						{showBlock('kpiMedicines') && (
+							<MetricTile
+								label={m.dashboardSidebarMedicines({}, { locale })}
+								value={counts.medicines}
+								icon={<CubeIcon className="h-4 w-4" />}
+							/>
+						)}
+					</div>
+
+					<div className="grid gap-4 lg:grid-cols-2">
+						{showBlock('recentAppointments') && (
+							<Card className="border-border/70">
+								<CardHeader className="pb-2">
+									<CardTitle className="text-base">
+										{m.dashboardSidebarAppointments({}, { locale })}
+									</CardTitle>
+									<CardDescription>
+										{m.dashboardOverviewActiveConnections({}, { locale })}
+									</CardDescription>
+								</CardHeader>
+								<CardContent className="space-y-2">
+									{loading ? (
+										<Skeleton className="h-20 rounded-lg" />
+									) : recentAppointments.length ? (
+										recentAppointments.map((appointment) => (
+											<div
+												key={appointment.id}
+												className="rounded-lg border border-border/60 bg-muted/20 p-2"
+											>
+												<div className="flex items-center justify-between gap-2">
+													<p className="text-xs text-muted-foreground">
+														{appointment.id}
+													</p>
+													<Badge variant="outline">{appointment.estado}</Badge>
+												</div>
+												<p className="text-xs text-foreground">
+													{new Date(appointment.fechaHora).toLocaleString(
+														locale,
+													)}
+												</p>
+											</div>
+										))
+									) : (
+										<p className="text-xs text-muted-foreground">
+											{m.dashboardPatientsEmptyDescription({}, { locale })}
+										</p>
+									)}
+								</CardContent>
+							</Card>
+						)}
+
+						{showBlock('queuePreview') && (
+							<Card className="border-border/70">
+								<CardHeader className="pb-2">
+									<CardTitle className="text-base">
+										{m.dashboardSidebarQueue({}, { locale })}
+									</CardTitle>
+									<CardDescription>
+										{m.dashboardOverviewManageHospitals({}, { locale })}
+									</CardDescription>
+								</CardHeader>
+								<CardContent className="space-y-2">
+									{loading ? (
+										<Skeleton className="h-20 rounded-lg" />
+									) : queuePreview.length ? (
+										queuePreview.map((turn) => (
+											<div
+												key={turn.id}
+												className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-2"
+											>
+												<div>
+													<p className="text-sm font-medium text-foreground">
+														#{turn.numeroTurno}
+													</p>
+													<p className="text-xs text-muted-foreground">
+														{turn.tipo}
+													</p>
+												</div>
+												<Badge variant="secondary">{turn.estado}</Badge>
+											</div>
+										))
+									) : (
+										<p className="text-xs text-muted-foreground">
+											{m.dashboardPatientsEmptyDescription({}, { locale })}
+										</p>
+									)}
+								</CardContent>
+							</Card>
+						)}
+					</div>
+
+					{showBlock('roleManagement') && roleManagementSection}
+
+					{!showBlock('kpiUsers') &&
+						!showBlock('kpiHospitals') &&
+						!showBlock('kpiPatients') &&
+						!showBlock('kpiDoctors') &&
+						!showBlock('kpiNurses') &&
+						!showBlock('kpiAppointments') &&
+						!showBlock('kpiQueue') &&
+						!showBlock('kpiMedicines') &&
+						!showBlock('recentAppointments') &&
+						!showBlock('queuePreview') &&
+						!showBlock('roleManagement') && (
+							<p className="text-sm text-muted-foreground">
+								{m.dashboardOverviewNoBlocksSelected({}, { locale })}
+							</p>
+						)}
+				</>
+			)}
+
+			{section !== 'overview' && (
+				<>
+					<div className="flex justify-end">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={loadData}
+							disabled={loading}
+						>
+							<ArrowPathIcon className="mr-2 h-4 w-4" />
+							{m.dashboardPatientsRefresh({}, { locale })}
+						</Button>
+					</div>
+					{sectionContent()}
+				</>
+			)}
 		</RoleDashboardShell>
 	);
 }
@@ -320,9 +810,9 @@ function MetricTile({
 }) {
 	return (
 		<div className="rounded-xl border border-border/70 bg-background/80 p-3">
-			<div className="mb-2 inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
+			<div className="mb-2 flex items-start gap-2 text-xs font-medium text-muted-foreground">
 				{icon}
-				{label}
+				<span className="line-clamp-2 text-left">{label}</span>
 			</div>
 			<p className="text-2xl font-semibold text-foreground">{value}</p>
 		</div>

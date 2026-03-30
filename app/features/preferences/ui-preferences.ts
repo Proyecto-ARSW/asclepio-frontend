@@ -1,8 +1,24 @@
 export type ThemeMode = 'light' | 'dark' | 'system';
 
+export const DEFAULT_OVERVIEW_BLOCKS = [
+	'kpiUsers',
+	'kpiHospitals',
+	'kpiPatients',
+	'kpiDoctors',
+	'kpiNurses',
+	'kpiAppointments',
+	'kpiQueue',
+	'kpiMedicines',
+	'recentAppointments',
+	'queuePreview',
+] as const;
+
+type OverviewBlockKey = (typeof DEFAULT_OVERVIEW_BLOCKS)[number];
+
 export interface UiPreferences {
 	theme: ThemeMode;
 	dyslexiaFont: boolean;
+	overviewBlocks: OverviewBlockKey[];
 }
 
 export const UI_PREFERENCES_STORAGE_KEY = 'asclepio-ui-preferences';
@@ -10,7 +26,12 @@ export const UI_PREFERENCES_STORAGE_KEY = 'asclepio-ui-preferences';
 const DEFAULT_PREFERENCES: UiPreferences = {
 	theme: 'light',
 	dyslexiaFont: false,
+	overviewBlocks: [...DEFAULT_OVERVIEW_BLOCKS],
 };
+
+function isOverviewBlockKey(value: string): value is OverviewBlockKey {
+	return DEFAULT_OVERVIEW_BLOCKS.includes(value as OverviewBlockKey);
+}
 
 function systemPrefersDark(): boolean {
 	return (
@@ -45,7 +66,23 @@ export function readUiPreferences(): UiPreferences {
 				? parsed.theme
 				: DEFAULT_PREFERENCES.theme;
 		const dyslexiaFont = Boolean(parsed.dyslexiaFont);
-		return { theme, dyslexiaFont };
+		const overviewBlocksField = Array.isArray(parsed.overviewBlocks)
+			? parsed.overviewBlocks
+			: null;
+		const parsedOverviewBlocks = overviewBlocksField
+			? overviewBlocksField.filter(
+					(block): block is OverviewBlockKey =>
+						typeof block === 'string' && isOverviewBlockKey(block),
+				)
+			: [];
+		const overviewBlocks = overviewBlocksField
+			? overviewBlocksField.length === 0
+				? []
+				: parsedOverviewBlocks.length > 0
+					? parsedOverviewBlocks
+					: [...DEFAULT_PREFERENCES.overviewBlocks]
+			: [...DEFAULT_PREFERENCES.overviewBlocks];
+		return { theme, dyslexiaFont, overviewBlocks };
 	} catch {
 		return DEFAULT_PREFERENCES;
 	}

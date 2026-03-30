@@ -6,12 +6,16 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react';
 import type * as React from 'react';
 import { Button } from '@/components/ui/button/button.component';
+import { currentLocale } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
 import { cn } from '@/lib/utils';
 
 function Pagination({ className, ...props }: React.ComponentProps<'nav'>) {
+	const locale = currentLocale();
+
 	return (
 		<nav
-			aria-label="pagination"
+			aria-label={m.a11yPaginationNav({}, { locale })}
 			data-slot="pagination"
 			className={cn('mx-auto flex w-full justify-center', className)}
 			{...props}
@@ -70,9 +74,11 @@ function PaginationPrevious({
 	text = 'Previous',
 	...props
 }: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
+	const locale = currentLocale();
+
 	return (
 		<PaginationLink
-			aria-label="Go to previous page"
+			aria-label={m.a11yPaginationPreviousPage({}, { locale })}
 			size="default"
 			className={cn('pl-1.5!', className)}
 			{...props}
@@ -92,9 +98,11 @@ function PaginationNext({
 	text = 'Next',
 	...props
 }: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
+	const locale = currentLocale();
+
 	return (
 		<PaginationLink
-			aria-label="Go to next page"
+			aria-label={m.a11yPaginationNextPage({}, { locale })}
 			size="default"
 			className={cn('pr-1.5!', className)}
 			{...props}
@@ -113,6 +121,8 @@ function PaginationEllipsis({
 	className,
 	...props
 }: React.ComponentProps<'span'>) {
+	const locale = currentLocale();
+
 	return (
 		<span
 			aria-hidden
@@ -124,7 +134,9 @@ function PaginationEllipsis({
 			{...props}
 		>
 			<HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={2} />
-			<span className="sr-only">More pages</span>
+			<span className="sr-only">
+				{m.a11yPaginationMorePages({}, { locale })}
+			</span>
 		</span>
 	);
 }

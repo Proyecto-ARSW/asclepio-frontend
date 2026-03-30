@@ -12,6 +12,8 @@ import '@/app.css';
 import { Analytics } from '@vercel/analytics/react';
 import { useEffect } from 'react';
 import { Toaster } from '@/components/ui/sonner/sonner.component';
+import { currentLocale } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
 import { paraglideMiddleware } from '@/features/i18n/paraglide/server';
 import { readAndApplyUiPreferences } from '@/features/preferences/ui-preferences';
 import { AppQueryClientProvider } from '@/providers/query-client.provider';
@@ -39,8 +41,10 @@ export const middleware: MiddlewareFunction[] = [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
+	const locale = currentLocale();
+
 	return (
-		<html lang="en">
+		<html lang={locale}>
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -77,15 +81,16 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-	let message = 'Oops!';
-	let details = 'An unexpected error occurred.';
+	const locale = currentLocale();
+	let message: string = m.rootErrorOops({}, { locale });
+	let details: string = m.rootErrorUnexpected({}, { locale });
 	let stack: string | undefined;
 
 	if (isRouteErrorResponse(error)) {
-		message = error.status === 404 ? '404' : 'Error';
+		message = error.status === 404 ? '404' : m.rootErrorTitle({}, { locale });
 		details =
 			error.status === 404
-				? 'The requested page could not be found.'
+				? m.rootErrorNotFound({}, { locale })
 				: error.statusText || details;
 	} else if (import.meta.env.DEV && error && error instanceof Error) {
 		details = error.message;

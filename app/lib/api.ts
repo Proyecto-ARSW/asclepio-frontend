@@ -1,9 +1,14 @@
+import { currentLocale } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
+
 const API_URL = (
 	import.meta.env.VITE_APP_API_URL ?? 'http://localhost:3000'
 ).replace(/\/$/, '');
 
-const NETWORK_ERROR_MESSAGE =
-	'No se pudo conectar con el servidor. Verifica que el backend este ejecutandose y que la URL de API sea correcta.';
+function getNetworkErrorMessage() {
+	const locale = currentLocale();
+	return m.commonNetworkErrorBackendUnavailable({}, { locale });
+}
 
 function isNetworkError(error: unknown): boolean {
 	return error instanceof TypeError;
@@ -53,7 +58,7 @@ export async function apiPost<T>(
 		if (!isNetworkError(error)) {
 			throw error;
 		}
-		throw new Error(NETWORK_ERROR_MESSAGE);
+		throw new Error(getNetworkErrorMessage());
 	}
 	return handleResponse<T>(res);
 }
@@ -71,7 +76,7 @@ export async function apiGet<T>(path: string, token?: string): Promise<T> {
 		if (!isNetworkError(error)) {
 			throw error;
 		}
-		throw new Error(NETWORK_ERROR_MESSAGE);
+		throw new Error(getNetworkErrorMessage());
 	}
 	return handleResponse<T>(res);
 }
@@ -96,7 +101,7 @@ export async function apiPatch<T>(
 		if (!isNetworkError(error)) {
 			throw error;
 		}
-		throw new Error(NETWORK_ERROR_MESSAGE);
+		throw new Error(getNetworkErrorMessage());
 	}
 	return handleResponse<T>(res);
 }

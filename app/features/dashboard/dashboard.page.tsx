@@ -58,6 +58,24 @@ import { useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/dashboard.page';
 
 const DASHBOARD_SECTION_STORAGE_KEY = 'asclepio-dashboard-active-section';
+const PATIENT_SIDEBAR_SECTIONS: NavSection[] = [
+	'overview',
+	'appointments',
+	'queue',
+	'settings',
+];
+const ADMIN_SIDEBAR_SECTIONS: NavSection[] = [
+	'overview',
+	'hospitals',
+	'patients',
+	'appointments',
+	'queue',
+	'medicines',
+	'doctors',
+	'userManagement',
+	'settings',
+];
+const EMPTY_SIDEBAR_SECTIONS: NavSection[] = [];
 
 function isNavSection(value: string | null): value is NavSection {
 	return (
@@ -71,6 +89,20 @@ function isNavSection(value: string | null): value is NavSection {
 		value === 'userManagement' ||
 		value === 'settings'
 	);
+}
+
+function getSidebarSectionsForRole(
+	role: string | null | undefined,
+): NavSection[] {
+	if (role === 'PACIENTE') {
+		return PATIENT_SIDEBAR_SECTIONS;
+	}
+
+	if (role === 'ADMIN') {
+		return ADMIN_SIDEBAR_SECTIONS;
+	}
+
+	return EMPTY_SIDEBAR_SECTIONS;
 }
 
 function getRoleLabel(role: string | null | undefined, locale: 'es' | 'en') {
@@ -183,15 +215,19 @@ export default function DashboardPage() {
 		}
 	}
 
-	const hasSidebarNavigation = user?.rol === 'ADMIN';
+	const sidebarSections = getSidebarSectionsForRole(user?.rol);
+	const hasSidebarNavigation = sidebarSections.length > 0;
 
 	useEffect(() => {
 		if (!hasSidebarNavigation || typeof window === 'undefined') return;
 		const storedSection = localStorage.getItem(DASHBOARD_SECTION_STORAGE_KEY);
-		if (isNavSection(storedSection)) {
+		if (
+			isNavSection(storedSection) &&
+			sidebarSections.includes(storedSection)
+		) {
 			setActiveSection(storedSection);
 		}
-	}, [hasSidebarNavigation]);
+	}, [hasSidebarNavigation, sidebarSections]);
 
 	if (!user) {
 		return null;
@@ -310,6 +346,7 @@ export default function DashboardPage() {
 							active={activeSection}
 							onNavigate={handleSidebarNavigate}
 							locale={locale}
+							sections={sidebarSections}
 							hospitalName={selectedHospital?.nombre}
 							userName={`${user.nombre} ${user.apellido}`}
 							userRole={roleLabel}
@@ -433,6 +470,12 @@ function SidebarSectionRenderer({
 		);
 	}
 
+	if (user.rol === 'PACIENTE') {
+		return (
+			<PatientDashboardView user={user} locale={locale} section={section} />
+		);
+	}
+
 	return <RoleRenderer user={user} locale={locale} />;
 }
 
@@ -464,7 +507,9 @@ function RoleRenderer({
 		case 'RECEPCIONISTA':
 			return <ReceptionistDashboardView user={user} locale={locale} />;
 		default:
-			return <PatientDashboardView user={user} locale={locale} />;
+			return (
+				<PatientDashboardView user={user} locale={locale} section="overview" />
+			);
 	}
 }
 

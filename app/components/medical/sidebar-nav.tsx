@@ -73,6 +73,7 @@ interface SidebarNavProps {
 	active: NavSection;
 	onNavigate: (section: NavSection) => void;
 	locale: AppLocale;
+	sections?: NavSection[];
 	hospitalName?: string;
 	userName?: string;
 	userRole?: string;
@@ -102,6 +103,7 @@ function SidebarContent({
 	active,
 	onNavigate,
 	locale,
+	sections,
 	hospitalName,
 	userName,
 	userRole,
@@ -128,6 +130,9 @@ function SidebarContent({
 		labels?.logout ?? m.dashboardSidebarLogout({}, { locale });
 	const closeMenuLabel =
 		labels?.closeMenu ?? m.dashboardSidebarCloseMenu({}, { locale });
+	const visibleNavItems = sections
+		? navItems.filter(({ key }) => sections.includes(key))
+		: navItems;
 	return (
 		<div className="flex h-full flex-col">
 			<div className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -164,7 +169,7 @@ function SidebarContent({
 			</div>
 
 			<nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
-				{navItems.map(({ key, icon: Icon, iconActive: IconActive }) => {
+				{visibleNavItems.map(({ key, icon: Icon, iconActive: IconActive }) => {
 					const isActive = active === key;
 					return (
 						<Button

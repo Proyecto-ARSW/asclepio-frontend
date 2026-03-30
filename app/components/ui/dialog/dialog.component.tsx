@@ -3,6 +3,8 @@ import { Cancel01Icon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
 import type * as React from 'react';
 import { Button } from '@/components/ui/button/button.component';
+import { currentLocale } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
 import { cn } from '@/lib/utils';
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
@@ -45,6 +47,8 @@ function DialogContent({
 }: DialogPrimitive.Popup.Props & {
 	showCloseButton?: boolean;
 }) {
+	const locale = currentLocale();
+
 	return (
 		<DialogPortal>
 			<DialogOverlay />
@@ -69,7 +73,7 @@ function DialogContent({
 						}
 					>
 						<HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
-						<span className="sr-only">Close</span>
+						<span className="sr-only">{m.a11yDialogClose({}, { locale })}</span>
 					</DialogPrimitive.Close>
 				)}
 			</DialogPrimitive.Popup>

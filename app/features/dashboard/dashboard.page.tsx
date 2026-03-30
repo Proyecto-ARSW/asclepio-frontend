@@ -73,6 +73,30 @@ function isNavSection(value: string | null): value is NavSection {
 	);
 }
 
+function getSidebarSectionsForRole(
+	role: string | null | undefined,
+): NavSection[] {
+	if (role === 'PACIENTE') {
+		return ['overview', 'appointments', 'queue', 'settings'];
+	}
+
+	if (role === 'ADMIN') {
+		return [
+			'overview',
+			'hospitals',
+			'patients',
+			'appointments',
+			'queue',
+			'medicines',
+			'doctors',
+			'userManagement',
+			'settings',
+		];
+	}
+
+	return [];
+}
+
 function getRoleLabel(role: string | null | undefined, locale: 'es' | 'en') {
 	switch (role) {
 		case 'ADMIN':
@@ -183,15 +207,19 @@ export default function DashboardPage() {
 		}
 	}
 
-	const hasSidebarNavigation = user?.rol === 'ADMIN';
+	const sidebarSections = getSidebarSectionsForRole(user?.rol);
+	const hasSidebarNavigation = sidebarSections.length > 0;
 
 	useEffect(() => {
 		if (!hasSidebarNavigation || typeof window === 'undefined') return;
 		const storedSection = localStorage.getItem(DASHBOARD_SECTION_STORAGE_KEY);
-		if (isNavSection(storedSection)) {
+		if (
+			isNavSection(storedSection) &&
+			sidebarSections.includes(storedSection)
+		) {
 			setActiveSection(storedSection);
 		}
-	}, [hasSidebarNavigation]);
+	}, [hasSidebarNavigation, sidebarSections]);
 
 	if (!user) {
 		return null;
@@ -310,6 +338,7 @@ export default function DashboardPage() {
 							active={activeSection}
 							onNavigate={handleSidebarNavigate}
 							locale={locale}
+							sections={sidebarSections}
 							hospitalName={selectedHospital?.nombre}
 							userName={`${user.nombre} ${user.apellido}`}
 							userRole={roleLabel}
@@ -433,6 +462,12 @@ function SidebarSectionRenderer({
 		);
 	}
 
+	if (user.rol === 'PACIENTE') {
+		return (
+			<PatientDashboardView user={user} locale={locale} section={section} />
+		);
+	}
+
 	return <RoleRenderer user={user} locale={locale} />;
 }
 
@@ -464,7 +499,9 @@ function RoleRenderer({
 		case 'RECEPCIONISTA':
 			return <ReceptionistDashboardView user={user} locale={locale} />;
 		default:
-			return <PatientDashboardView user={user} locale={locale} />;
+			return (
+				<PatientDashboardView user={user} locale={locale} section="overview" />
+			);
 	}
 }
 

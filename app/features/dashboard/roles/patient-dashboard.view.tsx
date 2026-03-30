@@ -1,5 +1,6 @@
 import { ArrowPathIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { useCallback, useEffect, useState } from 'react';
+import { WaitingRoomGame } from '@/components/game/waiting-room-game';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Button } from '@/components/ui/button/button.component';
@@ -84,7 +85,7 @@ function getStatusLabel(status: string, locale: 'es' | 'en') {
 	}
 }
 
-export function PatientDashboardView({ user, locale }: RoleViewProps) {
+export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 	const [appointments, setAppointments] = useState<
 		PatientAppointmentsData['appointmentsByPatient']
 	>([]);
@@ -92,6 +93,7 @@ export function PatientDashboardView({ user, locale }: RoleViewProps) {
 	const [missingProfile, setMissingProfile] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
+	const [isWaitingRoomOpen, setIsWaitingRoomOpen] = useState(false);
 
 	const loadData = useCallback(async () => {
 		setLoading(true);
@@ -137,6 +139,25 @@ export function PatientDashboardView({ user, locale }: RoleViewProps) {
 		void loadData();
 	}, [loadData]);
 
+	useEffect(() => {
+		if (section !== 'queue') {
+			setIsWaitingRoomOpen(false);
+		}
+	}, [section]);
+
+	const isOverview = !section || section === 'overview';
+	const showAppointments = isOverview || section === 'appointments';
+	const showQueue = isOverview || section === 'queue';
+	const showGame = section === 'queue' && isWaitingRoomOpen;
+
+	const calledTurnCandidate = turns.find((turn) =>
+		['LLAMADO', 'LLAMANDO', 'EN_ATENCION', 'EN_CURSO'].includes(turn.estado),
+	);
+	const fallbackTurnCandidate = turns
+		.filter((turn) => !['ATENDIDA', 'CANCELADA'].includes(turn.estado))
+		.sort((a, b) => a.numeroTurno - b.numeroTurno)[0];
+	const currentCalledTurn = calledTurnCandidate ?? fallbackTurnCandidate;
+
 	return (
 		<RoleDashboardShell
 			title={m.authRolePatient({}, { locale })}
@@ -160,74 +181,136 @@ export function PatientDashboardView({ user, locale }: RoleViewProps) {
 				</Alert>
 			)}
 
-			<div className="grid gap-4 lg:grid-cols-2">
-				<section className="space-y-2 rounded-xl border border-border/70 p-3">
-					<h3 className="text-sm font-semibold text-foreground">
-						{m.dashboardSidebarAppointments({}, { locale })}
-					</h3>
-					{loading ? (
-						<Skeleton className="h-16 rounded-lg" />
-					) : appointments.length === 0 ? (
-						<p className="text-xs text-muted-foreground">
-							{missingProfile
-								? m.dashboardPatientMissingProfile({}, { locale })
-								: m.dashboardPatientsEmptyDescription({}, { locale })}
-						</p>
-					) : (
-						<ul className="space-y-2">
-							{appointments.slice(0, 4).map((appointment) => (
-								<li key={appointment.id} className="rounded-lg bg-muted/30 p-2">
-									<div className="flex items-center justify-between gap-2">
-										<span className="text-xs text-muted-foreground">
-											{appointment.id}
-										</span>
-										<Badge variant="outline">
-											{getStatusLabel(appointment.estado, locale)}
-										</Badge>
-									</div>
-									<p className="mt-1 flex items-center gap-1 text-xs text-foreground">
-										<ClockIcon className="h-3.5 w-3.5" />
-										{new Date(appointment.fechaHora).toLocaleString(locale)}
-									</p>
-								</li>
-							))}
-						</ul>
+			{(showAppointments || showQueue) && (
+				<div
+					className={`grid gap-4 ${
+						showAppointments && showQueue ? 'lg:grid-cols-2' : 'lg:grid-cols-1'
+					}`}
+				>
+					{showAppointments && (
+						<section className="space-y-2 rounded-xl border border-border/70 p-3">
+							<h3 className="text-sm font-semibold text-foreground">
+								{m.dashboardSidebarAppointments({}, { locale })}
+							</h3>
+							{loading ? (
+								<Skeleton className="h-16 rounded-lg" />
+							) : appointments.length === 0 ? (
+								<p className="text-xs text-muted-foreground">
+									{missingProfile
+										? m.dashboardPatientMissingProfile({}, { locale })
+										: m.dashboardPatientsEmptyDescription({}, { locale })}
+								</p>
+							) : (
+								<ul className="space-y-2">
+									{appointments.slice(0, 4).map((appointment) => (
+										<li
+											key={appointment.id}
+											className="rounded-lg bg-muted/30 p-2"
+										>
+											<div className="flex items-center justify-between gap-2">
+												<span className="text-xs text-muted-foreground">
+													{appointment.id}
+												</span>
+												<Badge variant="outline">
+													{getStatusLabel(appointment.estado, locale)}
+												</Badge>
+											</div>
+											<p className="mt-1 flex items-center gap-1 text-xs text-foreground">
+												<ClockIcon className="h-3.5 w-3.5" />
+												{new Date(appointment.fechaHora).toLocaleString(locale)}
+											</p>
+										</li>
+									))}
+								</ul>
+							)}
+						</section>
 					)}
-				</section>
-				<section className="space-y-2 rounded-xl border border-border/70 p-3">
-					<h3 className="text-sm font-semibold text-foreground">
-						{m.dashboardSidebarQueue({}, { locale })}
-					</h3>
-					{loading ? (
-						<Skeleton className="h-16 rounded-lg" />
-					) : turns.length === 0 ? (
-						<p className="text-xs text-muted-foreground">
-							{missingProfile
-								? m.dashboardPatientMissingProfile({}, { locale })
-								: m.dashboardPatientsEmptyDescription({}, { locale })}
-						</p>
-					) : (
-						<ul className="space-y-2">
-							{turns.slice(0, 4).map((turn) => (
-								<li
-									key={turn.id}
-									className="flex items-center justify-between rounded-lg bg-muted/30 p-2"
-								>
-									<div>
-										<p className="text-sm font-medium text-foreground">
-											#{turn.numeroTurno}
-										</p>
-										<p className="text-xs text-muted-foreground">{turn.tipo}</p>
-									</div>
-									<Badge variant="secondary">
-										{getStatusLabel(turn.estado, locale)}
-									</Badge>
-								</li>
-							))}
-						</ul>
+					{showQueue && (
+						<section className="space-y-2 rounded-xl border border-border/70 p-3">
+							<h3 className="text-sm font-semibold text-foreground">
+								{m.dashboardSidebarQueue({}, { locale })}
+							</h3>
+							{loading ? (
+								<Skeleton className="h-16 rounded-lg" />
+							) : turns.length === 0 ? (
+								<p className="text-xs text-muted-foreground">
+									{missingProfile
+										? m.dashboardPatientMissingProfile({}, { locale })
+										: m.dashboardPatientsEmptyDescription({}, { locale })}
+								</p>
+							) : (
+								<ul className="space-y-2">
+									{turns.slice(0, 4).map((turn) => (
+										<li
+											key={turn.id}
+											className="flex items-center justify-between rounded-lg bg-muted/30 p-2"
+										>
+											<div>
+												<p className="text-sm font-medium text-foreground">
+													#{turn.numeroTurno}
+												</p>
+												<p className="text-xs text-muted-foreground">
+													{turn.tipo}
+												</p>
+											</div>
+											<Badge variant="secondary">
+												{getStatusLabel(turn.estado, locale)}
+											</Badge>
+										</li>
+									))}
+								</ul>
+							)}
+						</section>
 					)}
+				</div>
+			)}
+
+			{showGame && (
+				<section className="space-y-3 rounded-xl border border-border/70 p-3">
+					<div>
+						<h3 className="text-sm font-semibold text-foreground">
+							{m.dashboardPatientWaitingRoomGameTitle({}, { locale })}
+						</h3>
+						<p className="text-xs text-muted-foreground">
+							{m.dashboardPatientWaitingRoomGameDescription({}, { locale })}
+						</p>
+					</div>
+					<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+						<WaitingRoomGame />
+						<div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+							<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+								{m.dashboardPatientCalledTurnLabel({}, { locale })}
+							</p>
+							<p className="mt-2 text-2xl font-bold text-primary tabular-nums">
+								{currentCalledTurn ? `#${currentCalledTurn.numeroTurno}` : '--'}
+							</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								{currentCalledTurn
+									? `${currentCalledTurn.tipo} - ${currentCalledTurn.estado}`
+									: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
+							</p>
+						</div>
+					</div>
 				</section>
-			</div>
+			)}
+
+			{section === 'queue' && !showGame && (
+				<section className="rounded-xl border border-border/70 bg-muted/20 p-4">
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<div>
+							<h3 className="text-base font-semibold text-foreground">
+								{m.dashboardPatientWaitingRoomTitle({}, { locale })}
+							</h3>
+							<p className="text-sm text-muted-foreground">
+								{m.dashboardPatientWaitingRoomDescription({}, { locale })}
+							</p>
+						</div>
+						<Button type="button" onClick={() => setIsWaitingRoomOpen(true)}>
+							{m.dashboardPatientWaitingRoomAction({}, { locale })}
+						</Button>
+					</div>
+				</section>
+			)}
 		</RoleDashboardShell>
 	);
 }

@@ -6,12 +6,16 @@ import {
 } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
 import type * as React from 'react';
+import { currentLocale } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
 import { cn } from '@/lib/utils';
 
 function Breadcrumb({ className, ...props }: React.ComponentProps<'nav'>) {
+	const locale = currentLocale();
+
 	return (
 		<nav
-			aria-label="breadcrumb"
+			aria-label={m.a11yBreadcrumbNav({}, { locale })}
 			data-slot="breadcrumb"
 			className={cn(className)}
 			{...props}
@@ -95,6 +99,8 @@ function BreadcrumbEllipsis({
 	className,
 	...props
 }: React.ComponentProps<'span'>) {
+	const locale = currentLocale();
+
 	return (
 		<span
 			data-slot="breadcrumb-ellipsis"
@@ -107,7 +113,7 @@ function BreadcrumbEllipsis({
 			{...props}
 		>
 			<HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={2} />
-			<span className="sr-only">More</span>
+			<span className="sr-only">{m.a11yBreadcrumbMore({}, { locale })}</span>
 		</span>
 	);
 }

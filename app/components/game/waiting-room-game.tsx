@@ -592,7 +592,7 @@ export function WaitingRoomGame() {
 	// ── Connect ───────────────────────────────────────────────────────────────
 	const connect = useCallback(() => {
 		if (!accessToken) {
-			setErrorMsg('No hay sesión activa.');
+			setErrorMsg(m.gameWaitingRoomNoActiveSession({}, { locale }));
 			setPhase('error');
 			return;
 		}
@@ -630,16 +630,16 @@ export function WaitingRoomGame() {
 					pendingDiedRef.current = msg;
 					break;
 				case 'error':
-					setErrorMsg(msg.message ?? 'Error del servidor');
+					setErrorMsg(
+						msg.message ?? m.gameWaitingRoomServerErrorFallback({}, { locale }),
+					);
 					setPhase('error');
 					break;
 			}
 		};
 
 		ws.onerror = () => {
-			setErrorMsg(
-				'No se pudo conectar al servidor de juego. Verifica que esté activo y que VITE_GAME_SERVER_URL sea correcto.',
-			);
+			setErrorMsg(m.gameWaitingRoomConnectionFailed({}, { locale }));
 			setPhase('error');
 		};
 
@@ -649,7 +649,7 @@ export function WaitingRoomGame() {
 				prev === 'playing' || prev === 'connecting' ? 'idle' : prev,
 			);
 		};
-	}, [accessToken]);
+	}, [accessToken, locale]);
 
 	// ── Disconnect ────────────────────────────────────────────────────────────
 	const disconnect = useCallback(() => {
@@ -889,52 +889,49 @@ export function WaitingRoomGame() {
 				</div>
 			</div>
 
-			{/* ── Leaderboard sidebar ───────────────────────────────────────── */}
-			{(isPlaying || leaderboard.length > 0) && (
-				<div className="w-full shrink-0 lg:w-52">
-					<Card className="h-full">
-						<CardHeader className="pb-2 pt-4">
-							<CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
-								<TrophyIcon className="h-4 w-4 text-primary" aria-hidden />
-								{m.gameWaitingRoomLeaderboard({}, { locale })}
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="pb-4">
-							{leaderboard.length === 0 ? (
-								<p className="text-xs text-muted-foreground">
-									{m.gameWaitingRoomLoading({}, { locale })}
-								</p>
-							) : (
-								<ol className="space-y-1.5">
-									{leaderboard.map((e) => (
-										<li
-											key={`${e.rank}-${e.name}`}
-											className={`flex items-center gap-2 rounded-md px-2 py-1 text-xs transition-colors ${
-												e.name ===
-												(user ? `${user.nombre} ${user.apellido}` : '')
-													? 'bg-primary/10 font-semibold text-primary'
-													: 'text-foreground'
-											}`}
-										>
-											<span className="w-4 shrink-0 text-right text-muted-foreground tabular-nums">
-												{e.rank}
-											</span>
-											<span
-												className="h-2.5 w-2.5 shrink-0 rounded-full"
-												style={{ background: e.color }}
-											/>
-											<span className="flex-1 truncate">{e.name}</span>
-											<span className="tabular-nums text-muted-foreground">
-												{e.score}
-											</span>
-										</li>
-									))}
-								</ol>
-							)}
-						</CardContent>
-					</Card>
-				</div>
-			)}
+			{/* ── Waiting room boards ──────────────────────────────────────── */}
+			<div className="w-full shrink-0 space-y-3 lg:w-60">
+				<Card>
+					<CardHeader className="pb-2 pt-4">
+						<CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
+							<TrophyIcon className="h-4 w-4 text-primary" aria-hidden />
+							{m.gameWaitingRoomBiggestBlobs({}, { locale })}
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="pb-4">
+						{leaderboard.length === 0 ? (
+							<p className="text-xs text-muted-foreground">
+								{m.gameWaitingRoomLoading({}, { locale })}
+							</p>
+						) : (
+							<ol className="space-y-1.5">
+								{leaderboard.map((e) => (
+									<li
+										key={`${e.rank}-${e.name}`}
+										className={`flex items-center gap-2 rounded-md px-2 py-1 text-xs transition-colors ${
+											e.name === (user ? `${user.nombre} ${user.apellido}` : '')
+												? 'bg-primary/10 font-semibold text-primary'
+												: 'text-foreground'
+										}`}
+									>
+										<span className="w-4 shrink-0 text-right text-muted-foreground tabular-nums">
+											{e.rank}
+										</span>
+										<span
+											className="h-2.5 w-2.5 shrink-0 rounded-full"
+											style={{ background: e.color }}
+										/>
+										<span className="flex-1 truncate">{e.name}</span>
+										<span className="tabular-nums text-muted-foreground">
+											{e.score}
+										</span>
+									</li>
+								))}
+							</ol>
+						)}
+					</CardContent>
+				</Card>
+			</div>
 		</div>
 	);
 }

@@ -1,4 +1,4 @@
-import type { NavSection } from '@/components/medical/sidebar-nav';
+import type { DashboardSection } from '@/features/dashboard/roles/dashboard-role.types';
 import { currentLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 
@@ -8,7 +8,7 @@ interface DashboardContent {
 		logout: string;
 		openMenu: string;
 		closeMenu: string;
-		sections: Record<NavSection, string>;
+		sections: Record<DashboardSection, string>;
 	};
 	overview: {
 		title: string;
@@ -150,6 +150,7 @@ export function getDashboardContent(
 				queue: m.dashboardSidebarQueue({}, options),
 				medicines: m.dashboardSidebarMedicines({}, options),
 				doctors: m.dashboardSidebarDoctors({}, options),
+				userManagement: m.dashboardSidebarUserManagement({}, options),
 				settings: m.dashboardSidebarSettings({}, options),
 			},
 		},

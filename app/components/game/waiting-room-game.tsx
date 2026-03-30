@@ -1,6 +1,11 @@
 'use client';
 
-import { PlayIcon, StopIcon, TrophyIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import {
+	PlayIcon,
+	StopIcon,
+	TrophyIcon,
+	XMarkIcon,
+} from '@heroicons/react/24/outline';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Button } from '@/components/ui/button/button.component';
@@ -10,6 +15,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
+import { currentLocale } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
 import { useAuthStore } from '@/store/auth.store';
 
 // ─── Constants matching the Go server ────────────────────────────────────────
@@ -69,7 +76,11 @@ interface DiedMsg {
 	finalScore: number;
 }
 
-type ServerMsg = InitMsg | StateMsg | DiedMsg | { type: 'error'; message: string };
+type ServerMsg =
+	| InitMsg
+	| StateMsg
+	| DiedMsg
+	| { type: 'error'; message: string };
 
 // ─── CSS variable → hex ───────────────────────────────────────────────────────
 // Sets background-color to var(--x) on a hidden element and reads the
@@ -82,10 +93,14 @@ function resolveColor(varName: string, fallback: string): string {
 		document.body.appendChild(el);
 		const bg = getComputedStyle(el).backgroundColor;
 		document.body.removeChild(el);
-		if (!bg || bg === 'transparent' || bg.startsWith('rgba(0, 0, 0, 0)')) return fallback;
+		if (!bg || bg === 'transparent' || bg.startsWith('rgba(0, 0, 0, 0)'))
+			return fallback;
 		const m = bg.match(/\d+/g);
 		if (!m || m.length < 3) return fallback;
-		return `#${m.slice(0, 3).map((n) => Number(n).toString(16).padStart(2, '0')).join('')}`;
+		return `#${m
+			.slice(0, 3)
+			.map((n) => Number(n).toString(16).padStart(2, '0'))
+			.join('')}`;
 	} catch {
 		return fallback;
 	}
@@ -95,11 +110,11 @@ function getThemeColors() {
 	// --border is near-white in light mode; use --muted-foreground (medium grey)
 	// so the grid is visible in both light and dark themes.
 	return {
-		primary:    resolveColor('--primary',          '#6366f1'),
-		background: resolveColor('--card',             '#ffffff'),
-		border:     resolveColor('--muted-foreground', '#94a3b8'),
-		foreground: resolveColor('--foreground',       '#0f172a'),
-		muted:      resolveColor('--muted',            '#f1f5f9'),
+		primary: resolveColor('--primary', '#6366f1'),
+		background: resolveColor('--card', '#ffffff'),
+		border: resolveColor('--muted-foreground', '#94a3b8'),
+		foreground: resolveColor('--foreground', '#0f172a'),
+		muted: resolveColor('--muted', '#f1f5f9'),
 	};
 }
 
@@ -108,7 +123,9 @@ function buildWsUrl(token: string): string {
 	const base = import.meta.env.VITE_GAME_SERVER_URL as string | undefined;
 	const origin = base ?? 'http://localhost:3002';
 	// Convert http(s) → ws(s)
-	const wsOrigin = origin.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://');
+	const wsOrigin = origin
+		.replace(/^https:\/\//, 'wss://')
+		.replace(/^http:\/\//, 'ws://');
 	return `${wsOrigin}/ws/game?token=${encodeURIComponent(token)}`;
 }
 
@@ -134,6 +151,7 @@ type GamePhase = 'idle' | 'connecting' | 'playing' | 'dead' | 'error';
 
 export function WaitingRoomGame() {
 	const { accessToken, user } = useAuthStore();
+	const locale = currentLocale();
 
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -141,7 +159,10 @@ export function WaitingRoomGame() {
 	// Game phase
 	const [phase, setPhase] = useState<GamePhase>('idle');
 	const [errorMsg, setErrorMsg] = useState('');
-	const [deathInfo, setDeathInfo] = useState<{ killedBy: string; score: number } | null>(null);
+	const [deathInfo, setDeathInfo] = useState<{
+		killedBy: string;
+		score: number;
+	} | null>(null);
 	const [liveScore, setLiveScore] = useState(0);
 	const [playerCount, setPlayerCount] = useState(0);
 	const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -163,12 +184,32 @@ export function WaitingRoomGame() {
 	const dirRef = useRef({ x: 0, y: 0 });
 
 	// Prediction (own blob)
-	const predRef = useRef({ x: 0, y: 0, radius: 20, score: 0, color: '#3b82f6', name: '' });
+	const predRef = useRef({
+		x: 0,
+		y: 0,
+		radius: 20,
+		score: 0,
+		color: '#3b82f6',
+		name: '',
+	});
 	const predReadyRef = useRef(false);
 
 	// Interp targets for other players
 	const interpRef = useRef<
-		Record<string, { x: number; y: number; radius: number; tx: number; ty: number; tr: number; name: string; color: string; score: number }>
+		Record<
+			string,
+			{
+				x: number;
+				y: number;
+				radius: number;
+				tx: number;
+				ty: number;
+				tr: number;
+				name: string;
+				color: string;
+				score: number;
+			}
+		>
 	>({});
 
 	// Food map
@@ -282,9 +323,15 @@ export function WaitingRoomGame() {
 						existing.score = p.score;
 					} else {
 						interpRef.current[p.id] = {
-							x: p.x, y: p.y, radius: p.radius,
-							tx: p.x, ty: p.y, tr: p.radius,
-							name: p.name, color: p.color, score: p.score,
+							x: p.x,
+							y: p.y,
+							radius: p.radius,
+							tx: p.x,
+							ty: p.y,
+							tr: p.radius,
+							name: p.name,
+							color: p.color,
+							score: p.score,
 						};
 					}
 				}
@@ -316,8 +363,14 @@ export function WaitingRoomGame() {
 			if (mag > 0.01) {
 				pred.x += (dx / mag) * spd * dt;
 				pred.y += (dy / mag) * spd * dt;
-				pred.x = Math.max(pred.radius, Math.min(worldWRef.current - pred.radius, pred.x));
-				pred.y = Math.max(pred.radius, Math.min(worldHRef.current - pred.radius, pred.y));
+				pred.x = Math.max(
+					pred.radius,
+					Math.min(worldWRef.current - pred.radius, pred.x),
+				);
+				pred.y = Math.max(
+					pred.radius,
+					Math.min(worldHRef.current - pred.radius, pred.y),
+				);
 			}
 		}
 
@@ -375,10 +428,12 @@ export function WaitingRoomGame() {
 
 			// Viewport bounds in world units (generous margin so nothing pops)
 			const margin = 100 / scale;
-			const hw = canvas.width  / 2 / scale + margin;
+			const hw = canvas.width / 2 / scale + margin;
 			const hh = canvas.height / 2 / scale + margin;
-			const vx0 = camX - hw, vx1 = camX + hw;
-			const vy0 = camY - hh, vy1 = camY + hh;
+			const vx0 = camX - hw,
+				vx1 = camX + hw;
+			const vy0 = camY - hh,
+				vy1 = camY + hh;
 
 			// ── Background ──────────────────────────────────────────────────
 			ctx.fillStyle = theme.background;
@@ -393,16 +448,22 @@ export function WaitingRoomGame() {
 			{
 				const G = 100;
 				const gx0 = Math.floor(vx0 / G) * G;
-				const gx1 = Math.ceil(vx1  / G) * G;
+				const gx1 = Math.ceil(vx1 / G) * G;
 				const gy0 = Math.floor(vy0 / G) * G;
-				const gy1 = Math.ceil(vy1  / G) * G;
+				const gy1 = Math.ceil(vy1 / G) * G;
 				ctx.save();
 				ctx.strokeStyle = theme.border;
 				ctx.globalAlpha = 0.28;
 				ctx.lineWidth = 1 / scale; // always 1 screen pixel
 				ctx.beginPath();
-				for (let x = gx0; x <= gx1; x += G) { ctx.moveTo(x, gy0); ctx.lineTo(x, gy1); }
-				for (let y = gy0; y <= gy1; y += G) { ctx.moveTo(gx0, y); ctx.lineTo(gx1, y); }
+				for (let x = gx0; x <= gx1; x += G) {
+					ctx.moveTo(x, gy0);
+					ctx.lineTo(x, gy1);
+				}
+				for (let y = gy0; y <= gy1; y += G) {
+					ctx.moveTo(gx0, y);
+					ctx.lineTo(gx1, y);
+				}
 				ctx.stroke();
 				ctx.restore();
 			}
@@ -429,30 +490,46 @@ export function WaitingRoomGame() {
 
 			// ── Blobs (depth-sorted circles — text rendered in screen space) ─
 			const blobs: Array<{
-				id: string; x: number; y: number; radius: number;
-				name: string; color: string; score: number;
+				id: string;
+				x: number;
+				y: number;
+				radius: number;
+				name: string;
+				color: string;
+				score: number;
 			}> = [];
 			if (predReadyRef.current) blobs.push({ id: myIdRef.current, ...pred });
-			for (const s of Object.values(interpRef.current)) blobs.push({ id: s.name, ...s });
+			for (const s of Object.values(interpRef.current))
+				blobs.push({ id: s.name, ...s });
 			blobs.sort((a, b) => a.radius - b.radius);
 
 			for (const p of blobs) {
 				if (
-					p.x + p.radius < vx0 || p.x - p.radius > vx1 ||
-					p.y + p.radius < vy0 || p.y - p.radius > vy1
-				) continue;
+					p.x + p.radius < vx0 ||
+					p.x - p.radius > vx1 ||
+					p.y + p.radius < vy0 ||
+					p.y - p.radius > vy1
+				)
+					continue;
 
 				const isMe = p.id === myIdRef.current;
 				const r = Math.max(p.radius, 1);
 
 				const gr = ctx.createRadialGradient(
-					p.x - r * 0.28, p.y - r * 0.28, r * 0.05,
-					p.x, p.y, r,
+					p.x - r * 0.28,
+					p.y - r * 0.28,
+					r * 0.05,
+					p.x,
+					p.y,
+					r,
 				);
 				gr.addColorStop(0, lighten(p.color, 55));
 				gr.addColorStop(1, p.color);
 
-				if (isMe) { ctx.shadowColor = p.color; ctx.shadowBlur = 22 / scale; }
+				if (isMe) {
+					ctx.shadowColor = p.color;
+					ctx.shadowBlur = 22 / scale;
+				}
 				ctx.beginPath();
 				ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
 				ctx.fillStyle = gr;
@@ -471,10 +548,16 @@ export function WaitingRoomGame() {
 			for (const p of blobs) {
 				const sr = p.radius * scale; // blob radius in screen pixels
 				if (sr < 12) continue;
-				const sx = (p.x - camX) * scale + canvas.width  / 2;
+				const sx = (p.x - camX) * scale + canvas.width / 2;
 				const sy = (p.y - camY) * scale + canvas.height / 2;
 				// skip if off-screen
-				if (sx + sr < 0 || sx - sr > canvas.width || sy + sr < 0 || sy - sr > canvas.height) continue;
+				if (
+					sx + sr < 0 ||
+					sx - sr > canvas.width ||
+					sy + sr < 0 ||
+					sy - sr > canvas.height
+				)
+					continue;
 				const isMe = p.id === myIdRef.current;
 				const fs = Math.max(11, Math.min(sr * 0.38, 20));
 				ctx.font = `${isMe ? '700 ' : '500 '}${fs}px "Plus Jakarta Sans",system-ui,sans-serif`;
@@ -562,7 +645,9 @@ export function WaitingRoomGame() {
 
 		ws.onclose = () => {
 			// Only flip to idle if we haven't already processed a death or error
-			setPhase((prev) => (prev === 'playing' || prev === 'connecting' ? 'idle' : prev));
+			setPhase((prev) =>
+				prev === 'playing' || prev === 'connecting' ? 'idle' : prev,
+			);
 		};
 	}, [accessToken]);
 
@@ -614,7 +699,10 @@ export function WaitingRoomGame() {
 		return () => {
 			stopLoop();
 			const ws = wsRef.current;
-			if (ws) { ws.onclose = null; ws.close(); }
+			if (ws) {
+				ws.onclose = null;
+				ws.close();
+			}
 		};
 	}, [stopLoop]);
 
@@ -627,9 +715,11 @@ export function WaitingRoomGame() {
 			<div className="flex min-w-0 flex-1 flex-col gap-3">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<div>
-						<h2 className="text-xl font-bold text-foreground">Sala de Espera</h2>
+						<h2 className="text-xl font-bold text-foreground">
+							{m.gameWaitingRoomTitle({}, { locale })}
+						</h2>
 						<p className="text-sm text-muted-foreground">
-							Juego multijugador mientras esperas tu turno
+							{m.gameWaitingRoomSubtitle({}, { locale })}
 						</p>
 					</div>
 
@@ -638,10 +728,16 @@ export function WaitingRoomGame() {
 							<>
 								<Badge variant="secondary" className="gap-1.5 tabular-nums">
 									<span className="inline-block h-2 w-2 rounded-full bg-primary" />
-									{playerCount} {playerCount === 1 ? 'jugador' : 'jugadores'}
+									{playerCount}{' '}
+									{playerCount === 1
+										? m.gameWaitingRoomPlayerSingular({}, { locale })
+										: m.gameWaitingRoomPlayerPlural({}, { locale })}
 								</Badge>
-								<Badge variant="outline" className="tabular-nums font-semibold text-primary">
-									{liveScore} pts
+								<Badge
+									variant="outline"
+									className="tabular-nums font-semibold text-primary"
+								>
+									{liveScore} {m.gameWaitingRoomPointsShort({}, { locale })}
 								</Badge>
 							</>
 						)}
@@ -655,7 +751,7 @@ export function WaitingRoomGame() {
 								className="gap-1.5"
 							>
 								<StopIcon className="h-4 w-4" />
-								Salir
+								{m.gameWaitingRoomLeave({}, { locale })}
 							</Button>
 						) : (
 							<Button
@@ -666,7 +762,9 @@ export function WaitingRoomGame() {
 								className="gap-1.5"
 							>
 								<PlayIcon className="h-4 w-4" />
-								{phase === 'connecting' ? 'Conectando…' : 'Jugar'}
+								{phase === 'connecting'
+									? m.gameWaitingRoomConnecting({}, { locale })
+									: m.gameWaitingRoomPlay({}, { locale })}
 							</Button>
 						)}
 					</div>
@@ -681,26 +779,34 @@ export function WaitingRoomGame() {
 					<canvas
 						ref={canvasRef}
 						className="block h-full w-full"
-						style={{ touchAction: 'none', cursor: isPlaying ? 'none' : 'default' }}
+						style={{
+							touchAction: 'none',
+							cursor: isPlaying ? 'none' : 'default',
+						}}
 					/>
 
 					{/* Idle overlay */}
 					{phase === 'idle' && (
 						<div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-background/80 backdrop-blur-sm">
 							<div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-								<span className="text-3xl select-none" aria-hidden>🦠</span>
+								<span
+									className="text-xl font-semibold text-primary"
+									aria-hidden
+								>
+									WG
+								</span>
 							</div>
 							<div className="text-center">
 								<p className="text-base font-semibold text-foreground">
-									Juego de sala de espera
+									{m.gameWaitingRoomIdleTitle({}, { locale })}
 								</p>
 								<p className="mt-1 max-w-xs text-sm text-muted-foreground">
-									Come puntos para crecer. Absorbe blobs más pequeños. ¡Llega al top!
+									{m.gameWaitingRoomIdleDescription({}, { locale })}
 								</p>
 							</div>
 							<Button type="button" onClick={connect} className="gap-2">
 								<PlayIcon className="h-4 w-4" />
-								Iniciar juego
+								{m.gameWaitingRoomStart({}, { locale })}
 							</Button>
 						</div>
 					)}
@@ -710,7 +816,9 @@ export function WaitingRoomGame() {
 						<div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
 							<div className="flex flex-col items-center gap-3">
 								<div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-								<p className="text-sm text-muted-foreground">Conectando…</p>
+								<p className="text-sm text-muted-foreground">
+									{m.gameWaitingRoomConnecting({}, { locale })}
+								</p>
 							</div>
 						</div>
 					)}
@@ -718,12 +826,16 @@ export function WaitingRoomGame() {
 					{/* Death overlay */}
 					{phase === 'dead' && deathInfo && (
 						<div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-background/85 backdrop-blur-sm">
-							<p className="text-4xl select-none" aria-hidden>☠️</p>
+							<p className="text-4xl select-none" aria-hidden>
+								X
+							</p>
 							<div className="text-center">
-								<p className="text-lg font-bold text-foreground">¡Eliminado!</p>
+								<p className="text-lg font-bold text-foreground">
+									{m.gameWaitingRoomDeadTitle({}, { locale })}
+								</p>
 								{deathInfo.killedBy && (
 									<p className="mt-1 text-sm text-muted-foreground">
-										Te comió{' '}
+										{m.gameWaitingRoomKilledBy({}, { locale })}{' '}
 										<span className="font-semibold text-foreground">
 											{deathInfo.killedBy}
 										</span>
@@ -732,15 +844,17 @@ export function WaitingRoomGame() {
 								<p className="mt-3 text-3xl font-bold text-primary tabular-nums">
 									{deathInfo.score}
 								</p>
-								<p className="text-xs text-muted-foreground">puntos</p>
+								<p className="text-xs text-muted-foreground">
+									{m.gameWaitingRoomPoints({}, { locale })}
+								</p>
 							</div>
 							<div className="flex gap-2">
 								<Button type="button" onClick={connect} className="gap-1.5">
 									<PlayIcon className="h-4 w-4" />
-									Volver a jugar
+									{m.gameWaitingRoomRetry({}, { locale })}
 								</Button>
 								<Button type="button" variant="outline" onClick={disconnect}>
-									Salir
+									{m.gameWaitingRoomLeave({}, { locale })}
 								</Button>
 							</div>
 						</div>
@@ -751,11 +865,17 @@ export function WaitingRoomGame() {
 						<div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/85 backdrop-blur-sm p-6">
 							<XMarkIcon className="h-10 w-10 text-destructive" />
 							<div className="text-center">
-								<p className="font-semibold text-foreground">Error de conexión</p>
+								<p className="font-semibold text-foreground">
+									{m.gameWaitingRoomConnectionError({}, { locale })}
+								</p>
 								<p className="mt-1 text-sm text-muted-foreground">{errorMsg}</p>
 							</div>
-							<Button type="button" onClick={() => setPhase('idle')} variant="outline">
-								Cerrar
+							<Button
+								type="button"
+								onClick={() => setPhase('idle')}
+								variant="outline"
+							>
+								{m.gameWaitingRoomClose({}, { locale })}
 							</Button>
 						</div>
 					)}
@@ -763,7 +883,7 @@ export function WaitingRoomGame() {
 					{/* Playing hint */}
 					{isPlaying && (
 						<p className="absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-background/60 px-3 py-1 text-xs text-muted-foreground backdrop-blur-sm select-none">
-							Mueve el cursor · Come puntos para crecer · Absorbe blobs más pequeños
+							{m.gameWaitingRoomHint({}, { locale })}
 						</p>
 					)}
 				</div>
@@ -776,19 +896,22 @@ export function WaitingRoomGame() {
 						<CardHeader className="pb-2 pt-4">
 							<CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
 								<TrophyIcon className="h-4 w-4 text-primary" aria-hidden />
-								Clasificación
+								{m.gameWaitingRoomLeaderboard({}, { locale })}
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="pb-4">
 							{leaderboard.length === 0 ? (
-								<p className="text-xs text-muted-foreground">Cargando…</p>
+								<p className="text-xs text-muted-foreground">
+									{m.gameWaitingRoomLoading({}, { locale })}
+								</p>
 							) : (
 								<ol className="space-y-1.5">
 									{leaderboard.map((e) => (
 										<li
 											key={`${e.rank}-${e.name}`}
 											className={`flex items-center gap-2 rounded-md px-2 py-1 text-xs transition-colors ${
-												e.name === (user ? `${user.nombre} ${user.apellido}` : '')
+												e.name ===
+												(user ? `${user.nombre} ${user.apellido}` : '')
 													? 'bg-primary/10 font-semibold text-primary'
 													: 'text-foreground'
 											}`}

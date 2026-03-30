@@ -1,5 +1,4 @@
 import {
-	BeakerIcon,
 	BuildingOffice2Icon,
 	CheckCircleIcon,
 	ChevronLeftIcon,
@@ -17,7 +16,6 @@ import { useForm } from '@tanstack/react-form';
 import { useEffect, useState } from 'react';
 import { Link, redirect, useNavigate } from 'react-router';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
-import { Badge } from '@/components/ui/badge/badge.component';
 import {
 	Button,
 	buttonVariants,
@@ -29,7 +27,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
-import { Checkbox } from '@/components/ui/checkbox/checkbox.component';
 import {
 	Field,
 	FieldDescription,
@@ -216,55 +213,32 @@ export default function RegisterPage() {
 		onSubmit: async ({ value }) => {
 			form.setFieldValue('submitError', '');
 			try {
-				const needsHospital = value.rol !== 'ADMIN';
 				const payload: RegisterPayload = {
 					nombre: value.nombre.trim(),
 					apellido: value.apellido.trim(),
 					email: value.email.trim(),
 					password: value.password,
-					rol: value.rol,
+					rol: 'PACIENTE',
 				};
 
 				if (value.telefono.trim()) {
 					payload.telefono = value.telefono.trim();
 				}
 
-				if (needsHospital && value.hospitalId) {
+				if (value.hospitalId) {
 					payload.hospitalId = value.hospitalId;
 				}
 
-				if (value.rol === 'MEDICO') {
-					payload.medicoData = {
-						especialidadId: value.medicoEspecialidadId ?? 0,
-						numeroRegistro: value.medicoNumeroRegistro.trim(),
-						...(value.medicoConsultorio.trim()
-							? { consultorio: value.medicoConsultorio.trim() }
-							: {}),
-					};
-				}
-
-				if (value.rol === 'ENFERMERO') {
-					payload.enfermeroData = {
-						numeroRegistro: value.enfermeroNumeroRegistro.trim(),
-						nivelFormacion: value.enfermeroNivelFormacion,
-						areaEspecializacion:
-							value.enfermeroAreaEspecializacion ?? undefined,
-						certificacionTriage: value.enfermeroCertificacionTriage,
-					};
-				}
-
-				if (value.rol === 'PACIENTE') {
-					const patientData = {
-						tipoDocumento: value.pacienteTipoDocumento,
-						numeroDocumento: value.pacienteNumeroDocumento.trim(),
-						tipoSangre: value.pacienteTipoSangre,
-						eps: value.pacienteEps.trim(),
-						alergias: value.pacienteAlergias.trim(),
-					};
-					const hasPatientData = Object.values(patientData).some(Boolean);
-					if (hasPatientData) {
-						payload.pacienteData = patientData;
-					}
+				const patientData = {
+					tipoDocumento: value.pacienteTipoDocumento,
+					numeroDocumento: value.pacienteNumeroDocumento.trim(),
+					tipoSangre: value.pacienteTipoSangre,
+					eps: value.pacienteEps.trim(),
+					alergias: value.pacienteAlergias.trim(),
+				};
+				const hasPatientData = Object.values(patientData).some(Boolean);
+				if (hasPatientData) {
+					payload.pacienteData = patientData;
 				}
 
 				const response = await apiPost<RegisterResponse>(
@@ -289,9 +263,6 @@ export default function RegisterPage() {
 			}
 		},
 	});
-
-	const values = form.state.values as RegisterFormValues;
-	const needsHospital = values.rol !== 'ADMIN';
 
 	useEffect(() => {
 		if (typeof document === 'undefined') return;
@@ -318,7 +289,6 @@ export default function RegisterPage() {
 	useEffect(() => {
 		if (
 			step !== 2 ||
-			!needsHospital ||
 			hospitals.length > 0 ||
 			loadingHospitals ||
 			hasAttemptedHospitalsLoad
@@ -343,7 +313,6 @@ export default function RegisterPage() {
 		hasAttemptedHospitalsLoad,
 		hospitals.length,
 		loadingHospitals,
-		needsHospital,
 		step,
 	]);
 
@@ -359,32 +328,8 @@ export default function RegisterPage() {
 	}
 
 	function validateStep2(nextValues: RegisterFormValues): string | null {
-		if (nextValues.rol !== 'ADMIN' && !nextValues.hospitalId) {
+		if (!nextValues.hospitalId) {
 			return content.register.errors.requiredHospital;
-		}
-
-		if (nextValues.rol === 'MEDICO') {
-			if (!nextValues.medicoNumeroRegistro.trim()) {
-				return content.register.errors.requiredDoctorRegistration;
-			}
-			if (
-				!nextValues.medicoEspecialidadId ||
-				nextValues.medicoEspecialidadId < 1
-			) {
-				return content.register.errors.requiredDoctorSpecialty;
-			}
-		}
-
-		if (nextValues.rol === 'ENFERMERO') {
-			if (!nextValues.enfermeroNumeroRegistro.trim()) {
-				return content.register.errors.requiredNurseRegistration;
-			}
-			if (
-				!nextValues.enfermeroAreaEspecializacion ||
-				nextValues.enfermeroAreaEspecializacion < 1
-			) {
-				return content.register.errors.requiredNurseArea;
-			}
 		}
 
 		return null;
@@ -643,283 +588,58 @@ export default function RegisterPage() {
 										<p className="text-sm font-medium text-foreground">
 											{content.register.labels.rol}
 										</p>
-										<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-											{content.register.roles.map((roleOption) => {
-												const selected = values.rol === roleOption.value;
-												return (
-													<button
-														key={roleOption.value}
-														type="button"
-														onClick={() =>
-															form.setFieldValue('rol', roleOption.value)
-														}
-														className={[
-															'rounded-xl border p-3 text-left transition-colors',
-															selected
-																? 'border-primary bg-primary/5'
-																: 'border-border bg-card hover:bg-muted/40',
-														].join(' ')}
-													>
-														<div className="flex items-center gap-2">
-															<span className="text-sm font-medium text-foreground">
-																{roleOption.label}
-															</span>
-															{selected && (
-																<Badge variant="secondary">
-																	{content.register.selectedRoleBadge}
-																</Badge>
-															)}
-														</div>
-														<p className="mt-1 text-xs text-muted-foreground">
-															{roleOption.description}
-														</p>
-													</button>
-												);
-											})}
-										</div>
-									</div>
-
-									{needsHospital && (
-										<div className="space-y-2">
-											<p className="text-sm font-medium text-foreground">
-												{content.register.labels.hospital}
-											</p>
-											{loadingHospitals ? (
-												<div className="space-y-2">
-													{[1, 2, 3].map((item) => (
-														<Skeleton key={item} className="h-14 rounded-xl" />
-													))}
-												</div>
-											) : (
-												<form.Field name="hospitalId">
-													{(field) => (
-														<div className="max-h-60 space-y-2 overflow-y-auto pr-1">
-															{hospitals.map((hospital) => {
-																const selected =
-																	field.state.value === hospital.id;
-																return (
-																	<button
-																		key={hospital.id}
-																		type="button"
-																		onClick={() =>
-																			field.handleChange(hospital.id)
-																		}
-																		className={[
-																			'flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors',
-																			selected
-																				? 'border-primary bg-primary/5'
-																				: 'border-border bg-card hover:bg-muted/40',
-																		].join(' ')}
-																	>
-																		<BuildingOffice2Icon className="h-5 w-5 shrink-0 text-primary" />
-																		<div className="min-w-0 flex-1">
-																			<p className="truncate text-sm font-medium text-foreground">
-																				{hospital.nombre}
-																			</p>
-																			<p className="text-xs text-muted-foreground">
-																				{hospital.ciudad},{' '}
-																				{hospital.departamento}
-																			</p>
-																		</div>
-																		{selected && (
-																			<CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
-																		)}
-																	</button>
-																);
-															})}
-															{hospitals.length === 0 && (
-																<p className="py-4 text-center text-sm text-muted-foreground">
-																	{content.register.emptyHospitals}
-																</p>
-															)}
-														</div>
-													)}
-												</form.Field>
-											)}
-										</div>
-									)}
-
-									{values.rol === 'MEDICO' && (
-										<div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
-											<p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-												<UserIcon className="h-4 w-4" />
-												{content.register.sections.doctor}
-											</p>
-											<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-												<form.Field name="medicoEspecialidadId">
-													{(field) => (
-														<Field>
-															<FieldLabel htmlFor={field.name}>
-																{content.register.labels.especialidadId}
-															</FieldLabel>
-															<Input
-																id={field.name}
-																type="number"
-																min={1}
-																value={field.state.value ?? ''}
-																onChange={(event) => {
-																	const value = Number(event.target.value);
-																	field.handleChange(
-																		Number.isNaN(value) ? null : value,
-																	);
-																}}
-																placeholder={
-																	content.register.placeholders.especialidadId
-																}
-															/>
-														</Field>
-													)}
-												</form.Field>
-												<form.Field name="medicoNumeroRegistro">
-													{(field) => (
-														<Field>
-															<FieldLabel htmlFor={field.name}>
-																{content.register.labels.numeroRegistroMedico}
-															</FieldLabel>
-															<Input
-																id={field.name}
-																type="text"
-																value={field.state.value}
-																onChange={(event) =>
-																	field.handleChange(event.target.value)
-																}
-																placeholder={
-																	content.register.placeholders
-																		.numeroRegistroMedico
-																}
-															/>
-														</Field>
-													)}
-												</form.Field>
+										{loadingHospitals ? (
+											<div className="space-y-2">
+												{[1, 2, 3].map((item) => (
+													<Skeleton key={item} className="h-14 rounded-xl" />
+												))}
 											</div>
-											<form.Field name="medicoConsultorio">
+										) : (
+											<form.Field name="hospitalId">
 												{(field) => (
-													<Field>
-														<FieldLabel htmlFor={field.name}>
-															{content.register.labels.consultorio}
-														</FieldLabel>
-														<Input
-															id={field.name}
-															type="text"
-															value={field.state.value}
-															onChange={(event) =>
-																field.handleChange(event.target.value)
-															}
-															placeholder={
-																content.register.placeholders.consultorio
-															}
-														/>
-													</Field>
-												)}
-											</form.Field>
-										</div>
-									)}
-
-									{values.rol === 'ENFERMERO' && (
-										<div className="space-y-3 rounded-xl border border-secondary bg-secondary/40 p-4">
-											<p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-												<BeakerIcon className="h-4 w-4" />
-												{content.register.sections.nurse}
-											</p>
-											<form.Field name="enfermeroNumeroRegistro">
-												{(field) => (
-													<Field>
-														<FieldLabel htmlFor={field.name}>
-															{content.register.labels.numeroRegistroEnfermero}
-														</FieldLabel>
-														<Input
-															id={field.name}
-															type="text"
-															value={field.state.value}
-															onChange={(event) =>
-																field.handleChange(event.target.value)
-															}
-															placeholder={
-																content.register.placeholders
-																	.numeroRegistroEnfermero
-															}
-														/>
-													</Field>
-												)}
-											</form.Field>
-											<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-												<form.Field name="enfermeroNivelFormacion">
-													{(field) => (
-														<Field>
-															<FieldLabel>
-																{content.register.labels.nivelFormacion}
-															</FieldLabel>
-															<Select
-																value={String(field.state.value)}
-																onValueChange={(value) =>
-																	field.handleChange(
-																		Number(value ?? field.state.value),
-																	)
-																}
-															>
-																<SelectTrigger className="w-full">
-																	<SelectValue />
-																</SelectTrigger>
-																<SelectContent>
-																	{content.register.trainingLevels.map(
-																		(level) => (
-																			<SelectItem
-																				key={level.id}
-																				value={String(level.id)}
-																			>
-																				{level.label}
-																			</SelectItem>
-																		),
+													<div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+														{hospitals.map((hospital) => {
+															const selected =
+																field.state.value === hospital.id;
+															return (
+																<button
+																	key={hospital.id}
+																	type="button"
+																	onClick={() =>
+																		field.handleChange(hospital.id)
+																	}
+																	className={[
+																		'flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors',
+																		selected
+																			? 'border-primary bg-primary/5'
+																			: 'border-border bg-card hover:bg-muted/40',
+																	].join(' ')}
+																>
+																	<BuildingOffice2Icon className="h-5 w-5 shrink-0 text-primary" />
+																	<div className="min-w-0 flex-1">
+																		<p className="truncate text-sm font-medium text-foreground">
+																			{hospital.nombre}
+																		</p>
+																		<p className="text-xs text-muted-foreground">
+																			{hospital.ciudad}, {hospital.departamento}
+																		</p>
+																	</div>
+																	{selected && (
+																		<CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
 																	)}
-																</SelectContent>
-															</Select>
-														</Field>
-													)}
-												</form.Field>
-												<form.Field name="enfermeroAreaEspecializacion">
-													{(field) => (
-														<Field>
-															<FieldLabel htmlFor={field.name}>
-																{content.register.labels.areaEspecializacion}
-															</FieldLabel>
-															<Input
-																id={field.name}
-																type="number"
-																min={1}
-																value={field.state.value ?? ''}
-																onChange={(event) => {
-																	const value = Number(event.target.value);
-																	field.handleChange(
-																		Number.isNaN(value) ? null : value,
-																	);
-																}}
-																placeholder={
-																	content.register.placeholders
-																		.areaEspecializacion
-																}
-															/>
-														</Field>
-													)}
-												</form.Field>
-											</div>
-											<form.Field name="enfermeroCertificacionTriage">
-												{(field) => (
-													<Field orientation="horizontal">
-														<Checkbox
-															id={field.name}
-															checked={field.state.value}
-															onCheckedChange={(checked) =>
-																field.handleChange(Boolean(checked))
-															}
-														/>
-														<FieldLabel htmlFor={field.name}>
-															{content.register.labels.certificacionTriage}
-														</FieldLabel>
-													</Field>
+																</button>
+															);
+														})}
+														{hospitals.length === 0 && (
+															<p className="py-4 text-center text-sm text-muted-foreground">
+																{content.register.emptyHospitals}
+															</p>
+														)}
+													</div>
 												)}
 											</form.Field>
-										</div>
-									)}
+										)}
+									</div>
 								</div>
 							)}
 
@@ -929,161 +649,140 @@ export default function RegisterPage() {
 										{content.register.sections.optionalInfo}
 									</FieldDescription>
 
-									{values.rol === 'PACIENTE' ? (
-										<>
-											<div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-												<IdentificationIcon className="h-4 w-4 text-primary" />
-												{content.register.sections.patient}
-											</div>
-											<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-												<form.Field name="pacienteTipoDocumento">
-													{(field) => (
-														<Field>
-															<FieldLabel>
-																{content.register.labels.tipoDocumento}
-															</FieldLabel>
-															<Select
-																value={field.state.value}
-																onValueChange={(value) =>
-																	field.handleChange(value ?? '')
-																}
-															>
-																<SelectTrigger className="w-full">
-																	<SelectValue />
-																</SelectTrigger>
-																<SelectContent>
-																	{content.register.documentTypes.map(
-																		(documentType) => (
-																			<SelectItem
-																				key={documentType}
-																				value={documentType}
-																			>
-																				{documentType}
-																			</SelectItem>
-																		),
-																	)}
-																</SelectContent>
-															</Select>
-														</Field>
-													)}
-												</form.Field>
-												<form.Field name="pacienteNumeroDocumento">
-													{(field) => (
-														<Field>
-															<FieldLabel htmlFor={field.name}>
-																{content.register.labels.numeroDocumento}
-															</FieldLabel>
-															<Input
-																id={field.name}
-																type="text"
-																value={field.state.value}
-																onChange={(event) =>
-																	field.handleChange(event.target.value)
-																}
-																placeholder={
-																	content.register.placeholders.numeroDocumento
-																}
-															/>
-														</Field>
-													)}
-												</form.Field>
-											</div>
-											<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-												<form.Field name="pacienteTipoSangre">
-													{(field) => (
-														<Field>
-															<FieldLabel>
-																{content.register.labels.tipoSangre}
-															</FieldLabel>
-															<Select
-																value={field.state.value || '__none__'}
-																onValueChange={(value) =>
-																	field.handleChange(
-																		!value || value === '__none__' ? '' : value,
-																	)
-																}
-															>
-																<SelectTrigger className="w-full">
-																	<SelectValue
-																		placeholder={
-																			content.register.placeholders
-																				.tipoSangreDefault
-																		}
-																	/>
-																</SelectTrigger>
-																<SelectContent>
-																	<SelectItem value="__none__">
-																		{
-																			content.register.placeholders
-																				.tipoSangreDefault
-																		}
+									<div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+										<IdentificationIcon className="h-4 w-4 text-primary" />
+										{content.register.sections.patient}
+									</div>
+									<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+										<form.Field name="pacienteTipoDocumento">
+											{(field) => (
+												<Field>
+													<FieldLabel>
+														{content.register.labels.tipoDocumento}
+													</FieldLabel>
+													<Select
+														value={field.state.value}
+														onValueChange={(value) =>
+															field.handleChange(value ?? '')
+														}
+													>
+														<SelectTrigger className="w-full">
+															<SelectValue />
+														</SelectTrigger>
+														<SelectContent>
+															{content.register.documentTypes.map(
+																(documentType) => (
+																	<SelectItem
+																		key={documentType}
+																		value={documentType}
+																	>
+																		{documentType}
 																	</SelectItem>
-																	{content.register.bloodTypes.map(
-																		(bloodType) => (
-																			<SelectItem
-																				key={bloodType}
-																				value={bloodType}
-																			>
-																				{bloodType}
-																			</SelectItem>
-																		),
-																	)}
-																</SelectContent>
-															</Select>
-														</Field>
-													)}
-												</form.Field>
-												<form.Field name="pacienteEps">
-													{(field) => (
-														<Field>
-															<FieldLabel htmlFor={field.name}>
-																{content.register.labels.eps}
-															</FieldLabel>
-															<Input
-																id={field.name}
-																type="text"
-																value={field.state.value}
-																onChange={(event) =>
-																	field.handleChange(event.target.value)
+																),
+															)}
+														</SelectContent>
+													</Select>
+												</Field>
+											)}
+										</form.Field>
+										<form.Field name="pacienteNumeroDocumento">
+											{(field) => (
+												<Field>
+													<FieldLabel htmlFor={field.name}>
+														{content.register.labels.numeroDocumento}
+													</FieldLabel>
+													<Input
+														id={field.name}
+														type="text"
+														value={field.state.value}
+														onChange={(event) =>
+															field.handleChange(event.target.value)
+														}
+														placeholder={
+															content.register.placeholders.numeroDocumento
+														}
+													/>
+												</Field>
+											)}
+										</form.Field>
+									</div>
+									<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+										<form.Field name="pacienteTipoSangre">
+											{(field) => (
+												<Field>
+													<FieldLabel>
+														{content.register.labels.tipoSangre}
+													</FieldLabel>
+													<Select
+														value={field.state.value || '__none__'}
+														onValueChange={(value) =>
+															field.handleChange(
+																!value || value === '__none__' ? '' : value,
+															)
+														}
+													>
+														<SelectTrigger className="w-full">
+															<SelectValue
+																placeholder={
+																	content.register.placeholders
+																		.tipoSangreDefault
 																}
-																placeholder={content.register.placeholders.eps}
 															/>
-														</Field>
-													)}
-												</form.Field>
-											</div>
-											<form.Field name="pacienteAlergias">
-												{(field) => (
-													<Field>
-														<FieldLabel htmlFor={field.name}>
-															{content.register.labels.alergias}
-														</FieldLabel>
-														<Input
-															id={field.name}
-															type="text"
-															value={field.state.value}
-															onChange={(event) =>
-																field.handleChange(event.target.value)
-															}
-															placeholder={
-																content.register.placeholders.alergias
-															}
-														/>
-													</Field>
-												)}
-											</form.Field>
-										</>
-									) : (
-										<div className="rounded-xl border bg-muted/40 p-6 text-center">
-											<CheckCircleIcon className="mx-auto mb-2 h-9 w-9 text-primary" />
-											<p className="text-sm font-medium text-foreground">
-												{content.register.sections.readyTitle}
-											</p>
-											<p className="mt-1 text-xs text-muted-foreground">
-												{content.register.sections.readyHint}
-											</p>
-										</div>
-									)}
+														</SelectTrigger>
+														<SelectContent>
+															<SelectItem value="__none__">
+																{
+																	content.register.placeholders
+																		.tipoSangreDefault
+																}
+															</SelectItem>
+															{content.register.bloodTypes.map((bloodType) => (
+																<SelectItem key={bloodType} value={bloodType}>
+																	{bloodType}
+																</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
+												</Field>
+											)}
+										</form.Field>
+										<form.Field name="pacienteEps">
+											{(field) => (
+												<Field>
+													<FieldLabel htmlFor={field.name}>
+														{content.register.labels.eps}
+													</FieldLabel>
+													<Input
+														id={field.name}
+														type="text"
+														value={field.state.value}
+														onChange={(event) =>
+															field.handleChange(event.target.value)
+														}
+														placeholder={content.register.placeholders.eps}
+													/>
+												</Field>
+											)}
+										</form.Field>
+									</div>
+									<form.Field name="pacienteAlergias">
+										{(field) => (
+											<Field>
+												<FieldLabel htmlFor={field.name}>
+													{content.register.labels.alergias}
+												</FieldLabel>
+												<Input
+													id={field.name}
+													type="text"
+													value={field.state.value}
+													onChange={(event) =>
+														field.handleChange(event.target.value)
+													}
+													placeholder={content.register.placeholders.alergias}
+												/>
+											</Field>
+										)}
+									</form.Field>
 								</div>
 							)}
 

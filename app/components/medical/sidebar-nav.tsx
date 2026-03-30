@@ -5,8 +5,8 @@ import {
 	BuildingOffice2Icon,
 	CalendarDaysIcon,
 	Cog6ToothIcon,
-	HeartIcon,
 	HomeIcon,
+	IdentificationIcon,
 	QueueListIcon,
 	UserGroupIcon,
 	UserIcon,
@@ -18,13 +18,14 @@ import {
 	CalendarDaysIcon as CalendarDaysIconSolid,
 	Cog6ToothIcon as Cog6ToothIconSolid,
 	HomeIcon as HomeIconSolid,
+	IdentificationIcon as IdentificationIconSolid,
 	QueueListIcon as QueueListIconSolid,
 	UserGroupIcon as UserGroupIconSolid,
 	UserIcon as UserIconSolid,
 } from '@heroicons/react/24/solid';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button/button.component';
-import { currentLocale } from '@/features/i18n/locale-path';
+import type { AppLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 
 export type NavSection =
@@ -35,69 +36,43 @@ export type NavSection =
 	| 'queue'
 	| 'medicines'
 	| 'doctors'
+	| 'userManagement'
 	| 'settings';
 
 interface NavItem {
 	key: NavSection;
-	label: string;
 	icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 	iconActive: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 }
 
 const navItems: NavItem[] = [
-	{
-		key: 'overview',
-		label: 'Inicio',
-		icon: HomeIcon,
-		iconActive: HomeIconSolid,
-	},
+	{ key: 'overview', icon: HomeIcon, iconActive: HomeIconSolid },
 	{
 		key: 'hospitals',
-		label: 'Hospitales',
 		icon: BuildingOffice2Icon,
 		iconActive: BuildingOffice2IconSolid,
 	},
-	{
-		key: 'patients',
-		label: 'Pacientes',
-		icon: UserGroupIcon,
-		iconActive: UserGroupIconSolid,
-	},
+	{ key: 'patients', icon: UserGroupIcon, iconActive: UserGroupIconSolid },
 	{
 		key: 'appointments',
-		label: 'Citas',
 		icon: CalendarDaysIcon,
 		iconActive: CalendarDaysIconSolid,
 	},
+	{ key: 'queue', icon: QueueListIcon, iconActive: QueueListIconSolid },
+	{ key: 'medicines', icon: BeakerIcon, iconActive: BeakerIconSolid },
+	{ key: 'doctors', icon: UserIcon, iconActive: UserIconSolid },
 	{
-		key: 'queue',
-		label: 'Turnos',
-		icon: QueueListIcon,
-		iconActive: QueueListIconSolid,
+		key: 'userManagement',
+		icon: IdentificationIcon,
+		iconActive: IdentificationIconSolid,
 	},
-	{
-		key: 'medicines',
-		label: 'Medicamentos',
-		icon: BeakerIcon,
-		iconActive: BeakerIconSolid,
-	},
-	{
-		key: 'doctors',
-		label: 'Médicos',
-		icon: UserIcon,
-		iconActive: UserIconSolid,
-	},
-	{
-		key: 'settings',
-		label: 'Configuracion',
-		icon: Cog6ToothIcon,
-		iconActive: Cog6ToothIconSolid,
-	},
+	{ key: 'settings', icon: Cog6ToothIcon, iconActive: Cog6ToothIconSolid },
 ];
 
 interface SidebarNavProps {
 	active: NavSection;
 	onNavigate: (section: NavSection) => void;
+	locale: AppLocale;
 	hospitalName?: string;
 	userName?: string;
 	userRole?: string;
@@ -119,12 +94,14 @@ const defaultSectionLabels: Record<NavSection, string> = {
 	queue: '',
 	medicines: '',
 	doctors: '',
+	userManagement: '',
 	settings: '',
 };
 
 function SidebarContent({
 	active,
 	onNavigate,
+	locale,
 	hospitalName,
 	userName,
 	userRole,
@@ -132,7 +109,6 @@ function SidebarContent({
 	labels,
 	onClose,
 }: SidebarNavProps & { onClose?: () => void }) {
-	const locale = currentLocale();
 	const sectionLabels = {
 		...defaultSectionLabels,
 		overview: m.dashboardSidebarOverview({}, { locale }),
@@ -142,6 +118,7 @@ function SidebarContent({
 		queue: m.dashboardSidebarQueue({}, { locale }),
 		medicines: m.dashboardSidebarMedicines({}, { locale }),
 		doctors: m.dashboardSidebarDoctors({}, { locale }),
+		userManagement: m.dashboardSidebarUserManagement({}, { locale }),
 		settings: m.dashboardSidebarSettings({}, { locale }),
 		...labels?.sections,
 	};
@@ -155,9 +132,11 @@ function SidebarContent({
 		<div className="flex h-full flex-col">
 			<div className="flex items-center justify-between border-b border-border px-5 py-4">
 				<div className="flex items-center gap-3">
-					<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-						<HeartIcon className="h-5 w-5" />
-					</div>
+					<img
+						src="/favicon.png"
+						alt={brandName}
+						className="h-9 w-9 shrink-0 rounded-lg border border-border/60 bg-card object-contain p-1"
+					/>
 					<div className="min-w-0">
 						<p className="text-sm font-bold text-foreground">{brandName}</p>
 						{hospitalName && (
@@ -241,7 +220,7 @@ function SidebarContent({
 
 export function SidebarNav(props: SidebarNavProps) {
 	const [mobileOpen, setMobileOpen] = useState(false);
-	const locale = currentLocale();
+	const { locale } = props;
 	const openMenuLabel =
 		props.labels?.openMenu ?? m.dashboardSidebarOpenMenu({}, { locale });
 	const closeMenuLabel =
@@ -266,7 +245,7 @@ export function SidebarNav(props: SidebarNavProps) {
 					aria-label={closeMenuLabel}
 					className="fixed inset-0 z-40 bg-foreground/30 lg:hidden"
 					onClick={() => setMobileOpen(false)}
-					onKeyDown={(e) => e.key === 'Escape' && setMobileOpen(false)}
+					onKeyDown={(event) => event.key === 'Escape' && setMobileOpen(false)}
 				/>
 			)}
 

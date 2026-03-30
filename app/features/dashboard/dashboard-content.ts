@@ -1,6 +1,6 @@
+import type { DashboardSection } from '@/features/dashboard/roles/dashboard-role.types';
 import { currentLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
-import type { DashboardSection } from '@/features/dashboard/roles/dashboard-role.types';
 
 interface DashboardContent {
 	sidebar: {

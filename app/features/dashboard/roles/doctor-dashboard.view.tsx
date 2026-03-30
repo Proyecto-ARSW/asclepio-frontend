@@ -49,6 +49,21 @@ const DOCTOR_APPOINTMENTS_QUERY = `
 	}
 `;
 
+function getStatusLabel(status: string, locale: 'es' | 'en') {
+	switch (status) {
+		case 'PENDIENTE':
+			return m.dashboardStatusPending({}, { locale });
+		case 'CONFIRMADA':
+			return m.dashboardStatusConfirmed({}, { locale });
+		case 'CANCELADA':
+			return m.dashboardStatusCancelled({}, { locale });
+		case 'ATENDIDA':
+			return m.dashboardStatusAttended({}, { locale });
+		default:
+			return status;
+	}
+}
+
 export function DoctorDashboardView({ user, locale }: RoleViewProps) {
 	const [doctorId, setDoctorId] = useState<string | null>(null);
 	const [missingProfile, setMissingProfile] = useState(false);
@@ -172,7 +187,9 @@ export function DoctorDashboardView({ user, locale }: RoleViewProps) {
 								<span className="text-xs text-muted-foreground">
 									{new Date(appointment.fechaHora).toLocaleString(locale)}
 								</span>
-								<Badge variant="outline">{appointment.estado}</Badge>
+								<Badge variant="outline">
+									{getStatusLabel(appointment.estado, locale)}
+								</Badge>
 							</div>
 						</li>
 					))}

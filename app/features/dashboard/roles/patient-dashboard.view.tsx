@@ -69,6 +69,21 @@ const PATIENT_TURNS_QUERY = `
 	}
 `;
 
+function getStatusLabel(status: string, locale: 'es' | 'en') {
+	switch (status) {
+		case 'PENDIENTE':
+			return m.dashboardStatusPending({}, { locale });
+		case 'CONFIRMADA':
+			return m.dashboardStatusConfirmed({}, { locale });
+		case 'CANCELADA':
+			return m.dashboardStatusCancelled({}, { locale });
+		case 'ATENDIDA':
+			return m.dashboardStatusAttended({}, { locale });
+		default:
+			return status;
+	}
+}
+
 export function PatientDashboardView({ user, locale }: RoleViewProps) {
 	const [appointments, setAppointments] = useState<
 		PatientAppointmentsData['appointmentsByPatient']
@@ -166,7 +181,9 @@ export function PatientDashboardView({ user, locale }: RoleViewProps) {
 										<span className="text-xs text-muted-foreground">
 											{appointment.id}
 										</span>
-										<Badge variant="outline">{appointment.estado}</Badge>
+										<Badge variant="outline">
+											{getStatusLabel(appointment.estado, locale)}
+										</Badge>
 									</div>
 									<p className="mt-1 flex items-center gap-1 text-xs text-foreground">
 										<ClockIcon className="h-3.5 w-3.5" />
@@ -202,7 +219,9 @@ export function PatientDashboardView({ user, locale }: RoleViewProps) {
 										</p>
 										<p className="text-xs text-muted-foreground">{turn.tipo}</p>
 									</div>
-									<Badge variant="secondary">{turn.estado}</Badge>
+									<Badge variant="secondary">
+										{getStatusLabel(turn.estado, locale)}
+									</Badge>
 								</li>
 							))}
 						</ul>

@@ -37,6 +37,21 @@ const RECEPTIONIST_QUERY = `
 	}
 `;
 
+function getStatusLabel(status: string, locale: 'es' | 'en') {
+	switch (status) {
+		case 'PENDIENTE':
+			return m.dashboardStatusPending({}, { locale });
+		case 'CONFIRMADA':
+			return m.dashboardStatusConfirmed({}, { locale });
+		case 'CANCELADA':
+			return m.dashboardStatusCancelled({}, { locale });
+		case 'ATENDIDA':
+			return m.dashboardStatusAttended({}, { locale });
+		default:
+			return status;
+	}
+}
+
 export function ReceptionistDashboardView({ locale }: RoleViewProps) {
 	const [data, setData] = useState<ReceptionistData | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -133,7 +148,9 @@ export function ReceptionistDashboardView({ locale }: RoleViewProps) {
 							</div>
 							<div className="flex items-center gap-2">
 								<Badge variant="outline">{turn.tipo}</Badge>
-								<Badge variant="secondary">{turn.estado}</Badge>
+								<Badge variant="secondary">
+									{getStatusLabel(turn.estado, locale)}
+								</Badge>
 							</div>
 						</li>
 					))}

@@ -405,6 +405,21 @@ export function AdminDashboardView({
 		}
 	}
 
+	function getStatusLabel(status: string) {
+		switch (status) {
+			case 'PENDIENTE':
+				return m.dashboardStatusPending({}, { locale });
+			case 'CONFIRMADA':
+				return m.dashboardStatusConfirmed({}, { locale });
+			case 'CANCELADA':
+				return m.dashboardStatusCancelled({}, { locale });
+			case 'ATENDIDA':
+				return m.dashboardStatusAttended({}, { locale });
+			default:
+				return status;
+		}
+	}
+
 	async function handleRoleUpdate(
 		user: AdminGqlData['users'][number],
 		payload: RoleUpdatePayload,
@@ -707,7 +722,7 @@ export function AdminDashboardView({
 								sectionListItem(
 									new Date(appointment.fechaHora).toLocaleString(locale),
 									appointment.motivo || appointment.id,
-									appointment.estado,
+									getStatusLabel(appointment.estado),
 									`appointment-${appointment.id}`,
 								),
 							)}
@@ -730,7 +745,7 @@ export function AdminDashboardView({
 								sectionListItem(
 									`#${turn.numeroTurno}`,
 									turn.tipo,
-									turn.estado,
+									getStatusLabel(turn.estado),
 									`turn-${turn.id}`,
 								),
 							)}
@@ -838,7 +853,7 @@ export function AdminDashboardView({
 															{appointment.id}
 														</p>
 														<Badge variant="outline">
-															{appointment.estado}
+															{getStatusLabel(appointment.estado)}
 														</Badge>
 													</div>
 													<p className="text-xs text-foreground">
@@ -885,7 +900,9 @@ export function AdminDashboardView({
 															{turn.tipo}
 														</p>
 													</div>
-													<Badge variant="secondary">{turn.estado}</Badge>
+													<Badge variant="secondary">
+														{getStatusLabel(turn.estado)}
+													</Badge>
 												</div>
 											))
 										) : (

@@ -66,16 +66,22 @@ export function readUiPreferences(): UiPreferences {
 				? parsed.theme
 				: DEFAULT_PREFERENCES.theme;
 		const dyslexiaFont = Boolean(parsed.dyslexiaFont);
-		const parsedOverviewBlocks = Array.isArray(parsed.overviewBlocks)
-			? parsed.overviewBlocks.filter(
+		const overviewBlocksField = Array.isArray(parsed.overviewBlocks)
+			? parsed.overviewBlocks
+			: null;
+		const parsedOverviewBlocks = overviewBlocksField
+			? overviewBlocksField.filter(
 					(block): block is OverviewBlockKey =>
 						typeof block === 'string' && isOverviewBlockKey(block),
 				)
 			: [];
-		const overviewBlocks =
-			parsedOverviewBlocks.length > 0
-				? parsedOverviewBlocks
-				: [...DEFAULT_PREFERENCES.overviewBlocks];
+		const overviewBlocks = overviewBlocksField
+			? overviewBlocksField.length === 0
+				? []
+				: parsedOverviewBlocks.length > 0
+					? parsedOverviewBlocks
+					: [...DEFAULT_PREFERENCES.overviewBlocks]
+			: [...DEFAULT_PREFERENCES.overviewBlocks];
 		return { theme, dyslexiaFont, overviewBlocks };
 	} catch {
 		return DEFAULT_PREFERENCES;

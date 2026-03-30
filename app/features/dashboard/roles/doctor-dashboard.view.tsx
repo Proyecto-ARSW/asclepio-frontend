@@ -19,7 +19,7 @@ interface DoctorsData {
 }
 
 interface DoctorAppointmentsData {
-	appoinmentsByDoctor: Array<{
+	appointmentsByDoctor: Array<{
 		id: string;
 		fechaHora: string;
 		estado: string;
@@ -40,7 +40,7 @@ const DOCTORS_QUERY = `
 
 const DOCTOR_APPOINTMENTS_QUERY = `
 	query DashboardDoctorAppointments($medicoId: ID!) {
-		appoinmentsByDoctor(medicoId: $medicoId) {
+		appointmentsByDoctor: appoinmentsByDoctor(medicoId: $medicoId) {
 			id
 			fechaHora
 			estado
@@ -53,7 +53,7 @@ export function DoctorDashboardView({ user, locale }: RoleViewProps) {
 	const [doctorId, setDoctorId] = useState<string | null>(null);
 	const [missingProfile, setMissingProfile] = useState(false);
 	const [appointments, setAppointments] = useState<
-		DoctorAppointmentsData['appoinmentsByDoctor']
+		DoctorAppointmentsData['appointmentsByDoctor']
 	>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
@@ -78,7 +78,7 @@ export function DoctorDashboardView({ user, locale }: RoleViewProps) {
 				DOCTOR_APPOINTMENTS_QUERY,
 				{ medicoId: currentDoctor.id },
 			);
-			setAppointments(doctorAppointments.appoinmentsByDoctor);
+			setAppointments(doctorAppointments.appointmentsByDoctor);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : '';
 			const lowerMessage = message.toLowerCase();

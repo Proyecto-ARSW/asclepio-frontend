@@ -19,7 +19,7 @@ interface PatientsData {
 }
 
 interface PatientAppointmentsData {
-	appoinmentsByPatient: Array<{
+	appointmentsByPatient: Array<{
 		id: string;
 		fechaHora: string;
 		estado: string;
@@ -49,7 +49,7 @@ const PATIENTS_QUERY = `
 
 const PATIENT_APPOINTMENTS_QUERY = `
 	query DashboardPatientAppointments($pacienteId: ID!) {
-		appoinmentsByPatient(pacienteId: $pacienteId) {
+		appointmentsByPatient: appoinmentsByPatient(pacienteId: $pacienteId) {
 			id
 			fechaHora
 			estado
@@ -71,7 +71,7 @@ const PATIENT_TURNS_QUERY = `
 
 export function PatientDashboardView({ user, locale }: RoleViewProps) {
 	const [appointments, setAppointments] = useState<
-		PatientAppointmentsData['appoinmentsByPatient']
+		PatientAppointmentsData['appointmentsByPatient']
 	>([]);
 	const [turns, setTurns] = useState<PatientTurnsData['turnosPorPaciente']>([]);
 	const [missingProfile, setMissingProfile] = useState(false);
@@ -101,7 +101,7 @@ export function PatientDashboardView({ user, locale }: RoleViewProps) {
 					pacienteId: currentPatient.id,
 				}),
 			]);
-			setAppointments(appointmentsResult.appoinmentsByPatient);
+			setAppointments(appointmentsResult.appointmentsByPatient);
 			setTurns(turnsResult.turnosPorPaciente);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : '';

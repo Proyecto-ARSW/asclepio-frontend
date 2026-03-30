@@ -72,12 +72,15 @@ export function AdminRoleRowForm({
 			if (value.role === user.rol) return;
 
 			if (value.role === 'MEDICO') {
+				if (!value.doctorLicense.trim()) {
+					setValidationError(
+						m.authRegisterErrorRequiredDoctorRegistration({}, { locale }),
+					);
+					return;
+				}
+
 				const specialtyId = Number(value.doctorSpecialtyId);
-				if (
-					!value.doctorLicense.trim() ||
-					Number.isNaN(specialtyId) ||
-					specialtyId < 1
-				) {
+				if (Number.isNaN(specialtyId) || specialtyId < 1) {
 					setValidationError(
 						m.authRegisterErrorRequiredDoctorSpecialty({}, { locale }),
 					);

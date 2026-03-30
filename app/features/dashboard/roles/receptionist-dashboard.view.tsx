@@ -16,7 +16,7 @@ interface ReceptionistData {
 		tipo: string;
 		estado: string;
 	}>;
-	appoinments: Array<{
+	appointments: Array<{
 		id: string;
 		estado: string;
 	}>;
@@ -30,7 +30,7 @@ const RECEPTIONIST_QUERY = `
 			tipo
 			estado
 		}
-		appoinments {
+		appointments: appoinments {
 			id
 			estado
 		}
@@ -66,7 +66,7 @@ export function ReceptionistDashboardView({ locale }: RoleViewProps) {
 	const queueCount = data?.turnosPorHospital.length ?? 0;
 	const pendingAppointments = useMemo(
 		() =>
-			(data?.appoinments ?? []).filter(
+			(data?.appointments ?? []).filter(
 				(appointment) => appointment.estado === 'PENDIENTE',
 			).length,
 		[data],

@@ -9,6 +9,7 @@ import {
 	ShieldCheckIcon,
 	UserGroupIcon,
 } from '@heroicons/react/24/outline';
+import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
@@ -72,7 +73,7 @@ interface AdminGqlData {
 		consultorio?: string | null;
 	}>;
 	nurses: Array<{ id: string }>;
-	appoinments: Array<{
+	appointments: Array<{
 		id: string;
 		pacienteId: string;
 		medicoId: string;
@@ -132,7 +133,7 @@ const ADMIN_DASHBOARD_QUERY = `
 		nurses {
 			id
 		}
-		appoinments {
+		appointments: appoinments {
 			id
 			pacienteId
 			medicoId
@@ -219,7 +220,7 @@ export function AdminDashboardView({
 			patients: data?.patients.length ?? 0,
 			doctors: data?.doctors.length ?? 0,
 			nurses: data?.nurses.length ?? 0,
-			appointments: data?.appoinments.length ?? 0,
+			appointments: data?.appointments.length ?? 0,
 			queue: data?.turnosPorHospital.length ?? 0,
 			medicines: data?.medicines.length ?? 0,
 		}),
@@ -258,8 +259,8 @@ export function AdminDashboardView({
 	}, [currentPage, filteredUsers]);
 
 	const recentAppointments = useMemo(
-		() => [...(data?.appoinments ?? [])].slice(0, 6),
-		[data?.appoinments],
+		() => [...(data?.appointments ?? [])].slice(0, 6),
+		[data?.appointments],
 	);
 
 	const queuePreview = useMemo(
@@ -691,7 +692,7 @@ export function AdminDashboardView({
 				);
 			case 'appointments':
 				if (loading) return <Skeleton className="h-24 rounded-lg" />;
-				if (!data?.appoinments.length) {
+				if (!data?.appointments.length) {
 					return (
 						<p className="text-sm text-muted-foreground">
 							{m.dashboardPatientsEmptyDescription({}, { locale })}
@@ -700,7 +701,7 @@ export function AdminDashboardView({
 				}
 				return (
 					<div className="space-y-2">
-						{data.appoinments
+						{data.appointments
 							.slice(0, 12)
 							.map((appointment) =>
 								sectionListItem(
@@ -941,7 +942,7 @@ function MetricTile({
 }: {
 	label: string;
 	value: number;
-	icon: React.ReactNode;
+	icon: ReactNode;
 }) {
 	return (
 		<div className="rounded-xl border border-border/70 bg-background/80 p-3">

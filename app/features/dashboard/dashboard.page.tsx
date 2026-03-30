@@ -6,7 +6,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
 import { Link, redirect, useLocation, useNavigate } from 'react-router';
-import { SidebarNav } from '../../components/medical/sidebar-nav';
+import { SidebarNav } from '@/components/medical/sidebar-nav';
 import { Badge } from '@/components/ui/badge/badge.component';
 import {
 	Button,
@@ -30,8 +30,8 @@ import {
 import { Switch } from '@/components/ui/switch/switch.component';
 import { AdminDashboardView } from '@/features/dashboard/roles/admin-dashboard.view';
 import type {
-	DashboardSection as NavSection,
 	DashboardUser,
+	DashboardSection as NavSection,
 	OverviewBlockKey,
 } from '@/features/dashboard/roles/dashboard-role.types';
 import { DoctorDashboardView } from '@/features/dashboard/roles/doctor-dashboard.view';

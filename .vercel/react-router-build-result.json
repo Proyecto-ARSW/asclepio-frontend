@@ -1,0 +1,169 @@
+{
+  "buildManifest": {
+    "serverBundles": {
+      "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0": {
+        "id": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+        "file": "build/server/nodejs_eyJydW50aW1lIjoibm9kZWpzIn0/index.js",
+        "config": {
+          "runtime": "nodejs"
+        }
+      }
+    },
+    "routeIdToServerBundleId": {
+      "features/home/home.page": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "features/auth/login.page": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "features/auth/register.page": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "features/auth/select-hospital.page": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "features/dashboard/dashboard.page": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
+    },
+    "routes": {
+      "root": {
+        "id": "root",
+        "file": "app/root.tsx",
+        "path": "",
+        "config": {}
+      },
+      "features/home/home.page": {
+        "id": "features/home/home.page",
+        "parentId": "root",
+        "file": "app/features/home/home.page.tsx",
+        "path": ":locale?",
+        "index": true,
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "features/auth/login.page": {
+        "id": "features/auth/login.page",
+        "parentId": "root",
+        "file": "app/features/auth/login.page.tsx",
+        "path": ":locale?/login",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "features/auth/register.page": {
+        "id": "features/auth/register.page",
+        "parentId": "root",
+        "file": "app/features/auth/register.page.tsx",
+        "path": ":locale?/register",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "features/auth/select-hospital.page": {
+        "id": "features/auth/select-hospital.page",
+        "parentId": "root",
+        "file": "app/features/auth/select-hospital.page.tsx",
+        "path": ":locale?/select-hospital",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "features/dashboard/dashboard.page": {
+        "id": "features/dashboard/dashboard.page",
+        "parentId": "root",
+        "file": "app/features/dashboard/dashboard.page.tsx",
+        "path": ":locale?/dashboard",
+        "config": {
+          "runtime": "nodejs"
+        }
+      }
+    }
+  },
+  "reactRouterConfig": {
+    "appDirectory": "C:/Users/maria/OneDrive/Documentos/arsw/Proyecto/Frontend/app",
+    "basename": "/",
+    "buildDirectory": "C:/Users/maria/OneDrive/Documentos/arsw/Proyecto/Frontend/build",
+    "future": {
+      "unstable_optimizeDeps": false,
+      "unstable_subResourceIntegrity": false,
+      "unstable_trailingSlashAwareDataRequests": false,
+      "unstable_previewServerPrerendering": false,
+      "v8_middleware": true,
+      "v8_splitRouteModules": false,
+      "v8_viteEnvironmentApi": false
+    },
+    "routes": {
+      "root": {
+        "id": "root",
+        "file": "root.tsx",
+        "path": ""
+      },
+      "features/home/home.page": {
+        "id": "features/home/home.page",
+        "parentId": "root",
+        "file": "features/home/home.page.tsx",
+        "path": ":locale?",
+        "index": true
+      },
+      "features/auth/login.page": {
+        "id": "features/auth/login.page",
+        "parentId": "root",
+        "file": "features/auth/login.page.tsx",
+        "path": ":locale?/login"
+      },
+      "features/auth/register.page": {
+        "id": "features/auth/register.page",
+        "parentId": "root",
+        "file": "features/auth/register.page.tsx",
+        "path": ":locale?/register"
+      },
+      "features/auth/select-hospital.page": {
+        "id": "features/auth/select-hospital.page",
+        "parentId": "root",
+        "file": "features/auth/select-hospital.page.tsx",
+        "path": ":locale?/select-hospital"
+      },
+      "features/dashboard/dashboard.page": {
+        "id": "features/dashboard/dashboard.page",
+        "parentId": "root",
+        "file": "features/dashboard/dashboard.page.tsx",
+        "path": ":locale?/dashboard"
+      }
+    },
+    "routeDiscovery": {
+      "mode": "lazy",
+      "manifestPath": "/__manifest"
+    },
+    "serverBuildFile": "index.js",
+    "serverModuleFormat": "esm",
+    "ssr": true,
+    "allowedActionOrigins": false,
+    "unstable_routeConfig": [
+      {
+        "id": "root",
+        "path": "",
+        "file": "root.tsx",
+        "children": [
+          {
+            "file": "features/home/home.page.tsx",
+            "index": true,
+            "path": ":locale?"
+          },
+          {
+            "file": "features/auth/login.page.tsx",
+            "path": ":locale?/login"
+          },
+          {
+            "file": "features/auth/register.page.tsx",
+            "path": ":locale?/register"
+          },
+          {
+            "file": "features/auth/select-hospital.page.tsx",
+            "path": ":locale?/select-hospital"
+          },
+          {
+            "file": "features/dashboard/dashboard.page.tsx",
+            "path": ":locale?/dashboard"
+          }
+        ]
+      }
+    ]
+  },
+  "viteConfig": {
+    "build": {
+      "assetsDir": "assets"
+    }
+  }
+}

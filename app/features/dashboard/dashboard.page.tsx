@@ -58,6 +58,24 @@ import { useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/dashboard.page';
 
 const DASHBOARD_SECTION_STORAGE_KEY = 'asclepio-dashboard-active-section';
+const PATIENT_SIDEBAR_SECTIONS: NavSection[] = [
+	'overview',
+	'appointments',
+	'queue',
+	'settings',
+];
+const ADMIN_SIDEBAR_SECTIONS: NavSection[] = [
+	'overview',
+	'hospitals',
+	'patients',
+	'appointments',
+	'queue',
+	'medicines',
+	'doctors',
+	'userManagement',
+	'settings',
+];
+const EMPTY_SIDEBAR_SECTIONS: NavSection[] = [];
 
 function isNavSection(value: string | null): value is NavSection {
 	return (
@@ -77,24 +95,14 @@ function getSidebarSectionsForRole(
 	role: string | null | undefined,
 ): NavSection[] {
 	if (role === 'PACIENTE') {
-		return ['overview', 'appointments', 'queue', 'settings'];
+		return PATIENT_SIDEBAR_SECTIONS;
 	}
 
 	if (role === 'ADMIN') {
-		return [
-			'overview',
-			'hospitals',
-			'patients',
-			'appointments',
-			'queue',
-			'medicines',
-			'doctors',
-			'userManagement',
-			'settings',
-		];
+		return ADMIN_SIDEBAR_SECTIONS;
 	}
 
-	return [];
+	return EMPTY_SIDEBAR_SECTIONS;
 }
 
 function getRoleLabel(role: string | null | undefined, locale: 'es' | 'en') {

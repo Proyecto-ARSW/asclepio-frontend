@@ -52,6 +52,7 @@
 		"@types/node": "^25.3.3",
 		"@types/react": "^19.2.14",
 		"@types/react-dom": "^19.2.3",
+		"@vercel/react-router": "^1.2.6",
 		"babel-plugin-react-compiler": "^1.0.0",
 		"prisma": "^6.19.2",
 		"tailwindcss": "^4.2.1",

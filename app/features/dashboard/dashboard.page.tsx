@@ -11,7 +11,7 @@ import {
 	UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { useCallback, useEffect, useState } from 'react';
-import { redirect, useNavigate } from 'react-router';
+import { redirect, useLocation, useNavigate } from 'react-router';
 import { CreateHospitalModal } from '@/components/medical/create-hospital-modal';
 import {
 	HospitalCard,
@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/select/select.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import { Switch } from '@/components/ui/switch/switch.component';
+import { WaitingRoomGame } from '@/components/game/waiting-room-game';
 import { getDashboardContent } from '@/features/dashboard/dashboard-content';
 import {
 	type AppLocale,
@@ -108,7 +109,8 @@ export function meta(_: Route.MetaArgs) {
 
 export default function DashboardPage() {
 	const navigate = useNavigate();
-	const locale = currentLocale();
+	const location = useLocation();
+	const locale = currentLocale(location.pathname);
 	const content = getDashboardContent(locale);
 	const { user, selectedHospital, logout, accessToken } = useAuthStore();
 
@@ -405,7 +407,9 @@ export default function DashboardPage() {
 						/>
 					)}
 
-					{!['overview', 'hospitals', 'patients', 'settings'].includes(
+					{activeSection === 'queue' && <WaitingRoomGame />}
+
+					{!['overview', 'hospitals', 'patients', 'settings', 'queue'].includes(
 						activeSection,
 					) && (
 						<ComingSoonSection

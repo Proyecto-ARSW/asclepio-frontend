@@ -16,6 +16,7 @@ import { useForm } from '@tanstack/react-form';
 import { useEffect, useState } from 'react';
 import { Link, redirect, useNavigate } from 'react-router';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
+import { Badge } from '@/components/ui/badge/badge.component';
 import {
 	Button,
 	buttonVariants,
@@ -263,6 +264,28 @@ export default function RegisterPage() {
 			}
 		},
 	});
+
+	useEffect(() => {
+		if (typeof document === 'undefined') return;
+		setIsDarkMode(document.documentElement.classList.contains('dark'));
+	}, []);
+
+	function handleThemeToggle() {
+		if (typeof document === 'undefined') return;
+		const currentlyDark = document.documentElement.classList.contains('dark');
+		const nextTheme: ThemeMode = currentlyDark ? 'light' : 'dark';
+		const currentPrefs = readUiPreferences();
+		const nextPrefs = { ...currentPrefs, theme: nextTheme };
+		applyUiPreferences(nextPrefs);
+		saveUiPreferences(nextPrefs);
+		setIsDarkMode(!currentlyDark);
+	}
+
+	useEffect(() => {
+		if (step !== 2) {
+			setHasAttemptedHospitalsLoad(false);
+		}
+	}, [step]);
 
 	useEffect(() => {
 		if (typeof document === 'undefined') return;
@@ -586,7 +609,7 @@ export default function RegisterPage() {
 								<div className="space-y-5">
 									<div className="space-y-2">
 										<p className="text-sm font-medium text-foreground">
-											{content.register.labels.hospital}
+											{content.register.labels.rol}
 										</p>
 										{loadingHospitals ? (
 											<div className="space-y-2">

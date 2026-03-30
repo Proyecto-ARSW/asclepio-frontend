@@ -6,6 +6,7 @@
 # React Router
 /.react-router/
 /build/
+/.vercel/
 
 # Local
 /local/

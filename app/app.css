@@ -214,18 +214,6 @@
 	.animate-step-in-right {
 		animation: stepInRight 300ms ease-out forwards;
 	}
-
-	.explore-search-hero {
-		background-image: url("./assets/images/searchbarimg.webp");
-		background-size: cover;
-		background-position: center;
-	}
-
-	.properties-search-hero {
-		background-image: url("./assets/images/apt-ex.webp");
-		background-size: cover;
-		background-position: center;
-	}
 }
 
 @keyframes stepIn {

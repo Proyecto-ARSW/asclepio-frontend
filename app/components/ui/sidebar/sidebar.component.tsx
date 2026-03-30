@@ -20,6 +20,8 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from '@/components/ui/tooltip/tooltip.component';
+import { currentLocale } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
@@ -181,6 +183,7 @@ function Sidebar({
 	collapsible?: 'offcanvas' | 'icon' | 'none';
 }) {
 	const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+	const locale = currentLocale();
 
 	if (collapsible === 'none') {
 		return (
@@ -214,8 +217,10 @@ function Sidebar({
 					side={side}
 				>
 					<SheetHeader className="sr-only">
-						<SheetTitle>Sidebar</SheetTitle>
-						<SheetDescription>Displays the mobile sidebar.</SheetDescription>
+						<SheetTitle>{m.a11ySidebarTitle({}, { locale })}</SheetTitle>
+						<SheetDescription>
+							{m.a11ySidebarDescription({}, { locale })}
+						</SheetDescription>
 					</SheetHeader>
 					<div className="flex h-full w-full flex-col">{children}</div>
 				</SheetContent>
@@ -275,6 +280,7 @@ function SidebarTrigger({
 	...props
 }: React.ComponentProps<typeof Button>) {
 	const { toggleSidebar } = useSidebar();
+	const locale = currentLocale();
 
 	return (
 		<Button
@@ -290,24 +296,25 @@ function SidebarTrigger({
 			{...props}
 		>
 			<HugeiconsIcon icon={SidebarLeftIcon} strokeWidth={2} />
-			<span className="sr-only">Toggle Sidebar</span>
+			<span className="sr-only">{m.a11ySidebarToggle({}, { locale })}</span>
 		</Button>
 	);
 }
 
 function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
 	const { toggleSidebar } = useSidebar();
+	const locale = currentLocale();
 
 	return (
 		<button
 			data-sidebar="rail"
 			data-slot="sidebar-rail"
-			aria-label="Toggle Sidebar"
+			aria-label={m.a11ySidebarToggle({}, { locale })}
 			tabIndex={-1}
 			onClick={toggleSidebar}
-			title="Toggle Sidebar"
+			title={m.a11ySidebarToggle({}, { locale })}
 			className={cn(
-				'hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:start-1/2 after:w-0.5 sm:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2',
+				'hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:inset-s-1/2 after:w-0.5 sm:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2',
 				'in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize',
 				'[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize',
 				'hover:group-data-[collapsible=offcanvas]:bg-sidebar group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full',

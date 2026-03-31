@@ -31,6 +31,7 @@ const LOCAL_FOOD_CHECK_MS = 65;
 const OPTIMISTIC_FOOD_TTL_MS = 900;
 const INITIAL_VIEW = 620;
 const WAITING_ROOM_NICKNAME_KEY = 'waiting-room-game:nickname';
+const WORLD_LIMITS_SCALE = 1.35;
 const MOVEMENT_KEY_CODES = new Set([
 	'ArrowUp',
 	'ArrowDown',
@@ -237,6 +238,8 @@ export function WaitingRoomGame() {
 	// World
 	const worldWRef = useRef(3000);
 	const worldHRef = useRef(3000);
+	const worldMinXRef = useRef(0);
+	const worldMinYRef = useRef(0);
 	const myIdRef = useRef('');
 	const myNameRef = useRef('');
 
@@ -402,11 +405,17 @@ export function WaitingRoomGame() {
 			const setupNickname = setupRef.current.nickname.trim();
 			const setupColor = setupRef.current.color;
 			const playerName = setupNickname || msg.name;
+			const expandedWorldWidth = msg.worldWidth * WORLD_LIMITS_SCALE;
+			const expandedWorldHeight = msg.worldHeight * WORLD_LIMITS_SCALE;
+			const worldPaddingX = (expandedWorldWidth - msg.worldWidth) / 2;
+			const worldPaddingY = (expandedWorldHeight - msg.worldHeight) / 2;
 
 			myIdRef.current = msg.playerId;
 			myNameRef.current = playerName;
-			worldWRef.current = msg.worldWidth;
-			worldHRef.current = msg.worldHeight;
+			worldMinXRef.current = -worldPaddingX;
+			worldMinYRef.current = -worldPaddingY;
+			worldWRef.current = expandedWorldWidth;
+			worldHRef.current = expandedWorldHeight;
 
 			foodMapRef.current.clear();
 			optimisticEatenFoodRef.current.clear();
@@ -510,15 +519,17 @@ export function WaitingRoomGame() {
 			const { x: dx, y: dy } = dirRef.current;
 			const mag = Math.hypot(dx, dy);
 			if (mag > 0.01) {
+				const worldMaxX = worldMinXRef.current + worldWRef.current;
+				const worldMaxY = worldMinYRef.current + worldHRef.current;
 				pred.x += (dx / mag) * spd * dt;
 				pred.y += (dy / mag) * spd * dt;
 				pred.x = Math.max(
-					pred.radius,
-					Math.min(worldWRef.current - pred.radius, pred.x),
+					worldMinXRef.current + pred.radius,
+					Math.min(worldMaxX - pred.radius, pred.x),
 				);
 				pred.y = Math.max(
-					pred.radius,
-					Math.min(worldHRef.current - pred.radius, pred.y),
+					worldMinYRef.current + pred.radius,
+					Math.min(worldMaxY - pred.radius, pred.y),
 				);
 			}
 
@@ -575,6 +586,8 @@ export function WaitingRoomGame() {
 			const pred = predRef.current;
 			const worldW = worldWRef.current;
 			const worldH = worldHRef.current;
+			const worldMinX = worldMinXRef.current;
+			const worldMinY = worldMinYRef.current;
 
 			// ── Camera ──────────────────────────────────────────────────────
 			const shortestSide = Math.min(canvas.width, canvas.height);
@@ -585,8 +598,8 @@ export function WaitingRoomGame() {
 				camX = pred.x;
 				camY = pred.y;
 			} else {
-				camX = worldW / 2;
-				camY = worldH / 2;
+				camX = worldMinX + worldW / 2;
+				camY = worldMinY + worldH / 2;
 				scale = Math.max(
 					0.2,
 					Math.min(2, shortestSide / (INITIAL_VIEW * 1.15)),
@@ -640,7 +653,7 @@ export function WaitingRoomGame() {
 			ctx.strokeStyle = theme.primary;
 			ctx.globalAlpha = 0.5;
 			ctx.lineWidth = 6 / scale;
-			ctx.strokeRect(0, 0, worldW, worldH);
+			ctx.strokeRect(worldMinX, worldMinY, worldW, worldH);
 			ctx.restore();
 
 			// ── Food ────────────────────────────────────────────────────────

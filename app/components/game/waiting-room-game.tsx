@@ -661,7 +661,7 @@ export function WaitingRoomGame() {
 				if (sr > 26) {
 					ctx.font = `${Math.max(9, fs * 0.65)}px "Plus Jakarta Sans",system-ui,sans-serif`;
 					ctx.fillStyle = 'rgba(255,255,255,0.75)';
-					ctx.fillText(String(p.score), sx, sy + fs * 0.72);
+					ctx.fillText(String(p.score), sx, sy + fs * 0.98);
 				}
 			}
 		},

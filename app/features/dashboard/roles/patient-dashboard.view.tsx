@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import { m } from '@/features/i18n/paraglide/messages';
 import { gqlQuery } from '@/lib/graphql-client';
 import type { RoleViewProps } from './dashboard-role.types';
+import { PatientAiSection } from './patient-ai.section';
 import { RoleDashboardShell } from './role-dashboard-shell';
 
 interface PatientsData {
@@ -148,6 +149,7 @@ export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 	const isOverview = !section || section === 'overview';
 	const showAppointments = isOverview || section === 'appointments';
 	const showQueue = isOverview || section === 'queue';
+	const showAi = section === 'ai';
 	const showGame = section === 'queue' && isWaitingRoomOpen;
 	const showQueueList = showQueue && !(section === 'queue' && showGame);
 
@@ -324,6 +326,8 @@ export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 					</div>
 				</section>
 			)}
+
+			{showAi && <PatientAiSection locale={locale} />}
 		</RoleDashboardShell>
 	);
 }

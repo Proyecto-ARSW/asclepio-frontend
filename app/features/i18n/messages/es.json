@@ -352,6 +352,7 @@
 	"dashboardPatientAiNoResult": "Aun no hay resultados. Sube una imagen para iniciar.",
 	"dashboardPatientAiMissingFile": "Selecciona una imagen para continuar.",
 	"dashboardPatientAiRequestFailed": "No fue posible completar la solicitud. Intenta de nuevo mas tarde.",
+	"dashboardPatientAiNetworkError": "No hay conexion disponible. Verifica que el servicio de IA este activo y que la URL configurada sea correcta.",
 	"dashboardPatientAiPredictionTitle": "Resumen de prediccion",
 	"dashboardPatientAiPredictionSubtitle": "Clase mas probable con confianza y detalles del modelo.",
 	"dashboardPatientAiPredictionLabel": "Clase predicha",

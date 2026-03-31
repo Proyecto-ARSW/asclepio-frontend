@@ -11,13 +11,17 @@ export function RoleDashboardShell({
 	title,
 	subtitle,
 	headerAction,
+	showCardIdentity = true,
 	children,
 }: {
 	title: string;
 	subtitle: string;
 	headerAction?: ReactNode;
+	showCardIdentity?: boolean;
 	children: ReactNode;
 }) {
+	const shouldShowCardHeader = showCardIdentity || Boolean(headerAction);
+
 	return (
 		<section className="space-y-4">
 			<header className="space-y-1">
@@ -26,14 +30,28 @@ export function RoleDashboardShell({
 				</h1>
 				<p className="text-sm text-muted-foreground sm:text-base">{subtitle}</p>
 			</header>
-			<Card className="border-border/80 bg-card/90 shadow-sm">
-				<CardHeader className="gap-3 pb-2 sm:flex-row sm:items-start sm:justify-between">
-					<div className="space-y-1">
-						<CardTitle className="text-base">{title}</CardTitle>
-						<CardDescription>{subtitle}</CardDescription>
-					</div>
-					{headerAction && <div className="shrink-0">{headerAction}</div>}
-				</CardHeader>
+			<Card
+				className={`border-border/80 bg-card/90 shadow-sm ${
+					shouldShowCardHeader ? '' : 'pt-0'
+				}`}
+			>
+				{shouldShowCardHeader && (
+					<CardHeader
+						className={`gap-3 pb-2 ${
+							showCardIdentity
+								? 'sm:flex-row sm:items-start sm:justify-between'
+								: 'sm:flex-row sm:items-center sm:justify-end'
+						}`}
+					>
+						{showCardIdentity && (
+							<div className="space-y-1">
+								<CardTitle className="text-base">{title}</CardTitle>
+								<CardDescription>{subtitle}</CardDescription>
+							</div>
+						)}
+						{headerAction && <div className="shrink-0">{headerAction}</div>}
+					</CardHeader>
+				)}
 				<CardContent className="space-y-4">{children}</CardContent>
 			</Card>
 		</section>

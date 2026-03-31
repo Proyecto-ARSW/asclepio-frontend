@@ -149,6 +149,7 @@ export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 	const showAppointments = isOverview || section === 'appointments';
 	const showQueue = isOverview || section === 'queue';
 	const showGame = section === 'queue' && isWaitingRoomOpen;
+	const showQueueList = showQueue && !(section === 'queue' && showGame);
 
 	const calledTurnCandidate = turns.find((turn) =>
 		['LLAMADO', 'LLAMANDO', 'EN_ATENCION', 'EN_CURSO'].includes(turn.estado),
@@ -162,17 +163,20 @@ export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 		<RoleDashboardShell
 			title={m.authRolePatient({}, { locale })}
 			subtitle={m.authRegisterRolePatientDescription({}, { locale })}
+			showCardIdentity={section !== 'queue'}
 			headerAction={
-				<Button
-					type="button"
-					variant="outline"
-					onClick={loadData}
-					disabled={loading}
-					size="sm"
-				>
-					<ArrowPathIcon className="mr-2 h-4 w-4" />
-					{m.dashboardPatientsRefresh({}, { locale })}
-				</Button>
+				!showGame ? (
+					<Button
+						type="button"
+						variant="outline"
+						onClick={loadData}
+						disabled={loading}
+						size="sm"
+					>
+						<ArrowPathIcon className="mr-2 h-4 w-4" />
+						{m.dashboardPatientsRefresh({}, { locale })}
+					</Button>
+				) : undefined
 			}
 		>
 			{error && (
@@ -225,7 +229,7 @@ export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 							)}
 						</section>
 					)}
-					{showQueue && (
+					{showQueueList && (
 						<section className="space-y-3 rounded-xl border border-border/70 p-3">
 							<h3 className="text-sm font-semibold text-foreground">
 								{m.dashboardSidebarQueue({}, { locale })}
@@ -291,14 +295,6 @@ export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 
 			{showGame && (
 				<section className="space-y-3 rounded-xl border border-border/70 p-3">
-					<div>
-						<h3 className="text-sm font-semibold text-foreground">
-							{m.dashboardPatientWaitingRoomGameTitle({}, { locale })}
-						</h3>
-						<p className="text-xs text-muted-foreground">
-							{m.dashboardPatientWaitingRoomGameDescription({}, { locale })}
-						</p>
-					</div>
 					<div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_260px]">
 						<WaitingRoomGame />
 						<div className="rounded-xl border border-border/70 bg-muted/20 p-3 xl:sticky xl:top-4">
@@ -313,6 +309,17 @@ export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 									? `${currentCalledTurn.tipo} - ${currentCalledTurn.estado}`
 									: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
 							</p>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={loadData}
+								disabled={loading}
+								size="sm"
+								className="mt-3 w-full"
+							>
+								<ArrowPathIcon className="mr-2 h-4 w-4" />
+								{m.dashboardPatientsRefresh({}, { locale })}
+							</Button>
 						</div>
 					</div>
 				</section>

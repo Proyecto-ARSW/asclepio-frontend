@@ -31,6 +31,16 @@ const LOCAL_FOOD_CHECK_MS = 65;
 const OPTIMISTIC_FOOD_TTL_MS = 900;
 const INITIAL_VIEW = 620;
 const WAITING_ROOM_NICKNAME_KEY = 'waiting-room-game:nickname';
+const MOVEMENT_KEY_CODES = new Set([
+	'ArrowUp',
+	'ArrowDown',
+	'ArrowLeft',
+	'ArrowRight',
+	'KeyW',
+	'KeyA',
+	'KeyS',
+	'KeyD',
+]);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface PlayerSnapshot {
@@ -232,6 +242,9 @@ export function WaitingRoomGame() {
 
 	// Input
 	const dirRef = useRef({ x: 0, y: 0 });
+	const pointerDirRef = useRef({ x: 0, y: 0 });
+	const keyboardDirRef = useRef({ x: 0, y: 0 });
+	const pressedKeysRef = useRef<Set<string>>(new Set());
 
 	// Prediction (own blob)
 	const predRef = useRef({
@@ -290,27 +303,88 @@ export function WaitingRoomGame() {
 	}, []);
 
 	// ── Input ─────────────────────────────────────────────────────────────────
-	const handleMouseMove = useCallback((e: MouseEvent) => {
-		const canvas = canvasRef.current;
-		if (!canvas) return;
-		const rect = canvas.getBoundingClientRect();
-		const dx = e.clientX - rect.left - canvas.width / 2;
-		const dy = e.clientY - rect.top - canvas.height / 2;
-		const mag = Math.hypot(dx, dy);
-		dirRef.current = mag > 10 ? { x: dx / mag, y: dy / mag } : { x: 0, y: 0 };
+	const applyInputDirection = useCallback(() => {
+		const keyboardDir = keyboardDirRef.current;
+		if (Math.hypot(keyboardDir.x, keyboardDir.y) > 0.01) {
+			dirRef.current = keyboardDir;
+			return;
+		}
+		dirRef.current = pointerDirRef.current;
 	}, []);
 
-	const handleTouchMove = useCallback((e: TouchEvent) => {
-		e.preventDefault();
-		const canvas = canvasRef.current;
-		if (!canvas || !e.touches[0]) return;
-		const rect = canvas.getBoundingClientRect();
-		const t = e.touches[0];
-		const dx = t.clientX - rect.left - canvas.width / 2;
-		const dy = t.clientY - rect.top - canvas.height / 2;
-		const mag = Math.hypot(dx, dy);
-		dirRef.current = mag > 10 ? { x: dx / mag, y: dy / mag } : { x: 0, y: 0 };
-	}, []);
+	const updateKeyboardDirection = useCallback(() => {
+		const pressedKeys = pressedKeysRef.current;
+		let x = 0;
+		let y = 0;
+
+		if (pressedKeys.has('ArrowLeft') || pressedKeys.has('KeyA')) x -= 1;
+		if (pressedKeys.has('ArrowRight') || pressedKeys.has('KeyD')) x += 1;
+		if (pressedKeys.has('ArrowUp') || pressedKeys.has('KeyW')) y -= 1;
+		if (pressedKeys.has('ArrowDown') || pressedKeys.has('KeyS')) y += 1;
+
+		const mag = Math.hypot(x, y);
+		keyboardDirRef.current =
+			mag > 0 ? { x: x / mag, y: y / mag } : { x: 0, y: 0 };
+		applyInputDirection();
+	}, [applyInputDirection]);
+
+	const handleMouseMove = useCallback(
+		(e: MouseEvent) => {
+			const canvas = canvasRef.current;
+			if (!canvas) return;
+			const rect = canvas.getBoundingClientRect();
+			const dx = e.clientX - rect.left - canvas.width / 2;
+			const dy = e.clientY - rect.top - canvas.height / 2;
+			const mag = Math.hypot(dx, dy);
+			pointerDirRef.current =
+				mag > 10 ? { x: dx / mag, y: dy / mag } : { x: 0, y: 0 };
+			applyInputDirection();
+		},
+		[applyInputDirection],
+	);
+
+	const handleTouchMove = useCallback(
+		(e: TouchEvent) => {
+			e.preventDefault();
+			const canvas = canvasRef.current;
+			if (!canvas || !e.touches[0]) return;
+			const rect = canvas.getBoundingClientRect();
+			const t = e.touches[0];
+			const dx = t.clientX - rect.left - canvas.width / 2;
+			const dy = t.clientY - rect.top - canvas.height / 2;
+			const mag = Math.hypot(dx, dy);
+			pointerDirRef.current =
+				mag > 10 ? { x: dx / mag, y: dy / mag } : { x: 0, y: 0 };
+			applyInputDirection();
+		},
+		[applyInputDirection],
+	);
+
+	const handleKeyDown = useCallback(
+		(e: KeyboardEvent) => {
+			if (!MOVEMENT_KEY_CODES.has(e.code)) return;
+			e.preventDefault();
+			pressedKeysRef.current.add(e.code);
+			updateKeyboardDirection();
+		},
+		[updateKeyboardDirection],
+	);
+
+	const handleKeyUp = useCallback(
+		(e: KeyboardEvent) => {
+			if (!MOVEMENT_KEY_CODES.has(e.code)) return;
+			e.preventDefault();
+			pressedKeysRef.current.delete(e.code);
+			updateKeyboardDirection();
+		},
+		[updateKeyboardDirection],
+	);
+
+	const handleWindowBlur = useCallback(() => {
+		if (pressedKeysRef.current.size === 0) return;
+		pressedKeysRef.current.clear();
+		updateKeyboardDirection();
+	}, [updateKeyboardDirection]);
 
 	// ── Drain network messages (called once per rAF) ──────────────────────────
 	const drainMessages = useCallback(() => {
@@ -764,6 +838,10 @@ export function WaitingRoomGame() {
 		stopLoop();
 		predReadyRef.current = false;
 		optimisticEatenFoodRef.current.clear();
+		pointerDirRef.current = { x: 0, y: 0 };
+		keyboardDirRef.current = { x: 0, y: 0 };
+		pressedKeysRef.current.clear();
+		dirRef.current = { x: 0, y: 0 };
 		setPhase('idle');
 	}, [stopLoop]);
 
@@ -815,6 +893,28 @@ export function WaitingRoomGame() {
 			canvas.removeEventListener('touchmove', handleTouchMove);
 		};
 	}, [phase, handleMouseMove, handleTouchMove]);
+
+	// ── Lifecycle: keyboard input events ──────────────────────────────────────
+	useEffect(() => {
+		if (phase !== 'playing') return;
+		window.addEventListener('keydown', handleKeyDown);
+		window.addEventListener('keyup', handleKeyUp);
+		window.addEventListener('blur', handleWindowBlur);
+		return () => {
+			window.removeEventListener('keydown', handleKeyDown);
+			window.removeEventListener('keyup', handleKeyUp);
+			window.removeEventListener('blur', handleWindowBlur);
+			pressedKeysRef.current.clear();
+			keyboardDirRef.current = { x: 0, y: 0 };
+			applyInputDirection();
+		};
+	}, [
+		phase,
+		handleKeyDown,
+		handleKeyUp,
+		handleWindowBlur,
+		applyInputDirection,
+	]);
 
 	// ── Lifecycle: window resize ──────────────────────────────────────────────
 	useEffect(() => {

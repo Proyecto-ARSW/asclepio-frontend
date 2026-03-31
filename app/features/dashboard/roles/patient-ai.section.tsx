@@ -36,19 +36,8 @@ function formatMs(value: number | null) {
 	return `${Math.round(value)} ms`;
 }
 
-function resolveErrorMessage(err: unknown, locale: 'es' | 'en') {
-	if (err instanceof Error) {
-		const message = err.message.toLowerCase();
-		if (
-			message.includes('failed to fetch') ||
-			message.includes('networkerror') ||
-			message.includes('load failed')
-		) {
-			return m.dashboardPatientAiNetworkError({}, { locale });
-		}
-		if (err.message.trim()) return err.message;
-	}
-	return m.dashboardPatientAiRequestFailed({}, { locale });
+function resolveNetworkError(locale: 'es' | 'en') {
+	return m.dashboardPatientAiNetworkError({}, { locale });
 }
 
 export function PatientAiSection({ locale }: { locale: 'es' | 'en' }) {
@@ -107,18 +96,35 @@ export function PatientAiSection({ locale }: { locale: 'es' | 'en' }) {
 			});
 			const duration = performance.now() - start;
 			if (!response.ok) {
-				let detail = m.dashboardPatientAiRequestFailed({}, { locale });
-				try {
-					const payload = await response.json();
-					if (payload?.detail) detail = payload.detail;
-				} catch {}
-				throw new Error(detail);
+				if (response.status === 415) {
+					setError(m.dashboardPatientAiUnsupportedFile({}, { locale }));
+					return;
+				}
+				if (response.status === 422) {
+					setError(m.dashboardPatientAiInvalidImage({}, { locale }));
+					return;
+				}
+				if (response.status === 503) {
+					setError(m.dashboardPatientAiServiceUnavailable({}, { locale }));
+					return;
+				}
+				setError(m.dashboardPatientAiRequestFailed({}, { locale }));
+				return;
 			}
 			const payload = (await response.json()) as AiResult;
 			setResult(payload);
 			setElapsedMs(duration);
 		} catch (err) {
-			setError(resolveErrorMessage(err, locale));
+			const message = err instanceof Error ? err.message.toLowerCase() : '';
+			if (
+				message.includes('failed to fetch') ||
+				message.includes('networkerror') ||
+				message.includes('load failed')
+			) {
+				setError(resolveNetworkError(locale));
+				return;
+			}
+			setError(m.dashboardPatientAiRequestFailed({}, { locale }));
 		} finally {
 			setLoading(false);
 		}
@@ -135,19 +141,13 @@ export function PatientAiSection({ locale }: { locale: 'es' | 'en' }) {
 				</p>
 			</div>
 
-			<Alert>
-				<AlertDescription>
-					{m.dashboardPatientAiNotice({}, { locale })}
-				</AlertDescription>
-			</Alert>
-
 			{error && (
 				<Alert variant="destructive">
 					<AlertDescription>{error}</AlertDescription>
 				</Alert>
 			)}
 
-			<div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+			<div className="grid gap-4 lg:grid-cols-2">
 				<div className="space-y-4">
 					<Card className="border-border/70">
 						<CardHeader className="space-y-1">
@@ -198,33 +198,6 @@ export function PatientAiSection({ locale }: { locale: 'es' | 'en' }) {
 						</CardContent>
 					</Card>
 
-					<Card className="border-border/70">
-						<CardHeader className="space-y-1">
-							<CardTitle className="text-sm">
-								{m.dashboardPatientAiPreviewLabel({}, { locale })}
-							</CardTitle>
-							<CardDescription>
-								{m.dashboardPatientAiPreviewDescription({}, { locale })}
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{previewUrl ? (
-								<img
-									src={previewUrl}
-									alt={m.dashboardPatientAiPreviewLabel({}, { locale })}
-									className="h-auto w-full rounded-lg border border-border/60 object-cover"
-								/>
-							) : (
-								<div className="flex min-h-[160px] items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20 text-xs text-muted-foreground">
-									<PhotoIcon className="mr-2 h-4 w-4" />
-									{m.dashboardPatientAiNoResult({}, { locale })}
-								</div>
-							)}
-						</CardContent>
-					</Card>
-				</div>
-
-				<div className="space-y-4">
 					<Card className="border-border/70">
 						<CardHeader className="space-y-1">
 							<CardTitle className="text-sm">
@@ -312,6 +285,39 @@ export function PatientAiSection({ locale }: { locale: 'es' | 'en' }) {
 								<p className="text-xs text-muted-foreground">
 									{m.dashboardPatientAiNoResult({}, { locale })}
 								</p>
+							)}
+						</CardContent>
+					</Card>
+				</div>
+
+				<div className="space-y-4">
+					<Alert className="border-primary/30 bg-primary/5">
+						<AlertDescription>
+							{m.dashboardPatientAiNotice({}, { locale })}
+						</AlertDescription>
+					</Alert>
+
+					<Card className="border-border/70">
+						<CardHeader className="space-y-1">
+							<CardTitle className="text-sm">
+								{m.dashboardPatientAiPreviewLabel({}, { locale })}
+							</CardTitle>
+							<CardDescription>
+								{m.dashboardPatientAiPreviewDescription({}, { locale })}
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							{previewUrl ? (
+								<img
+									src={previewUrl}
+									alt={m.dashboardPatientAiPreviewLabel({}, { locale })}
+									className="h-auto w-full rounded-lg border border-border/60 object-cover"
+								/>
+							) : (
+								<div className="flex min-h-[160px] items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20 text-xs text-muted-foreground">
+									<PhotoIcon className="mr-2 h-4 w-4" />
+									{m.dashboardPatientAiNoResult({}, { locale })}
+								</div>
 							)}
 						</CardContent>
 					</Card>

@@ -149,6 +149,7 @@ export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 	const showAppointments = isOverview || section === 'appointments';
 	const showQueue = isOverview || section === 'queue';
 	const showGame = section === 'queue' && isWaitingRoomOpen;
+	const showQueueList = showQueue && !(section === 'queue' && showGame);
 
 	const calledTurnCandidate = turns.find((turn) =>
 		['LLAMADO', 'LLAMANDO', 'EN_ATENCION', 'EN_CURSO'].includes(turn.estado),
@@ -162,19 +163,22 @@ export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 		<RoleDashboardShell
 			title={m.authRolePatient({}, { locale })}
 			subtitle={m.authRegisterRolePatientDescription({}, { locale })}
+			showCardIdentity={section !== 'queue'}
+			headerAction={
+				!showGame ? (
+					<Button
+						type="button"
+						variant="outline"
+						onClick={loadData}
+						disabled={loading}
+						size="sm"
+					>
+						<ArrowPathIcon className="mr-2 h-4 w-4" />
+						{m.dashboardPatientsRefresh({}, { locale })}
+					</Button>
+				) : undefined
+			}
 		>
-			<div className="flex justify-end">
-				<Button
-					type="button"
-					variant="outline"
-					onClick={loadData}
-					disabled={loading}
-				>
-					<ArrowPathIcon className="mr-2 h-4 w-4" />
-					{m.dashboardPatientsRefresh({}, { locale })}
-				</Button>
-			</div>
-
 			{error && (
 				<Alert variant="destructive">
 					<AlertDescription>{error}</AlertDescription>
@@ -225,11 +229,35 @@ export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 							)}
 						</section>
 					)}
-					{showQueue && (
-						<section className="space-y-2 rounded-xl border border-border/70 p-3">
+					{showQueueList && (
+						<section className="space-y-3 rounded-xl border border-border/70 p-3">
 							<h3 className="text-sm font-semibold text-foreground">
 								{m.dashboardSidebarQueue({}, { locale })}
 							</h3>
+							{section === 'queue' && !showGame && (
+								<div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+									<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+										<div>
+											<h4 className="text-sm font-semibold text-foreground">
+												{m.dashboardPatientWaitingRoomTitle({}, { locale })}
+											</h4>
+											<p className="text-xs text-muted-foreground">
+												{m.dashboardPatientWaitingRoomDescription(
+													{},
+													{ locale },
+												)}
+											</p>
+										</div>
+										<Button
+											type="button"
+											onClick={() => setIsWaitingRoomOpen(true)}
+											size="sm"
+										>
+											{m.dashboardPatientWaitingRoomAction({}, { locale })}
+										</Button>
+									</div>
+								</div>
+							)}
 							{loading ? (
 								<Skeleton className="h-16 rounded-lg" />
 							) : turns.length === 0 ? (
@@ -267,17 +295,9 @@ export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 
 			{showGame && (
 				<section className="space-y-3 rounded-xl border border-border/70 p-3">
-					<div>
-						<h3 className="text-sm font-semibold text-foreground">
-							{m.dashboardPatientWaitingRoomGameTitle({}, { locale })}
-						</h3>
-						<p className="text-xs text-muted-foreground">
-							{m.dashboardPatientWaitingRoomGameDescription({}, { locale })}
-						</p>
-					</div>
-					<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+					<div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_260px]">
 						<WaitingRoomGame />
-						<div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+						<div className="rounded-xl border border-border/70 bg-muted/20 p-3 xl:sticky xl:top-4">
 							<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
 								{m.dashboardPatientCalledTurnLabel({}, { locale })}
 							</p>
@@ -289,25 +309,18 @@ export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 									? `${currentCalledTurn.tipo} - ${currentCalledTurn.estado}`
 									: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
 							</p>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={loadData}
+								disabled={loading}
+								size="sm"
+								className="mt-3 w-full"
+							>
+								<ArrowPathIcon className="mr-2 h-4 w-4" />
+								{m.dashboardPatientsRefresh({}, { locale })}
+							</Button>
 						</div>
-					</div>
-				</section>
-			)}
-
-			{section === 'queue' && !showGame && (
-				<section className="rounded-xl border border-border/70 bg-muted/20 p-4">
-					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-						<div>
-							<h3 className="text-base font-semibold text-foreground">
-								{m.dashboardPatientWaitingRoomTitle({}, { locale })}
-							</h3>
-							<p className="text-sm text-muted-foreground">
-								{m.dashboardPatientWaitingRoomDescription({}, { locale })}
-							</p>
-						</div>
-						<Button type="button" onClick={() => setIsWaitingRoomOpen(true)}>
-							{m.dashboardPatientWaitingRoomAction({}, { locale })}
-						</Button>
 					</div>
 				</section>
 			)}

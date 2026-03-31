@@ -152,6 +152,10 @@ export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 	const showAi = section === 'ai';
 	const showGame = section === 'queue' && isWaitingRoomOpen;
 	const showQueueList = showQueue && !(section === 'queue' && showGame);
+	const headerSubtitle =
+		section === 'ai'
+			? m.dashboardPatientAiHeaderSubtitle({}, { locale })
+			: m.authRegisterRolePatientDescription({}, { locale });
 
 	const calledTurnCandidate = turns.find((turn) =>
 		['LLAMADO', 'LLAMANDO', 'EN_ATENCION', 'EN_CURSO'].includes(turn.estado),
@@ -164,10 +168,10 @@ export function PatientDashboardView({ user, locale, section }: RoleViewProps) {
 	return (
 		<RoleDashboardShell
 			title={m.authRolePatient({}, { locale })}
-			subtitle={m.authRegisterRolePatientDescription({}, { locale })}
+			subtitle={headerSubtitle}
 			showCardIdentity={section !== 'queue'}
 			headerAction={
-				!showGame ? (
+				!showGame && section !== 'ai' ? (
 					<Button
 						type="button"
 						variant="outline"

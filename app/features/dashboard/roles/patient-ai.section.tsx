@@ -63,6 +63,51 @@ export function PatientAiSection({ locale }: { locale: 'es' | 'en' }) {
 		return Object.entries(result.probabilidades).sort((a, b) => b[1] - a[1]);
 	}, [result]);
 
+	const diseaseCards = useMemo(
+		() => [
+			{
+				title: m.dashboardPatientAiDiseaseCovidTitle({}, { locale }),
+				summary: m.dashboardPatientAiDiseaseCovidSummary({}, { locale }),
+				signs: m.dashboardPatientAiDiseaseCovidSigns({}, { locale }),
+			},
+			{
+				title: m.dashboardPatientAiDiseaseEmphysemaTitle({}, { locale }),
+				summary: m.dashboardPatientAiDiseaseEmphysemaSummary({}, { locale }),
+				signs: m.dashboardPatientAiDiseaseEmphysemaSigns({}, { locale }),
+			},
+			{
+				title: m.dashboardPatientAiDiseaseNormalTitle({}, { locale }),
+				summary: m.dashboardPatientAiDiseaseNormalSummary({}, { locale }),
+				signs: m.dashboardPatientAiDiseaseNormalSigns({}, { locale }),
+			},
+			{
+				title: m.dashboardPatientAiDiseaseBacterialTitle({}, { locale }),
+				summary: m.dashboardPatientAiDiseaseBacterialSummary({}, { locale }),
+				signs: m.dashboardPatientAiDiseaseBacterialSigns({}, { locale }),
+			},
+			{
+				title: m.dashboardPatientAiDiseaseViralTitle({}, { locale }),
+				summary: m.dashboardPatientAiDiseaseViralSummary({}, { locale }),
+				signs: m.dashboardPatientAiDiseaseViralSigns({}, { locale }),
+			},
+			{
+				title: m.dashboardPatientAiDiseaseTbTitle({}, { locale }),
+				summary: m.dashboardPatientAiDiseaseTbSummary({}, { locale }),
+				signs: m.dashboardPatientAiDiseaseTbSigns({}, { locale }),
+			},
+		],
+		[locale],
+	);
+
+	const guidanceItems = useMemo(
+		() => [
+			m.dashboardPatientAiGuidanceItem1({}, { locale }),
+			m.dashboardPatientAiGuidanceItem2({}, { locale }),
+			m.dashboardPatientAiGuidanceItem3({}, { locale }),
+		],
+		[locale],
+	);
+
 	const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 		const nextFile = event.target.files?.[0] ?? null;
 		setFile(nextFile);
@@ -148,204 +193,248 @@ export function PatientAiSection({ locale }: { locale: 'es' | 'en' }) {
 			)}
 
 			<div className="grid gap-4 lg:grid-cols-2">
-				<div className="space-y-4">
-					<Card className="border-border/70">
-						<CardHeader className="space-y-1">
-							<CardTitle className="text-sm">
-								{m.dashboardPatientAiUploadTitle({}, { locale })}
-							</CardTitle>
-							<CardDescription>
-								{m.dashboardPatientAiUploadDescription(
-									{ maxSize: MAX_FILE_MB },
-									{ locale },
-								)}
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-3">
-							<Input
-								type="file"
-								accept="image/png,image/jpeg"
-								onChange={handleFileChange}
-							/>
-							{file && (
-								<p className="text-xs text-muted-foreground">
-									{file.name}
-								</p>
+				<Card className="border-border/70">
+					<CardHeader className="space-y-1">
+						<CardTitle className="text-sm">
+							{m.dashboardPatientAiUploadTitle({}, { locale })}
+						</CardTitle>
+						<CardDescription>
+							{m.dashboardPatientAiUploadDescription(
+								{ maxSize: MAX_FILE_MB },
+								{ locale },
 							)}
-							<div className="flex flex-wrap gap-2">
-								<Button
-									type="button"
-									onClick={handleSubmit}
-									disabled={loading || !file}
-									size="sm"
-									className="gap-2"
-								>
-									<ArrowUpTrayIcon className="h-4 w-4" />
-									{loading
-										? m.dashboardPatientAiProcessing({}, { locale })
-										: m.dashboardPatientAiUploadAction({}, { locale })}
-								</Button>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									onClick={handleReset}
-									disabled={!file && !result}
-								>
-									{m.dashboardPatientAiReset({}, { locale })}
-								</Button>
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						<Input
+							type="file"
+							accept="image/png,image/jpeg"
+							onChange={handleFileChange}
+						/>
+						{file && (
+							<p className="text-xs text-muted-foreground">
+								{file.name}
+							</p>
+						)}
+						<div className="flex flex-wrap gap-2">
+							<Button
+								type="button"
+								onClick={handleSubmit}
+								disabled={loading || !file}
+								size="sm"
+								className="gap-2"
+							>
+								<ArrowUpTrayIcon className="h-4 w-4" />
+								{loading
+									? m.dashboardPatientAiProcessing({}, { locale })
+									: m.dashboardPatientAiUploadAction({}, { locale })}
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={handleReset}
+								disabled={!file && !result}
+							>
+								{m.dashboardPatientAiReset({}, { locale })}
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
+
+				<Alert className="border-primary/30 bg-primary/5">
+					<AlertDescription>
+						{m.dashboardPatientAiNotice({}, { locale })}
+					</AlertDescription>
+				</Alert>
+
+				<Card className="border-border/70">
+					<CardHeader className="space-y-1">
+						<CardTitle className="text-sm">
+							{m.dashboardPatientAiPredictionTitle({}, { locale })}
+						</CardTitle>
+						<CardDescription>
+							{m.dashboardPatientAiPredictionSubtitle({}, { locale })}
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						{loading ? (
+							<Skeleton className="h-20 w-full rounded-lg" />
+						) : result ? (
+							<div className="space-y-3">
+								<div className="flex flex-wrap items-center gap-2">
+									<Badge variant="secondary">
+										{m.dashboardPatientAiPredictionLabel({}, { locale })}:
+									</Badge>
+									<span className="text-sm font-semibold text-foreground">
+										{result.clase_predicha}
+									</span>
+								</div>
+								<div className="flex flex-wrap items-center gap-2">
+									<Badge variant="outline">
+										{m.dashboardPatientAiConfidenceLabel({}, { locale })}
+									</Badge>
+									<span className="text-sm text-foreground">
+										{formatPercent(result.confianza)}
+									</span>
+								</div>
+								<div className="flex flex-wrap items-center gap-2">
+									<span className="text-xs text-muted-foreground">
+										{m.dashboardPatientAiVersionLabel({}, { locale })}
+									</span>
+									<span className="text-xs font-medium text-foreground">
+										{result.version}
+									</span>
+								</div>
+								<div className="flex flex-wrap items-center gap-2">
+									<span className="text-xs text-muted-foreground">
+										{m.dashboardPatientAiResponseTimeLabel({}, { locale })}
+									</span>
+									<span className="text-xs font-medium text-foreground">
+										{formatMs(elapsedMs)}
+									</span>
+								</div>
 							</div>
-						</CardContent>
-					</Card>
+						) : (
+							<p className="text-xs text-muted-foreground">
+								{m.dashboardPatientAiNoResult({}, { locale })}
+							</p>
+						)}
+					</CardContent>
+				</Card>
 
-					<Card className="border-border/70">
-						<CardHeader className="space-y-1">
-							<CardTitle className="text-sm">
-								{m.dashboardPatientAiPredictionTitle({}, { locale })}
-							</CardTitle>
-							<CardDescription>
-								{m.dashboardPatientAiPredictionSubtitle({}, { locale })}
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-3">
-							{loading ? (
-								<Skeleton className="h-20 w-full rounded-lg" />
-							) : result ? (
-								<div className="space-y-3">
-									<div className="flex flex-wrap items-center gap-2">
-										<Badge variant="secondary">
-											{m.dashboardPatientAiPredictionLabel({}, { locale })}:
-										</Badge>
-										<span className="text-sm font-semibold text-foreground">
-											{result.clase_predicha}
-										</span>
-									</div>
-									<div className="flex flex-wrap items-center gap-2">
-										<Badge variant="outline">
-											{m.dashboardPatientAiConfidenceLabel({}, { locale })}
-										</Badge>
-										<span className="text-sm text-foreground">
-											{formatPercent(result.confianza)}
-										</span>
-									</div>
-									<div className="flex flex-wrap items-center gap-2">
-										<span className="text-xs text-muted-foreground">
-											{m.dashboardPatientAiVersionLabel({}, { locale })}
-										</span>
-										<span className="text-xs font-medium text-foreground">
-											{result.version}
-										</span>
-									</div>
-									<div className="flex flex-wrap items-center gap-2">
-										<span className="text-xs text-muted-foreground">
-											{m.dashboardPatientAiResponseTimeLabel({}, { locale })}
-										</span>
-										<span className="text-xs font-medium text-foreground">
-											{formatMs(elapsedMs)}
-										</span>
-									</div>
-								</div>
-							) : (
-								<p className="text-xs text-muted-foreground">
-									{m.dashboardPatientAiNoResult({}, { locale })}
-								</p>
-							)}
-						</CardContent>
-					</Card>
+				<Card className="border-border/70">
+					<CardHeader className="space-y-1">
+						<CardTitle className="text-sm">
+							{m.dashboardPatientAiPreviewLabel({}, { locale })}
+						</CardTitle>
+						<CardDescription>
+							{m.dashboardPatientAiPreviewDescription({}, { locale })}
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						{previewUrl ? (
+							<img
+								src={previewUrl}
+								alt={m.dashboardPatientAiPreviewLabel({}, { locale })}
+								className="h-auto w-full rounded-lg border border-border/60 object-cover"
+							/>
+						) : (
+							<div className="flex min-h-[160px] items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20 text-xs text-muted-foreground">
+								<PhotoIcon className="mr-2 h-4 w-4" />
+								{m.dashboardPatientAiNoResult({}, { locale })}
+							</div>
+						)}
+					</CardContent>
+				</Card>
 
-					<Card className="border-border/70">
-						<CardHeader className="space-y-1">
-							<CardTitle className="text-sm">
-								{m.dashboardPatientAiProbabilitiesTitle({}, { locale })}
-							</CardTitle>
-							<CardDescription>
-								{m.dashboardPatientAiProbabilitiesSubtitle({}, { locale })}
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{loading ? (
-								<Skeleton className="h-24 w-full rounded-lg" />
-							) : probabilityEntries.length > 0 ? (
-								<ul className="space-y-2">
-									{probabilityEntries.map(([label, value]) => (
-										<li
-											key={label}
-											className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2"
-										>
-											<span className="text-xs font-medium text-foreground">
-												{label}
-											</span>
-											<span className="text-xs text-muted-foreground">
-												{formatPercent(value)}
-											</span>
-										</li>
-									))}
-								</ul>
-							) : (
-								<p className="text-xs text-muted-foreground">
-									{m.dashboardPatientAiNoResult({}, { locale })}
-								</p>
-							)}
-						</CardContent>
-					</Card>
+				<Card className="border-border/70">
+					<CardHeader className="space-y-1">
+						<CardTitle className="text-sm">
+							{m.dashboardPatientAiProbabilitiesTitle({}, { locale })}
+						</CardTitle>
+						<CardDescription>
+							{m.dashboardPatientAiProbabilitiesSubtitle({}, { locale })}
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						{loading ? (
+							<Skeleton className="h-24 w-full rounded-lg" />
+						) : probabilityEntries.length > 0 ? (
+							<ul className="space-y-2">
+								{probabilityEntries.map(([label, value]) => (
+									<li
+										key={label}
+										className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2"
+									>
+										<span className="text-xs font-medium text-foreground">
+											{label}
+										</span>
+										<span className="text-xs text-muted-foreground">
+											{formatPercent(value)}
+										</span>
+									</li>
+								))}
+							</ul>
+						) : (
+							<p className="text-xs text-muted-foreground">
+								{m.dashboardPatientAiNoResult({}, { locale })}
+							</p>
+						)}
+					</CardContent>
+				</Card>
+
+				<Card className="border-border/70">
+					<CardHeader className="space-y-1">
+						<CardTitle className="text-sm">
+							{m.dashboardPatientAiResultTitle({}, { locale })}
+						</CardTitle>
+						<CardDescription>
+							{m.dashboardPatientAiResultDescription({}, { locale })}
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						{loading ? (
+							<Skeleton className="h-44 w-full rounded-lg" />
+						) : result?.gradcam_png_base64 ? (
+							<img
+								src={`data:image/png;base64,${result.gradcam_png_base64}`}
+								alt={m.dashboardPatientAiResultTitle({}, { locale })}
+								className="h-auto w-full rounded-lg border border-border/60 object-cover"
+							/>
+						) : (
+							<div className="flex min-h-[160px] items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20 text-xs text-muted-foreground">
+								<PhotoIcon className="mr-2 h-4 w-4" />
+								{m.dashboardPatientAiNoResult({}, { locale })}
+							</div>
+						)}
+					</CardContent>
+				</Card>
+			</div>
+
+			<div className="space-y-3">
+				<div className="space-y-1">
+					<h4 className="text-sm font-semibold text-foreground">
+						{m.dashboardPatientAiEducationTitle({}, { locale })}
+					</h4>
+					<p className="text-xs text-muted-foreground">
+						{m.dashboardPatientAiEducationSubtitle({}, { locale })}
+					</p>
 				</div>
-
-				<div className="space-y-4">
-					<Alert className="border-primary/30 bg-primary/5">
-						<AlertDescription>
-							{m.dashboardPatientAiNotice({}, { locale })}
-						</AlertDescription>
-					</Alert>
-
-					<Card className="border-border/70">
+				<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+					{diseaseCards.map((card) => (
+						<Card key={card.title} className="border-border/70">
+							<CardHeader className="space-y-1">
+								<CardTitle className="text-sm">{card.title}</CardTitle>
+							</CardHeader>
+							<CardContent className="space-y-2">
+								<p className="text-xs text-muted-foreground">
+									{card.summary}
+								</p>
+								<p className="text-xs text-muted-foreground">
+									{card.signs}
+								</p>
+							</CardContent>
+						</Card>
+					))}
+					<Card className="border-border/70 sm:col-span-2 xl:col-span-3">
 						<CardHeader className="space-y-1">
 							<CardTitle className="text-sm">
-								{m.dashboardPatientAiPreviewLabel({}, { locale })}
+								{m.dashboardPatientAiGuidanceTitle({}, { locale })}
 							</CardTitle>
 							<CardDescription>
-								{m.dashboardPatientAiPreviewDescription({}, { locale })}
+								{m.dashboardPatientAiGuidanceSubtitle({}, { locale })}
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
-							{previewUrl ? (
-								<img
-									src={previewUrl}
-									alt={m.dashboardPatientAiPreviewLabel({}, { locale })}
-									className="h-auto w-full rounded-lg border border-border/60 object-cover"
-								/>
-							) : (
-								<div className="flex min-h-[160px] items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20 text-xs text-muted-foreground">
-									<PhotoIcon className="mr-2 h-4 w-4" />
-									{m.dashboardPatientAiNoResult({}, { locale })}
-								</div>
-							)}
-						</CardContent>
-					</Card>
-
-					<Card className="border-border/70">
-						<CardHeader className="space-y-1">
-							<CardTitle className="text-sm">
-								{m.dashboardPatientAiResultTitle({}, { locale })}
-							</CardTitle>
-							<CardDescription>
-								{m.dashboardPatientAiResultDescription({}, { locale })}
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{loading ? (
-								<Skeleton className="h-44 w-full rounded-lg" />
-							) : result?.gradcam_png_base64 ? (
-								<img
-									src={`data:image/png;base64,${result.gradcam_png_base64}`}
-									alt={m.dashboardPatientAiResultTitle({}, { locale })}
-									className="h-auto w-full rounded-lg border border-border/60 object-cover"
-								/>
-							) : (
-								<div className="flex min-h-[160px] items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20 text-xs text-muted-foreground">
-									<PhotoIcon className="mr-2 h-4 w-4" />
-									{m.dashboardPatientAiNoResult({}, { locale })}
-								</div>
-							)}
+							<ul className="space-y-2 text-xs text-muted-foreground">
+								{guidanceItems.map((item) => (
+									<li key={item} className="flex gap-2">
+										<span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary/60" />
+										<span>{item}</span>
+									</li>
+								))}
+							</ul>
 						</CardContent>
 					</Card>
 				</div>

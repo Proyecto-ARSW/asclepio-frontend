@@ -36,6 +36,21 @@ function formatMs(value: number | null) {
 	return `${Math.round(value)} ms`;
 }
 
+function resolveErrorMessage(err: unknown, locale: 'es' | 'en') {
+	if (err instanceof Error) {
+		const message = err.message.toLowerCase();
+		if (
+			message.includes('failed to fetch') ||
+			message.includes('networkerror') ||
+			message.includes('load failed')
+		) {
+			return m.dashboardPatientAiNetworkError({}, { locale });
+		}
+		if (err.message.trim()) return err.message;
+	}
+	return m.dashboardPatientAiRequestFailed({}, { locale });
+}
+
 export function PatientAiSection({ locale }: { locale: 'es' | 'en' }) {
 	const [file, setFile] = useState<File | null>(null);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -103,7 +118,7 @@ export function PatientAiSection({ locale }: { locale: 'es' | 'en' }) {
 			setResult(payload);
 			setElapsedMs(duration);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : '');
+			setError(resolveErrorMessage(err, locale));
 		} finally {
 			setLoading(false);
 		}

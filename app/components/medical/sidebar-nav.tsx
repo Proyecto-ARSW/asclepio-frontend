@@ -8,6 +8,7 @@ import {
 	HomeIcon,
 	IdentificationIcon,
 	QueueListIcon,
+	SparklesIcon,
 	UserGroupIcon,
 	UserIcon,
 	XMarkIcon,
@@ -20,6 +21,7 @@ import {
 	HomeIcon as HomeIconSolid,
 	IdentificationIcon as IdentificationIconSolid,
 	QueueListIcon as QueueListIconSolid,
+	SparklesIcon as SparklesIconSolid,
 	UserGroupIcon as UserGroupIconSolid,
 	UserIcon as UserIconSolid,
 } from '@heroicons/react/24/solid';
@@ -34,6 +36,7 @@ export type NavSection =
 	| 'patients'
 	| 'appointments'
 	| 'queue'
+	| 'ai'
 	| 'medicines'
 	| 'doctors'
 	| 'userManagement'
@@ -59,6 +62,7 @@ const navItems: NavItem[] = [
 		iconActive: CalendarDaysIconSolid,
 	},
 	{ key: 'queue', icon: QueueListIcon, iconActive: QueueListIconSolid },
+	{ key: 'ai', icon: SparklesIcon, iconActive: SparklesIconSolid },
 	{ key: 'medicines', icon: BeakerIcon, iconActive: BeakerIconSolid },
 	{ key: 'doctors', icon: UserIcon, iconActive: UserIconSolid },
 	{
@@ -93,6 +97,7 @@ const defaultSectionLabels: Record<NavSection, string> = {
 	patients: '',
 	appointments: '',
 	queue: '',
+	ai: '',
 	medicines: '',
 	doctors: '',
 	userManagement: '',
@@ -118,6 +123,7 @@ function SidebarContent({
 		patients: m.dashboardSidebarPatients({}, { locale }),
 		appointments: m.dashboardSidebarAppointments({}, { locale }),
 		queue: m.dashboardSidebarQueue({}, { locale }),
+		ai: m.dashboardSidebarAi({}, { locale }),
 		medicines: m.dashboardSidebarMedicines({}, { locale }),
 		doctors: m.dashboardSidebarDoctors({}, { locale }),
 		userManagement: m.dashboardSidebarUserManagement({}, { locale }),

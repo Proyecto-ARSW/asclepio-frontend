@@ -30,6 +30,7 @@ const FOOD_PICKUP_PADDING = 2;
 const LOCAL_FOOD_CHECK_MS = 65;
 const OPTIMISTIC_FOOD_TTL_MS = 900;
 const INITIAL_VIEW = 620;
+const WAITING_ROOM_NICKNAME_KEY = 'waiting-room-game:nickname';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface PlayerSnapshot {
@@ -51,6 +52,8 @@ interface FoodSnapshot {
 
 interface LeaderboardEntry {
 	rank: number;
+	id?: string;
+	playerId?: string;
 	name: string;
 	score: number;
 	color: string;
@@ -142,6 +145,30 @@ function buildWsUrl(token: string, setup?: GameSetupValues): string {
 	return `${wsOrigin}/ws/game?${params.toString()}`;
 }
 
+function getStoredNickname(userId?: string): string | null {
+	if (typeof window === 'undefined' || !userId) return null;
+	try {
+		const nickname = window.localStorage
+			.getItem(`${WAITING_ROOM_NICKNAME_KEY}:${userId}`)
+			?.trim();
+		return nickname ? nickname : null;
+	} catch {
+		return null;
+	}
+}
+
+function setStoredNickname(userId: string | undefined, nickname: string) {
+	if (typeof window === 'undefined' || !userId) return;
+	try {
+		window.localStorage.setItem(
+			`${WAITING_ROOM_NICKNAME_KEY}:${userId}`,
+			nickname,
+		);
+	} catch {
+		// Ignore storage errors (private mode / quotas).
+	}
+}
+
 // ─── Rendering helpers ────────────────────────────────────────────────────────
 function lighten(hex: string, amt: number): string {
 	const n = parseInt(hex.replace('#', ''), 16);
@@ -159,16 +186,21 @@ function blobSpeed(r: number) {
 	return BASE_SPEED / (1 + r / SPEED_DECAY);
 }
 
+function normalizeName(value: string | undefined): string {
+	return (value ?? '').trim().toLowerCase();
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 type GamePhase = 'idle' | 'connecting' | 'playing' | 'dead' | 'error';
 
 export function WaitingRoomGame() {
 	const { accessToken, user } = useAuthStore();
 	const locale = currentLocale();
-	const initialNickname =
+	const profileNickname =
 		user && `${user.nombre ?? ''} ${user.apellido ?? ''}`.trim().length > 0
 			? `${user.nombre ?? ''} ${user.apellido ?? ''}`.trim()
 			: m.authRolePatient({}, { locale });
+	const initialNickname = getStoredNickname(user?.id) ?? profileNickname;
 	const initialColor = resolveColor('--primary', '#3b82f6');
 
 	const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -238,6 +270,7 @@ export function WaitingRoomGame() {
 		nickname: initialNickname,
 		color: initialColor,
 	});
+	const lastSyncedNicknameRef = useRef(initialNickname);
 
 	// Pending network messages — only latest state frame kept
 	const pendingInitRef = useRef<InitMsg | null>(null);
@@ -741,13 +774,24 @@ export function WaitingRoomGame() {
 		},
 		onSubmit: async ({ value }) => {
 			const nickname = value.nickname.trim() || initialNickname;
+			setStoredNickname(user?.id, nickname);
 			setupRef.current = {
 				nickname,
 				color: value.color || initialColor,
 			};
+			lastSyncedNicknameRef.current = nickname;
 			connect();
 		},
 	});
+
+	useEffect(() => {
+		if (phase !== 'idle') return;
+		if (lastSyncedNicknameRef.current === initialNickname) return;
+
+		setupForm.setFieldValue('nickname', initialNickname);
+		setupRef.current.nickname = initialNickname;
+		lastSyncedNicknameRef.current = initialNickname;
+	}, [initialNickname, phase, setupForm]);
 
 	// ── Lifecycle: start/stop loop with phase ─────────────────────────────────
 	useEffect(() => {
@@ -794,6 +838,34 @@ export function WaitingRoomGame() {
 	// ─── Render ───────────────────────────────────────────────────────────────
 	const isPlaying = phase === 'playing';
 	const ownDisplayName = setupRef.current.nickname || initialNickname;
+	const ownDisplayColor = setupRef.current.color || initialColor;
+	const visibleLeaderboard = leaderboard.slice(0, LEADERBOARD_SIZE);
+	const ownByIdLeaderboardIndex = visibleLeaderboard.findIndex(
+		(entry) =>
+			(entry.playerId && entry.playerId === myIdRef.current) ||
+			(entry.id && entry.id === myIdRef.current),
+	);
+	const ownByChosenNameLeaderboardIndex =
+		ownByIdLeaderboardIndex >= 0
+			? -1
+			: visibleLeaderboard.findIndex(
+					(entry) =>
+						normalizeName(entry.name) === normalizeName(ownDisplayName) ||
+						normalizeName(entry.name) === normalizeName(myNameRef.current),
+				);
+	const ownByProfileNameLeaderboardIndex =
+		ownByIdLeaderboardIndex >= 0 || ownByChosenNameLeaderboardIndex >= 0
+			? -1
+			: visibleLeaderboard.findIndex(
+					(entry) =>
+						normalizeName(entry.name) === normalizeName(profileNickname),
+				);
+	const ownLeaderboardIndex =
+		ownByIdLeaderboardIndex >= 0
+			? ownByIdLeaderboardIndex
+			: ownByChosenNameLeaderboardIndex >= 0
+				? ownByChosenNameLeaderboardIndex
+				: ownByProfileNameLeaderboardIndex;
 
 	return (
 		<div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -861,28 +933,38 @@ export function WaitingRoomGame() {
 						</p>
 					) : (
 						<ol className="mt-2 space-y-1">
-							{leaderboard.slice(0, LEADERBOARD_SIZE).map((entry) => (
-								<li
-									key={`${entry.rank}-${entry.name}`}
-									className={`flex items-center gap-2 rounded-md px-1.5 py-1 text-[11px] ${
-										entry.name === ownDisplayName
-											? 'bg-primary/15 font-semibold text-primary'
-											: 'text-foreground'
-									}`}
-								>
-									<span className="w-4 shrink-0 text-right tabular-nums text-muted-foreground">
-										{entry.rank}
-									</span>
-									<span
-										className="h-2.5 w-2.5 shrink-0 rounded-full"
-										style={{ backgroundColor: entry.color }}
-									/>
-									<span className="flex-1 truncate">{entry.name}</span>
-									<span className="tabular-nums text-muted-foreground">
-										{entry.score}
-									</span>
-								</li>
-							))}
+							{visibleLeaderboard.map((entry, index) => {
+								const isOwnEntry = index === ownLeaderboardIndex;
+								const displayName = isOwnEntry ? ownDisplayName : entry.name;
+								const displayColor = isOwnEntry ? ownDisplayColor : entry.color;
+
+								return (
+									<li
+										key={
+											entry.playerId ??
+											entry.id ??
+											`${entry.rank}-${entry.name}`
+										}
+										className={`flex items-center gap-2 rounded-md px-1.5 py-1 text-[11px] ${
+											isOwnEntry
+												? 'bg-primary/15 font-semibold text-primary'
+												: 'text-foreground'
+										}`}
+									>
+										<span className="w-4 shrink-0 text-right tabular-nums text-muted-foreground">
+											{entry.rank}
+										</span>
+										<span
+											className="h-2.5 w-2.5 shrink-0 rounded-full"
+											style={{ backgroundColor: displayColor }}
+										/>
+										<span className="flex-1 truncate">{displayName}</span>
+										<span className="tabular-nums text-muted-foreground">
+											{entry.score}
+										</span>
+									</li>
+								);
+							})}
 						</ol>
 					)}
 				</div>

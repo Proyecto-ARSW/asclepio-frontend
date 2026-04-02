@@ -4,6 +4,8 @@ import {
 	BeakerIcon,
 	BuildingOffice2Icon,
 	CalendarDaysIcon,
+	ClipboardDocumentListIcon,
+	ClockIcon,
 	Cog6ToothIcon,
 	HomeIcon,
 	IdentificationIcon,
@@ -16,6 +18,8 @@ import {
 	BeakerIcon as BeakerIconSolid,
 	BuildingOffice2Icon as BuildingOffice2IconSolid,
 	CalendarDaysIcon as CalendarDaysIconSolid,
+	ClipboardDocumentListIcon as ClipboardDocumentListIconSolid,
+	ClockIcon as ClockIconSolid,
 	Cog6ToothIcon as Cog6ToothIconSolid,
 	HomeIcon as HomeIconSolid,
 	IdentificationIcon as IdentificationIconSolid,
@@ -37,6 +41,8 @@ export type NavSection =
 	| 'medicines'
 	| 'doctors'
 	| 'userManagement'
+	| 'disponibilidad'
+	| 'historial'
 	| 'settings';
 
 interface NavItem {
@@ -65,6 +71,18 @@ const navItems: NavItem[] = [
 		key: 'userManagement',
 		icon: IdentificationIcon,
 		iconActive: IdentificationIconSolid,
+	},
+	// Sección de disponibilidad horaria (médicos/enfermeros)
+	{
+		key: 'disponibilidad',
+		icon: ClockIcon,
+		iconActive: ClockIconSolid,
+	},
+	// Sección de historial médico (médicos/pacientes)
+	{
+		key: 'historial',
+		icon: ClipboardDocumentListIcon,
+		iconActive: ClipboardDocumentListIconSolid,
 	},
 	{ key: 'settings', icon: Cog6ToothIcon, iconActive: Cog6ToothIconSolid },
 ];
@@ -96,6 +114,8 @@ const defaultSectionLabels: Record<NavSection, string> = {
 	medicines: '',
 	doctors: '',
 	userManagement: '',
+	disponibilidad: '',
+	historial: '',
 	settings: '',
 };
 
@@ -121,6 +141,8 @@ function SidebarContent({
 		medicines: m.dashboardSidebarMedicines({}, { locale }),
 		doctors: m.dashboardSidebarDoctors({}, { locale }),
 		userManagement: m.dashboardSidebarUserManagement({}, { locale }),
+		disponibilidad: m.dashboardSidebarDisponibilidad({}, { locale }),
+		historial: m.dashboardSidebarHistorial({}, { locale }),
 		settings: m.dashboardSidebarSettings({}, { locale }),
 		...labels?.sections,
 	};

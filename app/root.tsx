@@ -53,6 +53,33 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<Links />
 			</head>
 			<body suppressHydrationWarning>
+				{/* SVG oculto con la definición del filtro de daltonismo rojo-verde.
+				    Usamos feColorMatrix con la matriz de Vienot (1999) para deuteranopia.
+				    Al estar en el DOM, puede ser referenciado por filter:url('#id') en CSS
+				    desde cualquier elemento del documento. */}
+				<svg
+					aria-hidden="true"
+					focusable="false"
+					style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
+				>
+					<defs>
+						<filter
+							id="asclepio-colorblind-filter"
+							colorInterpolationFilters="linearRGB"
+						>
+							{/* Matriz deuteranopia (Vienot 1999): redistribuye canales R/G/B
+							    para que los colores confundibles por daltonismo R-G sean
+							    perceptualmente más distintos. */}
+							<feColorMatrix
+								type="matrix"
+								values="0.625 0.375 0     0 0
+								        0.700 0.300 0     0 0
+								        0.000 0.300 0.700 0 0
+								        0     0     0     1 0"
+							/>
+						</filter>
+					</defs>
+				</svg>
 				{children}
 				<Toaster />
 				<Analytics />
@@ -109,3 +136,5 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 		</main>
 	);
 }
+
+// Daniel Useche

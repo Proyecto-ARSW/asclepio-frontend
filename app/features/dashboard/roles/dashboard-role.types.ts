@@ -11,6 +11,7 @@ export type DashboardSection =
 	| 'patients'
 	| 'appointments'
 	| 'queue'
+	| 'ai'
 	| 'medicines'
 	| 'doctors'
 	| 'userManagement'

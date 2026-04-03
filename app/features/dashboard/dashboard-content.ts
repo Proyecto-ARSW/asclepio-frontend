@@ -148,6 +148,7 @@ export function getDashboardContent(
 				patients: m.dashboardSidebarPatients({}, options),
 				appointments: m.dashboardSidebarAppointments({}, options),
 				queue: m.dashboardSidebarQueue({}, options),
+				ai: m.dashboardSidebarAi({}, options),
 				medicines: m.dashboardSidebarMedicines({}, options),
 				doctors: m.dashboardSidebarDoctors({}, options),
 				userManagement: m.dashboardSidebarUserManagement({}, options),

@@ -64,6 +64,7 @@ const PATIENT_SIDEBAR_SECTIONS: NavSection[] = [
 	'appointments',
 	'historial',
 	'queue',
+	'ai',
 	'settings',
 ];
 const ADMIN_SIDEBAR_SECTIONS: NavSection[] = [
@@ -107,6 +108,7 @@ function isNavSection(value: string | null): value is NavSection {
 		value === 'patients' ||
 		value === 'appointments' ||
 		value === 'queue' ||
+		value === 'ai' ||
 		value === 'medicines' ||
 		value === 'doctors' ||
 		value === 'userManagement' ||

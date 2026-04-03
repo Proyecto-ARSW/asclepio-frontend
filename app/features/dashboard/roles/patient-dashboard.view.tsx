@@ -29,6 +29,7 @@ import type { AppLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import { gqlMutation, gqlQuery } from '@/lib/graphql-client';
 import type { RoleViewProps } from './dashboard-role.types';
+import { PatientAiSection } from './patient-ai.section';
 import { RoleDashboardShell } from './role-dashboard-shell';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -367,8 +368,14 @@ export function PatientDashboardView({
 	const isOverview = !section || section === 'overview';
 	const showAppointments = isOverview || section === 'appointments';
 	const showQueue = isOverview || section === 'queue';
+	const showAi = section === 'ai';
 	const showGame = section === 'queue' && isWaitingRoomOpen;
 	const showHistorial = section === 'historial';
+	const showQueueList = showQueue && !(section === 'queue' && showGame);
+	const headerSubtitle =
+		section === 'ai'
+			? m.dashboardPatientAiHeaderSubtitle({}, { locale })
+			: m.authRegisterRolePatientDescription({}, { locale });
 
 	// ─── Sección de citas con formulario de agendado ──────────────────────────
 
@@ -521,10 +528,10 @@ export function PatientDashboardView({
 	return (
 		<RoleDashboardShell
 			title={m.authRolePatient({}, { locale })}
-			subtitle={m.authRegisterRolePatientDescription({}, { locale })}
+			subtitle={headerSubtitle}
 			showCardIdentity={section !== 'queue'}
 			headerAction={
-				!showGame ? (
+				!showGame && section !== 'ai' ? (
 					<Button
 						type="button"
 						variant="outline"
@@ -776,6 +783,8 @@ export function PatientDashboardView({
 					</div>
 				</section>
 			)}
+
+			{showAi && <PatientAiSection locale={locale} />}
 		</RoleDashboardShell>
 	);
 }

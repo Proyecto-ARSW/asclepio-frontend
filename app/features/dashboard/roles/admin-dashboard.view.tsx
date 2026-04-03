@@ -628,6 +628,7 @@ export function AdminDashboardView({
 		patients: m.dashboardSidebarPatients({}, { locale }),
 		appointments: m.dashboardSidebarAppointments({}, { locale }),
 		queue: m.dashboardSidebarQueue({}, { locale }),
+		ai: m.dashboardSidebarAi({}, { locale }),
 		medicines: m.dashboardSidebarMedicines({}, { locale }),
 		doctors: m.dashboardSidebarDoctors({}, { locale }),
 		userManagement: m.dashboardSidebarUserManagement({}, { locale }),

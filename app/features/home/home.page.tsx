@@ -744,7 +744,7 @@ export default function HomePage() {
 	const locale = currentLocale(location.pathname);
 	const [isDarkMode, setIsDarkMode] = useState(false);
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-	const localeCycle = ['es', 'en', 'pt', 'fr'] as const;
+	const localeCycle = ['es', 'en', 'pt', 'fr', 'de'] as const;
 	const nextLocale = localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
 	const localeTogglePath = `${localePath(location.pathname, nextLocale)}${location.search}${location.hash}`;
 

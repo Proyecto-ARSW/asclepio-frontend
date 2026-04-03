@@ -208,7 +208,7 @@ export default function RegisterPage() {
 	const [hasAttemptedHospitalsLoad, setHasAttemptedHospitalsLoad] =
 		useState(false);
 	const [isDarkMode, setIsDarkMode] = useState(false);
-	const localeCycle = ['es', 'en', 'pt', 'fr'] as const;
+	const localeCycle = ['es', 'en', 'pt', 'fr', 'de'] as const;
 	const nextLocale = localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
 
 	const form = useForm({

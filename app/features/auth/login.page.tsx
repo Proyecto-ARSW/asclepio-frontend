@@ -68,7 +68,7 @@ export default function LoginPage() {
 	const locale = currentLocale();
 	const content = getAuthContent(locale);
 	const [isDarkMode, setIsDarkMode] = useState(false);
-	const localeCycle = ['es', 'en', 'pt', 'fr'] as const;
+	const localeCycle = ['es', 'en', 'pt', 'fr', 'de'] as const;
 	const nextLocale = localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
 
 	useEffect(() => {

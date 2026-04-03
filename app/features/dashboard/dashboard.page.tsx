@@ -174,7 +174,7 @@ export default function DashboardPage() {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const locale = localeFromPathname(location.pathname);
-	const localeCycle: AppLocale[] = ['es', 'en', 'pt', 'fr'];
+	const localeCycle: AppLocale[] = ['es', 'en', 'pt', 'fr', 'de'];
 	const nextLocale =
 		localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
 	const { user, selectedHospital, logout } = useAuthStore();
@@ -704,6 +704,13 @@ function SettingsPanel({
 							onClick={() => onLanguageChange('fr')}
 						>
 							{m.dashboardSettingsLanguageFr({}, { locale })}
+						</Button>
+						<Button
+							type="button"
+							variant={locale === 'de' ? 'default' : 'outline'}
+							onClick={() => onLanguageChange('de')}
+						>
+							{m.dashboardSettingsLanguageDe({}, { locale })}
 						</Button>
 					</div>
 				</div>

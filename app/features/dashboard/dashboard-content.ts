@@ -152,6 +152,8 @@ export function getDashboardContent(
 				medicines: m.dashboardSidebarMedicines({}, options),
 				doctors: m.dashboardSidebarDoctors({}, options),
 				userManagement: m.dashboardSidebarUserManagement({}, options),
+				disponibilidad: m.dashboardSidebarDisponibilidad({}, options),
+				historial: m.dashboardSidebarHistorial({}, options),
 				settings: m.dashboardSidebarSettings({}, options),
 			},
 		},

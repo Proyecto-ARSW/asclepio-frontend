@@ -61,6 +61,7 @@ const DASHBOARD_SECTION_STORAGE_KEY = 'asclepio-dashboard-active-section';
 const PATIENT_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
 	'appointments',
+	'historial',
 	'queue',
 	'ai',
 	'settings',
@@ -76,7 +77,28 @@ const ADMIN_SIDEBAR_SECTIONS: NavSection[] = [
 	'userManagement',
 	'settings',
 ];
-const EMPTY_SIDEBAR_SECTIONS: NavSection[] = [];
+// Médico: ve sus citas, gestiona disponibilidad y registra historial
+const DOCTOR_SIDEBAR_SECTIONS: NavSection[] = [
+	'overview',
+	'appointments',
+	'disponibilidad',
+	'historial',
+	'settings',
+];
+// Enfermero: ve su disponibilidad y gestiona la cola de turnos
+const NURSE_SIDEBAR_SECTIONS: NavSection[] = [
+	'overview',
+	'disponibilidad',
+	'queue',
+	'settings',
+];
+// Recepcionista: gestiona citas y cola de turnos del hospital
+const RECEPTIONIST_SIDEBAR_SECTIONS: NavSection[] = [
+	'overview',
+	'appointments',
+	'queue',
+	'settings',
+];
 
 function isNavSection(value: string | null): value is NavSection {
 	return (
@@ -96,15 +118,20 @@ function isNavSection(value: string | null): value is NavSection {
 function getSidebarSectionsForRole(
 	role: string | null | undefined,
 ): NavSection[] {
-	if (role === 'PACIENTE') {
-		return PATIENT_SIDEBAR_SECTIONS;
+	switch (role) {
+		case 'ADMIN':
+			return ADMIN_SIDEBAR_SECTIONS;
+		case 'PACIENTE':
+			return PATIENT_SIDEBAR_SECTIONS;
+		case 'MEDICO':
+			return DOCTOR_SIDEBAR_SECTIONS;
+		case 'ENFERMERO':
+			return NURSE_SIDEBAR_SECTIONS;
+		case 'RECEPCIONISTA':
+			return RECEPTIONIST_SIDEBAR_SECTIONS;
+		default:
+			return [];
 	}
-
-	if (role === 'ADMIN') {
-		return ADMIN_SIDEBAR_SECTIONS;
-	}
-
-	return EMPTY_SIDEBAR_SECTIONS;
 }
 
 function getRoleLabel(role: string | null | undefined, locale: 'es' | 'en') {
@@ -460,25 +487,41 @@ function SidebarSectionRenderer({
 		);
 	}
 
-	if (user.rol === 'ADMIN') {
-		return (
-			<AdminDashboardView
-				user={user}
-				locale={locale}
-				section={section}
-				selectedHospitalId={selectedHospitalId}
-				overviewBlocks={overviewBlocks}
-			/>
-		);
+	// Cada rol recibe la sección activa para que pueda renderizar el contenido correcto
+	switch (user.rol) {
+		case 'ADMIN':
+			return (
+				<AdminDashboardView
+					user={user}
+					locale={locale}
+					section={section}
+					selectedHospitalId={selectedHospitalId}
+					overviewBlocks={overviewBlocks}
+				/>
+			);
+		case 'PACIENTE':
+			return (
+				<PatientDashboardView user={user} locale={locale} section={section} />
+			);
+		case 'MEDICO':
+			return (
+				<DoctorDashboardView user={user} locale={locale} section={section} />
+			);
+		case 'ENFERMERO':
+			return (
+				<NurseDashboardView user={user} locale={locale} section={section} />
+			);
+		case 'RECEPCIONISTA':
+			return (
+				<ReceptionistDashboardView
+					user={user}
+					locale={locale}
+					section={section}
+				/>
+			);
+		default:
+			return <RoleRenderer user={user} locale={locale} />;
 	}
-
-	if (user.rol === 'PACIENTE') {
-		return (
-			<PatientDashboardView user={user} locale={locale} section={section} />
-		);
-	}
-
-	return <RoleRenderer user={user} locale={locale} />;
 }
 
 function RoleRenderer({

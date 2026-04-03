@@ -311,9 +311,15 @@ export default function DashboardPage() {
 	};
 
 	return (
+		// role="region" no es necesario en <div> raíz — el <header> y <main> semánticos
+		// ya crean landmarks suficientes para que el lector de pantalla navegue por secciones.
 		<div className="min-h-screen bg-background">
 			<div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
-				<header className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/90 p-3 shadow-sm backdrop-blur sm:p-4">
+				{/* aria-label localizado → el lector de pantalla anuncia "Encabezado de página" / "Page header" */}
+				<header
+					aria-label={m.a11yLandmarkHeader({}, { locale })}
+					className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/90 p-3 shadow-sm backdrop-blur sm:p-4"
+				>
 					<div className="min-w-0">
 						<div className="flex items-center gap-2">
 							<Link
@@ -378,17 +384,25 @@ export default function DashboardPage() {
 
 				{hasSidebarNavigation ? (
 					<div className="flex gap-4">
-						<SidebarNav
-							active={activeSection}
-							onNavigate={handleSidebarNavigate}
-							locale={locale}
-							sections={sidebarSections}
-							hospitalName={selectedHospital?.nombre}
-							userName={`${user.nombre} ${user.apellido}`}
-							userRole={roleLabel}
-							onLogout={handleLogout}
-						/>
-						<div className="w-full min-w-0 pt-14 lg:pt-0">
+						{/* nav con aria-label → el lector anuncia "Navegacion lateral" al entrar con Tab/F6 */}
+						<nav aria-label={m.a11yLandmarkSidebarNav({}, { locale })}>
+							<SidebarNav
+								active={activeSection}
+								onNavigate={handleSidebarNavigate}
+								locale={locale}
+								sections={sidebarSections}
+								hospitalName={selectedHospital?.nombre}
+								userName={`${user.nombre} ${user.apellido}`}
+								userRole={roleLabel}
+								onLogout={handleLogout}
+							/>
+						</nav>
+						{/* main identifica el contenido principal; solo debe haber uno por página */}
+						<main
+							id="main-content"
+							aria-label={m.a11yLandmarkMain({}, { locale })}
+							className="w-full min-w-0 pt-14 lg:pt-0"
+						>
 							<SidebarSectionRenderer
 								section={activeSection}
 								user={roleUser}
@@ -412,7 +426,7 @@ export default function DashboardPage() {
 								onOverviewBlockReset={handleOverviewBlocksReset}
 								onOverviewBlocksReorder={handleOverviewBlocksReorder}
 							/>
-						</div>
+						</main>
 					</div>
 				) : (
 					<div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">

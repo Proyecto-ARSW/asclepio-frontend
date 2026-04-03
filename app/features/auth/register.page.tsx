@@ -378,7 +378,10 @@ export default function RegisterPage() {
 	}
 
 	return (
-		<div className="relative min-h-screen overflow-hidden bg-background px-4 py-8 sm:px-6 lg:px-8">
+		<main
+			aria-label={m.a11yLandmarkAuth({}, { locale })}
+			className="relative min-h-screen overflow-hidden bg-background px-4 py-8 sm:px-6 lg:px-8"
+		>
 			<motion.div
 				className="absolute top-4 left-4 z-20 flex items-center gap-2 sm:top-6 sm:left-6"
 				initial={{ opacity: 0, y: -12 }}
@@ -920,7 +923,7 @@ export default function RegisterPage() {
 					</Card>
 				</motion.div>
 			</div>
-		</div>
+		</main>
 	);
 }
 

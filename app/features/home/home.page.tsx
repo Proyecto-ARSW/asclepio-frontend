@@ -802,7 +802,10 @@ export default function HomePage() {
 	}
 
 	return (
-		<main className="relative overflow-x-clip bg-background text-foreground selection:bg-primary/20">
+		<main
+			aria-label={m.a11yLandmarkMain({}, { locale })}
+			className="relative overflow-x-clip bg-background text-foreground selection:bg-primary/20"
+		>
 			<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_10%,color-mix(in_oklch,var(--color-primary)_20%,transparent),transparent_34%),radial-gradient(circle_at_80%_18%,color-mix(in_oklch,var(--color-secondary)_35%,white),transparent_30%),linear-gradient(180deg,color-mix(in_oklch,var(--color-background)_96%,white)_0%,color-mix(in_oklch,var(--color-secondary)_20%,white)_52%,var(--color-background)_100%)]" />
 
 			{/* ── NAVBAR ── */}
@@ -811,7 +814,10 @@ export default function HomePage() {
 				className="sticky top-0 z-40 border-b border-border/50 bg-background/80 px-4 py-4 backdrop-blur-xl motion-safe:animate-step-in sm:px-6 lg:px-8"
 			>
 				<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card/80 px-4 py-3 shadow-sm sm:px-6">
-					<nav className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+					<nav
+						aria-label={m.a11yLandmarkNav({}, { locale })}
+						className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+					>
 						<div className="flex items-center justify-between gap-3">
 							<div className="flex min-w-0 items-center gap-2">
 								<img
@@ -944,7 +950,11 @@ export default function HomePage() {
 			</section>
 
 			{/* ── HERO ── */}
-			<section id="about" className="scroll-mt-28 px-4 pb-10 pt-8 sm:px-6 lg:px-8">
+			<section
+				id="about"
+				aria-label={m.a11yLandmarkHero({}, { locale })}
+				className="scroll-mt-28 px-4 pb-10 pt-8 sm:px-6 lg:px-8"
+			>
 				<div className="mx-auto grid max-w-7xl gap-8 rounded-[2rem] border border-border/60 bg-card/80 p-6 shadow-sm backdrop-blur-xl lg:grid-cols-[1.08fr_0.92fr] lg:p-8">
 					{/* Columna izquierda — desliza desde la izquierda */}
 					<RevealSection direction="left" className="space-y-6">
@@ -1072,7 +1082,11 @@ export default function HomePage() {
 			<PlatformSlider locale={locale} />
 
 			{/* ── SERVICIOS ── */}
-			<section id="services" className="scroll-mt-28 px-4 pb-14 sm:px-6 lg:px-8">
+			<section
+				id="services"
+				aria-label={m.a11yLandmarkServices({}, { locale })}
+				className="scroll-mt-28 px-4 pb-14 sm:px-6 lg:px-8"
+			>
 				<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card/85 px-6 py-12 shadow-sm backdrop-blur">
 					{/* Encabezado con eyebrow + título + descripción — entra desde abajo */}
 					<RevealSection className="mx-auto max-w-2xl text-center">

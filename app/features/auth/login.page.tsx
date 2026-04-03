@@ -125,7 +125,10 @@ export default function LoginPage() {
 	};
 
 	return (
-		<div className="relative min-h-screen overflow-hidden bg-background px-4 py-8 sm:px-6 lg:px-8">
+		<main
+			aria-label={m.a11yLandmarkAuth({}, { locale })}
+			className="relative min-h-screen overflow-hidden bg-background px-4 py-8 sm:px-6 lg:px-8"
+		>
 			{/* Barra de navegación superior — entra desde arriba */}
 			<motion.div
 				className="absolute top-4 left-4 z-20 flex items-center gap-2 sm:top-6 sm:left-6"
@@ -340,7 +343,7 @@ export default function LoginPage() {
 					</Card>
 				</motion.div>
 			</div>
-		</div>
+		</main>
 	);
 }
 

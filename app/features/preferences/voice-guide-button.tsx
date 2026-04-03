@@ -9,131 +9,38 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { Button } from '@/components/ui/button/button.component';
 import type { AppLocale } from '@/features/i18n/locale-path';
+import { m } from '@/features/i18n/paraglide/messages';
 import { cn } from '@/lib/utils';
 import { readUiPreferences, saveUiPreferences } from './ui-preferences';
 
 type SupportedLocale = AppLocale;
 
-function getLocalizedText(locale: SupportedLocale) {
-	if (locale === 'en') {
-		return {
-			activate: 'Enable voice guidance',
-			deactivate: 'Disable voice guidance',
-			pause: 'Pause voice guidance',
-			resume: 'Resume voice guidance',
-			replay: 'Repeat guidance',
-			activeState: 'Voice guidance enabled',
-			inactiveState: 'Voice guidance disabled',
-			unsupported:
-				'Voice guidance is not available in this browser. You can continue using the interface with keyboard and screen reader.',
-			activatedAnnouncement:
-				'Voice guidance enabled. Use Alt + Shift + V to toggle quickly.',
-			routeIntro: 'Current section:',
-		};
-	}
+// Mapeo de locale → código BCP-47 para SpeechSynthesisUtterance.lang.
+// Usar el código exacto mejora la selección de voz del sistema operativo.
+const LOCALE_TO_BCP47: Record<SupportedLocale, string> = {
+	es: 'es-CO',
+	en: 'en-US',
+	pt: 'pt-BR',
+	fr: 'fr-FR',
+	de: 'de-DE',
+};
 
-	if (locale === 'pt') {
-		return {
-			activate: 'Ativar guia por voz',
-			deactivate: 'Desativar guia por voz',
-			pause: 'Pausar guia por voz',
-			resume: 'Retomar guia por voz',
-			replay: 'Repetir guia',
-			activeState: 'Guia por voz ativada',
-			inactiveState: 'Guia por voz desativada',
-			unsupported:
-				'O guia por voz nao esta disponivel neste navegador. Voce pode continuar com teclado e leitor de tela.',
-			activatedAnnouncement:
-				'Guia por voz ativada. Use Alt + Shift + V para alternar rapidamente.',
-			routeIntro: 'Secao atual:',
-		};
-	}
-
-	if (locale === 'fr') {
-		return {
-			activate: 'Activer le guidage vocal',
-			deactivate: 'Desactiver le guidage vocal',
-			pause: 'Mettre en pause le guidage vocal',
-			resume: 'Reprendre le guidage vocal',
-			replay: 'Repeter le guidage',
-			activeState: 'Guidage vocal active',
-			inactiveState: 'Guidage vocal desactive',
-			unsupported:
-				'Le guidage vocal n est pas disponible sur ce navigateur. Vous pouvez continuer avec clavier et lecteur d ecran.',
-			activatedAnnouncement:
-				'Guidage vocal active. Utilisez Alt + Shift + V pour basculer rapidement.',
-			routeIntro: 'Section actuelle:',
-		};
-	}
-
-	return {
-		activate: 'Activar guia por voz',
-		deactivate: 'Desactivar guia por voz',
-		pause: 'Pausar guia por voz',
-		resume: 'Reanudar guia por voz',
-		replay: 'Repetir guia',
-		activeState: 'Guia por voz activada',
-		inactiveState: 'Guia por voz desactivada',
-		unsupported:
-			'La guia por voz no esta disponible en este navegador. Puedes continuar con teclado y lector de pantalla.',
-		activatedAnnouncement:
-			'Guia por voz activada. Usa Alt + Shift + V para alternar rapidamente.',
-		routeIntro: 'Seccion actual:',
-	};
-}
-
+// Selecciona la ruta label localizada usando el sistema i18n centralizado.
+// Antes estaba hardcodeado aquí — buena práctica: un solo lugar de verdad para los textos.
 function getRouteLabel(pathname: string, locale: SupportedLocale): string {
-	const isEnglish = locale === 'en';
-	const isPortuguese = locale === 'pt';
-	const isFrench = locale === 'fr';
-
 	if (pathname.includes('/dashboard')) {
-		if (isPortuguese) return 'Painel principal e acoes rapidas.';
-		if (isFrench) return 'Tableau de bord et actions rapides.';
-		return isEnglish
-			? 'Dashboard and quick actions.'
-			: 'Panel principal y acciones rapidas.';
+		return m.a11yRouteDashboard({}, { locale });
 	}
 	if (pathname.includes('/login')) {
-		if (isPortuguese) {
-			return 'Login. Informe suas credenciais para continuar.';
-		}
-		if (isFrench) {
-			return 'Connexion. Entrez vos identifiants pour continuer.';
-		}
-		return isEnglish
-			? 'Login. Enter your credentials to continue.'
-			: 'Inicio de sesion. Ingresa tus credenciales para continuar.';
+		return m.a11yRouteLogin({}, { locale });
 	}
 	if (pathname.includes('/register')) {
-		if (isPortuguese) {
-			return 'Formulario de cadastro. Complete os dados da conta.';
-		}
-		if (isFrench) {
-			return 'Formulaire d inscription. Completez les informations du compte.';
-		}
-		return isEnglish
-			? 'Registration form. Complete your account information.'
-			: 'Formulario de registro. Completa tu informacion de cuenta.';
+		return m.a11yRouteRegister({}, { locale });
 	}
-	if (pathname.includes('/hospitals/select')) {
-		if (isPortuguese) {
-			return 'Seletor de hospitais. Escolha um hospital para continuar.';
-		}
-		if (isFrench) {
-			return 'Selection d hopital. Choisissez un hopital pour continuer.';
-		}
-		return isEnglish
-			? 'Hospital selector. Choose a hospital to continue.'
-			: 'Selector de hospitales. Elige un hospital para continuar.';
+	if (pathname.includes('/hospitals/select') || pathname.includes('/select-hospital')) {
+		return m.a11yRouteSelectHospital({}, { locale });
 	}
-
-	if (isPortuguese) return 'Navegacao geral disponivel nesta pagina.';
-	if (isFrench) return 'Navigation generale disponible sur cette page.';
-
-	return isEnglish
-		? 'General navigation available on this page.'
-		: 'Navegacion general disponible en esta pagina.';
+	return m.a11yRouteDefault({}, { locale });
 }
 
 export function VoiceGuideButton({ locale }: { locale: SupportedLocale }) {
@@ -146,7 +53,23 @@ export function VoiceGuideButton({ locale }: { locale: SupportedLocale }) {
 	const hasMounted = useRef(false);
 	const skipAutoRouteNarration = useRef(false);
 
-	const text = useMemo(() => getLocalizedText(locale), [locale]);
+	// Memoizamos los textos del locale actual para no recalcular en cada render.
+	// useMemo con [locale] se invalida sólo cuando cambia el idioma.
+	const text = useMemo(
+		() => ({
+			activate: m.a11yVoiceGuideActivate({}, { locale }),
+			deactivate: m.a11yVoiceGuideDeactivate({}, { locale }),
+			pause: m.a11yVoiceGuidePause({}, { locale }),
+			resume: m.a11yVoiceGuideResume({}, { locale }),
+			replay: m.a11yVoiceGuideReplay({}, { locale }),
+			activeState: m.a11yVoiceGuideActiveState({}, { locale }),
+			inactiveState: m.a11yVoiceGuideInactiveState({}, { locale }),
+			unsupported: m.a11yVoiceGuideUnsupported({}, { locale }),
+			activatedAnnouncement: m.a11yVoiceGuideActivatedAnnouncement({}, { locale }),
+			routeIntro: m.a11yVoiceGuideRouteIntro({}, { locale }),
+		}),
+		[locale],
+	);
 
 	const selectVoice = useCallback(
 		(utterance: SpeechSynthesisUtterance) => {
@@ -176,14 +99,8 @@ export function VoiceGuideButton({ locale }: { locale: SupportedLocale }) {
 			}
 
 			const utterance = new SpeechSynthesisUtterance(message);
-			utterance.lang =
-				locale === 'en'
-					? 'en-US'
-					: locale === 'pt'
-						? 'pt-BR'
-						: locale === 'fr'
-							? 'fr-FR'
-							: 'es-CO';
+			// BCP-47 del locale activo → el navegador selecciona la voz correcta
+			utterance.lang = LOCALE_TO_BCP47[locale] ?? 'es-CO';
 			utterance.rate = 1;
 			utterance.pitch = 1;
 			utterance.volume = 1;
@@ -339,6 +256,9 @@ export function VoiceGuideButton({ locale }: { locale: SupportedLocale }) {
 			className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2 sm:right-6 sm:bottom-6"
 			{...entryAnimation}
 		>
+			{/* aria-live="polite" anuncia cambios de estado al lector de pantalla
+			    sin interrumpir la narración en curso. aria-atomic="true" garantiza
+			    que el mensaje completo se lea, no solo la parte modificada. */}
 			<span className="sr-only" aria-live="polite" aria-atomic="true">
 				{liveMessage}
 			</span>

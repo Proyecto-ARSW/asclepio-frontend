@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/card/card.component';
 import { Input } from '@/components/ui/input/input.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
+import type { AppLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 
 const AI_API_URL = (
@@ -36,11 +37,11 @@ function formatMs(value: number | null) {
 	return `${Math.round(value)} ms`;
 }
 
-function resolveNetworkError(locale: 'es' | 'en') {
+function resolveNetworkError(locale: AppLocale) {
 	return m.dashboardPatientAiNetworkError({}, { locale });
 }
 
-export function PatientAiSection({ locale }: { locale: 'es' | 'en' }) {
+export function PatientAiSection({ locale }: { locale: AppLocale }) {
 	const [file, setFile] = useState<File | null>(null);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [result, setResult] = useState<AiResult | null>(null);

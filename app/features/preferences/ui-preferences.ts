@@ -1,5 +1,14 @@
 export type ThemeMode = 'light' | 'dark' | 'system';
 
+// Modos de color accesibles para distintas condiciones visuales.
+// Se aplican como clases en <html> y se combinan con el tema claro/oscuro.
+export type ColorMode =
+	| 'none'
+	| 'high-contrast' // Baja visión / cataratas: máximo contraste blanco/negro
+	| 'sepia' // Fatiga ocular / fotosensibilidad: tonos cálidos ámbar
+	| 'grayscale' // Acromatopsia: escala de grises completa (CSS filter)
+	| 'colorblind-rg'; // Deuteranopia/protanopia: filtro SVG feColorMatrix
+
 export const DEFAULT_OVERVIEW_BLOCKS = [
 	'kpiUsers',
 	'kpiHospitals',
@@ -17,7 +26,9 @@ type OverviewBlockKey = (typeof DEFAULT_OVERVIEW_BLOCKS)[number];
 
 export interface UiPreferences {
 	theme: ThemeMode;
+	colorMode: ColorMode;
 	dyslexiaFont: boolean;
+	voiceGuideEnabled: boolean;
 	overviewBlocks: OverviewBlockKey[];
 }
 
@@ -25,7 +36,9 @@ export const UI_PREFERENCES_STORAGE_KEY = 'asclepio-ui-preferences';
 
 const DEFAULT_PREFERENCES: UiPreferences = {
 	theme: 'light',
+	colorMode: 'none',
 	dyslexiaFont: false,
+	voiceGuideEnabled: false,
 	overviewBlocks: [...DEFAULT_OVERVIEW_BLOCKS],
 };
 
@@ -66,6 +79,7 @@ export function readUiPreferences(): UiPreferences {
 				? parsed.theme
 				: DEFAULT_PREFERENCES.theme;
 		const dyslexiaFont = Boolean(parsed.dyslexiaFont);
+		const voiceGuideEnabled = Boolean(parsed.voiceGuideEnabled);
 		const overviewBlocksField = Array.isArray(parsed.overviewBlocks)
 			? parsed.overviewBlocks
 			: null;
@@ -82,7 +96,25 @@ export function readUiPreferences(): UiPreferences {
 					? parsedOverviewBlocks
 					: [...DEFAULT_PREFERENCES.overviewBlocks]
 			: [...DEFAULT_PREFERENCES.overviewBlocks];
-		return { theme, dyslexiaFont, overviewBlocks };
+		const COLOR_MODES: ColorMode[] = [
+			'none',
+			'high-contrast',
+			'sepia',
+			'grayscale',
+			'colorblind-rg',
+		];
+		const colorMode: ColorMode = COLOR_MODES.includes(
+			parsed.colorMode as ColorMode,
+		)
+			? (parsed.colorMode as ColorMode)
+			: DEFAULT_PREFERENCES.colorMode;
+		return {
+			theme,
+			colorMode,
+			dyslexiaFont,
+			voiceGuideEnabled,
+			overviewBlocks,
+		};
 	} catch {
 		return DEFAULT_PREFERENCES;
 	}
@@ -95,15 +127,32 @@ export function saveUiPreferences(prefs: UiPreferences): void {
 	localStorage.setItem(UI_PREFERENCES_STORAGE_KEY, JSON.stringify(prefs));
 }
 
+const ALL_COLOR_MODE_CLASSES: ColorMode[] = [
+	'high-contrast',
+	'sepia',
+	'grayscale',
+	'colorblind-rg',
+];
+
 export function applyUiPreferences(prefs: UiPreferences): void {
 	if (typeof document === 'undefined') {
 		return;
 	}
 
 	const root = document.documentElement;
+
+	// Tema claro/oscuro
 	const resolvedTheme = resolveTheme(prefs.theme);
 	root.classList.toggle('dark', resolvedTheme === 'dark');
+
+	// Tipografía para dislexia
 	root.classList.toggle('dyslexia-font', prefs.dyslexiaFont);
+
+	// Modos de color accesibles: limpiamos todos primero y aplicamos el activo.
+	// Esto garantiza que nunca haya dos modos activos al mismo tiempo.
+	for (const mode of ALL_COLOR_MODE_CLASSES) {
+		root.classList.toggle(`color-${mode}`, prefs.colorMode === mode);
+	}
 }
 
 export function readAndApplyUiPreferences(): UiPreferences {
@@ -111,3 +160,5 @@ export function readAndApplyUiPreferences(): UiPreferences {
 	applyUiPreferences(prefs);
 	return prefs;
 }
+
+// Daniel Useche

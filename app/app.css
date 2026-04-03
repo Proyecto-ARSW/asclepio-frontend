@@ -216,6 +216,153 @@
 	}
 }
 
+/* ============================================================
+   MODOS DE COLOR ACCESIBLES
+   Cada modo sobreescribe las CSS custom properties del tema base
+   o aplica un filtro CSS, según qué técnica sea más apropiada.
+   Se activan añadiendo la clase correspondiente al elemento <html>.
+   ============================================================ */
+
+/* --- Alto contraste (baja visión, cataratas) --- */
+/* Sobreescribimos variables a blanco/negro puros para maximizar la
+   legibilidad sin depender de filtros que pueden distorsionar imágenes. */
+html.color-high-contrast {
+	--background: oklch(1 0 0);
+	--foreground: oklch(0.05 0 0);
+	--card: oklch(1 0 0);
+	--card-foreground: oklch(0.05 0 0);
+	--popover: oklch(1 0 0);
+	--popover-foreground: oklch(0.05 0 0);
+	--primary: oklch(0.18 0.12 186);
+	--primary-foreground: oklch(1 0 0);
+	--secondary: oklch(0.88 0 0);
+	--secondary-foreground: oklch(0.05 0 0);
+	--muted: oklch(0.93 0 0);
+	--muted-foreground: oklch(0.18 0 0);
+	--accent: oklch(0.88 0 0);
+	--accent-foreground: oklch(0.05 0 0);
+	--destructive: oklch(0.45 0.22 24);
+	--destructive-foreground: oklch(1 0 0);
+	--border: oklch(0.05 0 0);
+	--input: oklch(0.88 0 0);
+	--ring: oklch(0.18 0.12 186);
+	--sidebar: oklch(0.96 0 0);
+	--sidebar-foreground: oklch(0.05 0 0);
+	--sidebar-primary: oklch(0.18 0.12 186);
+	--sidebar-primary-foreground: oklch(1 0 0);
+	--sidebar-accent: oklch(0.88 0 0);
+	--sidebar-accent-foreground: oklch(0.05 0 0);
+	--sidebar-border: oklch(0.05 0 0);
+}
+
+/* Alto contraste en modo oscuro: fondo negro absoluto, texto blanco */
+html.color-high-contrast.dark {
+	--background: oklch(0 0 0);
+	--foreground: oklch(1 0 0);
+	--card: oklch(0.07 0 0);
+	--card-foreground: oklch(1 0 0);
+	--popover: oklch(0.07 0 0);
+	--popover-foreground: oklch(1 0 0);
+	--primary: oklch(0.88 0.13 187);
+	--primary-foreground: oklch(0 0 0);
+	--secondary: oklch(0.14 0 0);
+	--secondary-foreground: oklch(1 0 0);
+	--muted: oklch(0.11 0 0);
+	--muted-foreground: oklch(0.88 0 0);
+	--accent: oklch(0.14 0 0);
+	--accent-foreground: oklch(1 0 0);
+	--destructive: oklch(0.65 0.22 24);
+	--destructive-foreground: oklch(0 0 0);
+	--border: oklch(1 0 0);
+	--input: oklch(0.18 0 0);
+	--ring: oklch(0.88 0.13 187);
+	--sidebar: oklch(0.04 0 0);
+	--sidebar-foreground: oklch(1 0 0);
+	--sidebar-primary: oklch(0.88 0.13 187);
+	--sidebar-primary-foreground: oklch(0 0 0);
+	--sidebar-accent: oklch(0.14 0 0);
+	--sidebar-accent-foreground: oklch(1 0 0);
+	--sidebar-border: oklch(1 0 0);
+}
+
+/* --- Sepia / tonos cálidos (fotosensibilidad, fatiga ocular) --- */
+/* Usamos variables en tonalidades ámbar-beige.
+   Mucho más controlado que filter:sepia() que afectaría imágenes clínicas. */
+html.color-sepia {
+	--background: oklch(0.96 0.018 85);
+	--foreground: oklch(0.26 0.04 55);
+	--card: oklch(0.98 0.013 82);
+	--card-foreground: oklch(0.26 0.04 55);
+	--popover: oklch(0.98 0.013 82);
+	--popover-foreground: oklch(0.26 0.04 55);
+	--primary: oklch(0.52 0.1 52);
+	--primary-foreground: oklch(0.97 0.01 85);
+	--secondary: oklch(0.91 0.025 80);
+	--secondary-foreground: oklch(0.35 0.06 50);
+	--muted: oklch(0.93 0.018 83);
+	--muted-foreground: oklch(0.52 0.04 58);
+	--accent: oklch(0.91 0.022 80);
+	--accent-foreground: oklch(0.38 0.07 52);
+	--destructive: oklch(0.58 0.19 24);
+	--destructive-foreground: oklch(0.97 0.01 85);
+	--border: oklch(0.87 0.025 78);
+	--input: oklch(0.87 0.025 78);
+	--ring: oklch(0.52 0.1 52);
+	--sidebar: oklch(0.94 0.02 83);
+	--sidebar-foreground: oklch(0.32 0.05 54);
+	--sidebar-primary: oklch(0.52 0.1 52);
+	--sidebar-primary-foreground: oklch(0.97 0.01 85);
+	--sidebar-accent: oklch(0.9 0.022 80);
+	--sidebar-accent-foreground: oklch(0.35 0.06 50);
+	--sidebar-border: oklch(0.89 0.022 80);
+}
+
+/* --- Escala de grises (acromatopsia) --- */
+/* filter: grayscale aplicado al body — el <html> queda limpio para no
+   crear un stacking context extra que rompería position:fixed. */
+html.color-grayscale body {
+	filter: grayscale(1);
+}
+
+/* --- Daltonismo rojo-verde: deuteranopia / protanopia --- */
+/* Referencia al filtro SVG (<filter id="asclepio-colorblind-filter">)
+   que se inyecta en root.tsx. La matriz feColorMatrix redistribuye los
+   canales R/G/B para que colores antes confundibles se vean distintos.
+   Se aplica a body por la misma razón que el grayscale. */
+html.color-colorblind-rg body {
+	filter: url("#asclepio-colorblind-filter");
+}
+
+/* Boton flotante del sidebar movil.
+   Mantiene el mismo estilo en todos los temas y modos de color. */
+.sidebar-mobile-fab {
+	outline: 1px solid color-mix(in oklch, var(--color-border) 78%, transparent);
+}
+
+/* En modos de accesibilidad con filtros globales, reforzamos contraste
+   sin cambiar posición ni tamaño para preservar el responsive base. */
+html.color-grayscale body .sidebar-mobile-fab,
+html.color-colorblind-rg body .sidebar-mobile-fab {
+	position: fixed;
+	z-index: 60;
+	opacity: 1;
+	background: color-mix(in oklch, var(--color-foreground) 88%, black);
+	color: color-mix(in oklch, var(--color-background) 92%, white);
+	border-color: color-mix(in oklch, var(--color-background) 78%, white);
+	outline: 2px solid color-mix(in oklch, var(--color-background) 86%, white);
+	text-shadow: 0 1px 0 color-mix(in oklch, black 35%, transparent);
+	box-shadow:
+		0 16px 34px -14px color-mix(in oklch, black 75%, transparent),
+		0 0 0 2px color-mix(in oklch, var(--color-background) 36%, transparent);
+}
+
+html.color-grayscale body .sidebar-mobile-fab:hover,
+html.color-colorblind-rg body .sidebar-mobile-fab:hover {
+	box-shadow:
+		0 20px 42px -14px color-mix(in oklch, black 82%, transparent),
+		0 0 0 2px color-mix(in oklch, var(--color-background) 42%, transparent);
+}
+
 @keyframes stepIn {
 	from {
 		opacity: 0;
@@ -246,3 +393,5 @@
 		transform: translateX(0);
 	}
 }
+
+/* Daniel Useche */

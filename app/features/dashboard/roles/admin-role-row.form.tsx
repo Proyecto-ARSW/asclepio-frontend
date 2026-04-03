@@ -26,6 +26,7 @@ import {
 	SelectValue,
 } from '@/components/ui/select/select.component';
 import { Switch } from '@/components/ui/switch/switch.component';
+import type { AppLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import type {
 	DashboardUser,
@@ -49,7 +50,7 @@ export function AdminRoleRowForm({
 	lastUpdatedAt,
 }: {
 	user: DashboardUser;
-	locale: 'es' | 'en';
+	locale: AppLocale;
 	onSubmit: (payload: RoleUpdatePayload) => Promise<void>;
 	saving: boolean;
 	lastUpdatedAt?: string;

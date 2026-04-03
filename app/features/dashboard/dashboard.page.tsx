@@ -47,6 +47,7 @@ import {
 import { m } from '@/features/i18n/paraglide/messages';
 import {
 	applyUiPreferences,
+	type ColorMode,
 	DEFAULT_OVERVIEW_BLOCKS,
 	readUiPreferences,
 	saveUiPreferences,
@@ -134,7 +135,7 @@ function getSidebarSectionsForRole(
 	}
 }
 
-function getRoleLabel(role: string | null | undefined, locale: 'es' | 'en') {
+function getRoleLabel(role: string | null | undefined, locale: AppLocale) {
 	switch (role) {
 		case 'ADMIN':
 			return m.authRoleAdmin({}, { locale });
@@ -173,7 +174,9 @@ export default function DashboardPage() {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const locale = localeFromPathname(location.pathname);
-	const nextLocale = locale === 'es' ? 'en' : 'es';
+	const localeCycle: AppLocale[] = ['es', 'en', 'pt', 'fr', 'de'];
+	const nextLocale =
+		localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
 	const { user, selectedHospital, logout } = useAuthStore();
 	const [uiPreferences, setUiPreferences] = useState<UiPreferences>(() =>
 		readUiPreferences(),
@@ -200,6 +203,10 @@ export default function DashboardPage() {
 
 	function handleThemeChange(theme: ThemeMode) {
 		setUiPreferences((prev) => ({ ...prev, theme }));
+	}
+
+	function handleColorModeChange(colorMode: ColorMode) {
+		setUiPreferences((prev) => ({ ...prev, colorMode }));
 	}
 
 	function handleOverviewBlockToggle(
@@ -352,7 +359,7 @@ export default function DashboardPage() {
 							className="gap-1"
 						>
 							<LanguageIcon className="h-4 w-4" />
-							EN/ES
+							{locale.toUpperCase()}
 						</Button>
 						{!hasSidebarNavigation && (
 							<Button
@@ -389,8 +396,10 @@ export default function DashboardPage() {
 								selectedHospitalId={selectedHospital?.id}
 								overviewBlocks={uiPreferences.overviewBlocks}
 								theme={uiPreferences.theme}
+								colorMode={uiPreferences.colorMode}
 								dyslexiaFont={uiPreferences.dyslexiaFont}
 								onThemeChange={handleThemeChange}
+								onColorModeChange={handleColorModeChange}
 								onLanguageChange={handleLanguageChange}
 								onDyslexiaToggle={(enabled) =>
 									setUiPreferences((prev) => ({
@@ -416,10 +425,12 @@ export default function DashboardPage() {
 						<SettingsPanel
 							locale={locale}
 							theme={uiPreferences.theme}
+							colorMode={uiPreferences.colorMode}
 							dyslexiaFont={uiPreferences.dyslexiaFont}
 							overviewBlocks={uiPreferences.overviewBlocks}
 							overviewBlockChoices={overviewBlockChoices}
 							onThemeChange={handleThemeChange}
+							onColorModeChange={handleColorModeChange}
 							onLanguageChange={handleLanguageChange}
 							onDyslexiaToggle={(enabled) =>
 								setUiPreferences((prev) => ({ ...prev, dyslexiaFont: enabled }))
@@ -442,8 +453,10 @@ function SidebarSectionRenderer({
 	selectedHospitalId,
 	overviewBlocks,
 	theme,
+	colorMode,
 	dyslexiaFont,
 	onThemeChange,
+	onColorModeChange,
 	onLanguageChange,
 	onDyslexiaToggle,
 	overviewBlockChoices,
@@ -453,12 +466,14 @@ function SidebarSectionRenderer({
 }: {
 	section: NavSection;
 	user: DashboardUser;
-	locale: 'es' | 'en';
+	locale: AppLocale;
 	selectedHospitalId?: number;
 	overviewBlocks: OverviewBlockKey[];
 	theme: ThemeMode;
+	colorMode: ColorMode;
 	dyslexiaFont: boolean;
 	onThemeChange: (theme: ThemeMode) => void;
+	onColorModeChange: (colorMode: ColorMode) => void;
 	onLanguageChange: (locale: AppLocale) => void;
 	onDyslexiaToggle: (enabled: boolean) => void;
 	overviewBlockChoices: Array<{ key: OverviewBlockKey; label: string }>;
@@ -474,10 +489,12 @@ function SidebarSectionRenderer({
 			<SettingsPanel
 				locale={locale}
 				theme={theme}
+				colorMode={colorMode}
 				dyslexiaFont={dyslexiaFont}
 				overviewBlocks={overviewBlocks}
 				overviewBlockChoices={overviewBlockChoices}
 				onThemeChange={onThemeChange}
+				onColorModeChange={onColorModeChange}
 				onLanguageChange={onLanguageChange}
 				onDyslexiaToggle={onDyslexiaToggle}
 				onOverviewBlockToggle={onOverviewBlockToggle}
@@ -531,7 +548,7 @@ function RoleRenderer({
 	overviewBlocks,
 }: {
 	user: DashboardUser;
-	locale: 'es' | 'en';
+	locale: AppLocale;
 	selectedHospitalId?: number;
 	overviewBlocks?: OverviewBlockKey[];
 }) {
@@ -558,25 +575,78 @@ function RoleRenderer({
 	}
 }
 
+// Definición visual de cada modo de color accesible.
+// Las etiquetas y descripciones se resuelven como funciones directas de paraglide
+// (no acceso dinámico por clave), porque paraglide necesita referencias estáticas
+// para el tree-shaking y el HMR del compilador en dev mode.
+type ColorModeOption = {
+	value: ColorMode;
+	swatchClass: string;
+	getLabel: (locale: AppLocale) => string;
+	getDesc: ((locale: AppLocale) => string) | null;
+};
+
+const COLOR_MODE_OPTIONS: ColorModeOption[] = [
+	{
+		value: 'none',
+		swatchClass: 'bg-gradient-to-br from-primary/30 to-accent/30',
+		getLabel: (locale) => m.dashboardSettingsColorModeNone({}, { locale }),
+		getDesc: null,
+	},
+	{
+		value: 'high-contrast',
+		swatchClass: 'bg-gradient-to-br from-black to-white border border-black',
+		getLabel: (locale) =>
+			m.dashboardSettingsColorModeHighContrast({}, { locale }),
+		getDesc: (locale) =>
+			m.dashboardSettingsColorModeHighContrastDesc({}, { locale }),
+	},
+	{
+		value: 'sepia',
+		swatchClass: 'bg-gradient-to-br from-amber-200 to-amber-400',
+		getLabel: (locale) => m.dashboardSettingsColorModeSepia({}, { locale }),
+		getDesc: (locale) => m.dashboardSettingsColorModeSepiaDesc({}, { locale }),
+	},
+	{
+		value: 'grayscale',
+		swatchClass: 'bg-gradient-to-br from-gray-200 to-gray-500',
+		getLabel: (locale) => m.dashboardSettingsColorModeGrayscale({}, { locale }),
+		getDesc: (locale) =>
+			m.dashboardSettingsColorModeGrayscaleDesc({}, { locale }),
+	},
+	{
+		value: 'colorblind-rg',
+		swatchClass: 'bg-gradient-to-br from-sky-300 to-orange-300',
+		getLabel: (locale) =>
+			m.dashboardSettingsColorModeColorblindRg({}, { locale }),
+		getDesc: (locale) =>
+			m.dashboardSettingsColorModeColorblindRgDesc({}, { locale }),
+	},
+];
+
 function SettingsPanel({
 	locale,
 	theme,
+	colorMode,
 	dyslexiaFont,
 	overviewBlocks,
 	overviewBlockChoices,
 	onThemeChange,
+	onColorModeChange,
 	onLanguageChange,
 	onDyslexiaToggle,
 	onOverviewBlockToggle,
 	onOverviewBlockReset,
 	onOverviewBlocksReorder,
 }: {
-	locale: 'es' | 'en';
+	locale: AppLocale;
 	theme: ThemeMode;
+	colorMode: ColorMode;
 	dyslexiaFont: boolean;
 	overviewBlocks: OverviewBlockKey[];
 	overviewBlockChoices: Array<{ key: OverviewBlockKey; label: string }>;
 	onThemeChange: (theme: ThemeMode) => void;
+	onColorModeChange: (colorMode: ColorMode) => void;
 	onLanguageChange: (locale: AppLocale) => void;
 	onDyslexiaToggle: (enabled: boolean) => void;
 	onOverviewBlockToggle: (block: OverviewBlockKey, checked: boolean) => void;
@@ -606,7 +676,7 @@ function SettingsPanel({
 					<p className="text-sm font-medium text-foreground">
 						{m.dashboardSettingsLanguageTitle({}, { locale })}
 					</p>
-					<div className="flex gap-2">
+					<div className="flex flex-wrap gap-2">
 						<Button
 							type="button"
 							variant={locale === 'es' ? 'default' : 'outline'}
@@ -620,6 +690,27 @@ function SettingsPanel({
 							onClick={() => onLanguageChange('en')}
 						>
 							{m.dashboardSettingsLanguageEn({}, { locale })}
+						</Button>
+						<Button
+							type="button"
+							variant={locale === 'pt' ? 'default' : 'outline'}
+							onClick={() => onLanguageChange('pt')}
+						>
+							{m.dashboardSettingsLanguagePt({}, { locale })}
+						</Button>
+						<Button
+							type="button"
+							variant={locale === 'fr' ? 'default' : 'outline'}
+							onClick={() => onLanguageChange('fr')}
+						>
+							{m.dashboardSettingsLanguageFr({}, { locale })}
+						</Button>
+						<Button
+							type="button"
+							variant={locale === 'de' ? 'default' : 'outline'}
+							onClick={() => onLanguageChange('de')}
+						>
+							{m.dashboardSettingsLanguageDe({}, { locale })}
 						</Button>
 					</div>
 				</div>
@@ -649,6 +740,64 @@ function SettingsPanel({
 						</SelectContent>
 					</Select>
 				</div>
+
+				{/* Selector de modo de color accesible.
+				    Usamos botones tipo "radio card" en lugar de un <select> para que
+				    el usuario vea un swatch visual de cada modo antes de elegir.
+				    aria-pressed comunica el estado a lectores de pantalla. */}
+				<div className="space-y-2">
+					<p className="text-sm font-medium text-foreground">
+						{m.dashboardSettingsColorModeTitle({}, { locale })}
+					</p>
+					<p className="text-xs text-muted-foreground">
+						{m.dashboardSettingsColorModeDescription({}, { locale })}
+					</p>
+					<div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+						{COLOR_MODE_OPTIONS.map((option) => {
+							const isActive = colorMode === option.value;
+							const label = option.getLabel(locale);
+							const desc = option.getDesc ? option.getDesc(locale) : null;
+							return (
+								<button
+									key={option.value}
+									type="button"
+									aria-pressed={isActive}
+									onClick={() => onColorModeChange(option.value)}
+									className={cn(
+										'flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-all',
+										isActive
+											? 'border-primary bg-primary/8 ring-1 ring-primary/40'
+											: 'border-border/60 bg-background/60 hover:border-primary/40 hover:bg-muted/40',
+									)}
+								>
+									{/* Swatch: muestra un degradado representativo del modo */}
+									<span
+										className={cn(
+											'h-7 w-7 shrink-0 rounded-md',
+											option.swatchClass,
+										)}
+										aria-hidden="true"
+									/>
+									<span className="min-w-0">
+										<span className="block truncate text-xs font-medium text-foreground">
+											{label}
+										</span>
+										{desc && (
+											<span className="block truncate text-[10px] leading-tight text-muted-foreground">
+												{desc}
+											</span>
+										)}
+									</span>
+									{/* Indicador visual del estado activo */}
+									{isActive && (
+										<span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-primary" />
+									)}
+								</button>
+							);
+						})}
+					</div>
+				</div>
+
 				<div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/30 px-3 py-2">
 					<p className="text-sm text-foreground">
 						{m.dashboardSettingsDyslexiaToggle({}, { locale })}
@@ -727,3 +876,5 @@ function SettingsPanel({
 		</Card>
 	);
 }
+
+// Daniel Useche

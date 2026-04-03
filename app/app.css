@@ -341,22 +341,26 @@ html.color-colorblind-rg body {
 
 /* En modos de accesibilidad con filtros globales, reforzamos contraste
    sin cambiar posición ni tamaño para preservar el responsive base. */
-html.color-grayscale .sidebar-mobile-fab,
-html.color-colorblind-rg .sidebar-mobile-fab {
-	background: color-mix(in oklch, var(--color-background) 12%, black);
-	color: white;
-	border-color: color-mix(in oklch, white 70%, var(--color-foreground));
-	outline: 2px solid color-mix(in oklch, white 82%, var(--color-foreground));
+html.color-grayscale body .sidebar-mobile-fab,
+html.color-colorblind-rg body .sidebar-mobile-fab {
+	position: fixed;
+	z-index: 60;
+	opacity: 1;
+	background: color-mix(in oklch, var(--color-foreground) 88%, black);
+	color: color-mix(in oklch, var(--color-background) 92%, white);
+	border-color: color-mix(in oklch, var(--color-background) 78%, white);
+	outline: 2px solid color-mix(in oklch, var(--color-background) 86%, white);
+	text-shadow: 0 1px 0 color-mix(in oklch, black 35%, transparent);
 	box-shadow:
-		0 14px 32px -14px color-mix(in oklch, black 70%, transparent),
-		0 0 0 2px color-mix(in oklch, white 26%, transparent);
+		0 16px 34px -14px color-mix(in oklch, black 75%, transparent),
+		0 0 0 2px color-mix(in oklch, var(--color-background) 36%, transparent);
 }
 
-html.color-grayscale .sidebar-mobile-fab:hover,
-html.color-colorblind-rg .sidebar-mobile-fab:hover {
+html.color-grayscale body .sidebar-mobile-fab:hover,
+html.color-colorblind-rg body .sidebar-mobile-fab:hover {
 	box-shadow:
-		0 18px 38px -14px color-mix(in oklch, black 78%, transparent),
-		0 0 0 2px color-mix(in oklch, white 34%, transparent);
+		0 20px 42px -14px color-mix(in oklch, black 82%, transparent),
+		0 0 0 2px color-mix(in oklch, var(--color-background) 42%, transparent);
 }
 
 @keyframes stepIn {

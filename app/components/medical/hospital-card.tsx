@@ -6,6 +6,7 @@ import {
 	MapPinIcon,
 	PhoneIcon,
 } from '@heroicons/react/24/outline';
+import { motion } from 'motion/react';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Card, CardContent } from '@/components/ui/card/card.component';
 import { currentLocale } from '@/features/i18n/locale-path';
@@ -29,6 +30,7 @@ interface HospitalCardProps {
 	hospital: HospitalCardData;
 	onSelect?: (id: number) => void;
 	selected?: boolean;
+	delay?: number;
 	labels?: {
 		active?: string;
 		inactive?: string;
@@ -41,6 +43,7 @@ export function HospitalCard({
 	hospital,
 	onSelect,
 	selected,
+	delay = 0,
 	labels,
 }: HospitalCardProps) {
 	const interactive = Boolean(onSelect);
@@ -56,7 +59,7 @@ export function HospitalCard({
 			m.dashboardHospitalConsultingRooms({}, { locale }),
 	};
 
-	const content = (
+	const cardContent = (
 		<Card
 			className={[
 				'h-full transition-colors',
@@ -145,17 +148,37 @@ export function HospitalCard({
 		</Card>
 	);
 
+	// ease: 'easeOut' as const — sin el literal TypeScript infiere string y motion rechaza el tipo
+	const sharedTransition = { duration: 0.4, ease: 'easeOut' as const, delay };
+
 	if (!interactive) {
-		return content;
+		return (
+			<motion.div
+				initial={{ opacity: 0, y: 14 }}
+				whileInView={{ opacity: 1, y: 0 }}
+				viewport={{ once: true, margin: '-30px' }}
+				transition={sharedTransition}
+			>
+				{cardContent}
+			</motion.div>
+		);
 	}
 
 	return (
-		<button
+		<motion.button
 			type="button"
 			onClick={() => onSelect?.(hospital.id)}
 			className="w-full rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+			initial={{ opacity: 0, y: 14 }}
+			whileInView={{ opacity: 1, y: 0 }}
+			viewport={{ once: true, margin: '-30px' }}
+			transition={sharedTransition}
+			// scale sutil en hover: solo en modo clicable para no confundir al usuario
+			whileHover={{ scale: 1.015 }}
 		>
-			{content}
-		</button>
+			{cardContent}
+		</motion.button>
 	);
 }
+
+// Daniel Useche

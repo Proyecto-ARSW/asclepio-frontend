@@ -1,3 +1,5 @@
+import type { AppLocale } from '@/features/i18n/locale-path';
+
 export type UserRole =
 	| 'ADMIN'
 	| 'MEDICO'
@@ -56,7 +58,7 @@ export interface DashboardUser {
 
 export interface RoleViewProps {
 	user: DashboardUser;
-	locale: 'es' | 'en';
+	locale: AppLocale;
 	section?: DashboardSection;
 	selectedHospitalId?: number;
 	overviewBlocks?: OverviewBlockKey[];

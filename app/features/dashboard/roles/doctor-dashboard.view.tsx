@@ -28,6 +28,7 @@ import {
 	SelectValue,
 } from '@/components/ui/select/select.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
+import type { AppLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import { gqlMutation, gqlQuery } from '@/lib/graphql-client';
 import type { DashboardSection, RoleViewProps } from './dashboard-role.types';
@@ -195,7 +196,7 @@ const DAYS_EN = [
 	'Saturday',
 ];
 
-function dayLabel(day: number, locale: 'es' | 'en') {
+function dayLabel(day: number, locale: AppLocale) {
 	return locale === 'es' ? (DAYS_ES[day] ?? day) : (DAYS_EN[day] ?? day);
 }
 
@@ -214,7 +215,7 @@ function statusVariant(
 	}
 }
 
-function statusLabel(estado: string, locale: 'es' | 'en') {
+function statusLabel(estado: string, locale: AppLocale) {
 	switch (estado) {
 		case 'PENDIENTE':
 			return m.dashboardStatusPending({}, { locale });

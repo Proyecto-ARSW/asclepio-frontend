@@ -252,18 +252,40 @@ export function SidebarNav(props: SidebarNavProps) {
 		props.labels?.openMenu ?? m.dashboardSidebarOpenMenu({}, { locale });
 	const closeMenuLabel =
 		props.labels?.closeMenu ?? m.dashboardSidebarCloseMenu({}, { locale });
+	const floatingButtonLabel = mobileOpen ? closeMenuLabel : openMenuLabel;
 
 	return (
 		<>
 			<Button
 				type="button"
-				aria-label={openMenuLabel}
-				onClick={() => setMobileOpen(true)}
-				variant="outline"
-				size="icon"
-				className="fixed top-4 left-4 z-40 lg:hidden"
+				aria-label={floatingButtonLabel}
+				onClick={() => setMobileOpen((prev) => !prev)}
+				data-open={mobileOpen ? 'true' : 'false'}
+				variant="default"
+				size="sm"
+				className={`sidebar-mobile-fab fixed z-50 h-11 gap-2 border border-primary/20 bg-gradient-to-r from-primary to-[color-mix(in_oklch,var(--color-primary)_58%,white)] px-4 text-primary-foreground shadow-[0_18px_35px_-16px_var(--color-primary)] transition-all duration-300 active:scale-[0.98] lg:hidden ${
+					mobileOpen
+						? 'top-1/2 left-64 -translate-y-1/2 rounded-l-none rounded-r-2xl border-l-0 hover:translate-x-1 hover:shadow-[0_24px_44px_-16px_var(--color-primary)]'
+						: 'bottom-5 left-1/2 -translate-x-1/2 rounded-full hover:scale-[1.03] hover:shadow-[0_24px_45px_-18px_var(--color-primary)] sm:left-5 sm:translate-x-0'
+				}`}
 			>
-				<Bars3Icon className="h-5 w-5" />
+				<span className="relative flex h-5 w-5 items-center justify-center">
+					<span
+						className={`absolute h-5 w-5 rounded-full bg-primary/35 motion-reduce:hidden ${
+							mobileOpen
+								? 'motion-safe:animate-[ping_1.8s_ease-in-out_infinite]'
+								: 'motion-safe:animate-ping'
+						}`}
+					/>
+					{mobileOpen ? (
+						<XMarkIcon className="relative h-5 w-5" />
+					) : (
+						<Bars3Icon className="relative h-5 w-5" />
+					)}
+				</span>
+				<span className="text-xs font-semibold tracking-wide">
+					{floatingButtonLabel}
+				</span>
 			</Button>
 
 			{mobileOpen && (

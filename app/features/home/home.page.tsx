@@ -744,7 +744,8 @@ export default function HomePage() {
 	const locale = currentLocale(location.pathname);
 	const [isDarkMode, setIsDarkMode] = useState(false);
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-	const nextLocale = locale === 'es' ? 'en' : 'es';
+	const localeCycle = ['es', 'en', 'pt', 'fr'] as const;
+	const nextLocale = localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
 	const localeTogglePath = `${localePath(location.pathname, nextLocale)}${location.search}${location.hash}`;
 
 	const navItems = [
@@ -836,7 +837,7 @@ export default function HomePage() {
 									to={localeTogglePath}
 									className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'h-8 shrink-0 rounded-full px-3 text-xs font-semibold')}
 								>
-									EN/ES
+									{locale.toUpperCase()}
 								</Link>
 								<button
 									type="button"
@@ -876,7 +877,7 @@ export default function HomePage() {
 								to={localeTogglePath}
 								className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'h-8 shrink-0 rounded-full px-3 text-xs font-semibold')}
 							>
-								EN/ES
+								{locale.toUpperCase()}
 							</Link>
 							<Link
 								to={localePath('/register', locale)}

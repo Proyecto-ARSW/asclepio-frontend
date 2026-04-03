@@ -330,7 +330,33 @@ html.color-grayscale body {
    canales R/G/B para que colores antes confundibles se vean distintos.
    Se aplica a body por la misma razón que el grayscale. */
 html.color-colorblind-rg body {
-	filter: url('#asclepio-colorblind-filter');
+	filter: url("#asclepio-colorblind-filter");
+}
+
+/* Boton flotante del sidebar movil.
+   Mantiene el mismo estilo en todos los temas y modos de color. */
+.sidebar-mobile-fab {
+	outline: 1px solid color-mix(in oklch, var(--color-border) 78%, transparent);
+}
+
+/* En modos de accesibilidad con filtros globales, reforzamos contraste
+   sin cambiar posición ni tamaño para preservar el responsive base. */
+html.color-grayscale .sidebar-mobile-fab,
+html.color-colorblind-rg .sidebar-mobile-fab {
+	background: color-mix(in oklch, var(--color-background) 12%, black);
+	color: white;
+	border-color: color-mix(in oklch, white 70%, var(--color-foreground));
+	outline: 2px solid color-mix(in oklch, white 82%, var(--color-foreground));
+	box-shadow:
+		0 14px 32px -14px color-mix(in oklch, black 70%, transparent),
+		0 0 0 2px color-mix(in oklch, white 26%, transparent);
+}
+
+html.color-grayscale .sidebar-mobile-fab:hover,
+html.color-colorblind-rg .sidebar-mobile-fab:hover {
+	box-shadow:
+		0 18px 38px -14px color-mix(in oklch, black 78%, transparent),
+		0 0 0 2px color-mix(in oklch, white 34%, transparent);
 }
 
 @keyframes stepIn {

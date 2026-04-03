@@ -47,10 +47,10 @@ import {
 import { m } from '@/features/i18n/paraglide/messages';
 import {
 	applyUiPreferences,
+	type ColorMode,
 	DEFAULT_OVERVIEW_BLOCKS,
 	readUiPreferences,
 	saveUiPreferences,
-	type ColorMode,
 	type ThemeMode,
 	type UiPreferences,
 } from '@/features/preferences/ui-preferences';
@@ -133,7 +133,7 @@ function getSidebarSectionsForRole(
 	}
 }
 
-function getRoleLabel(role: string | null | undefined, locale: 'es' | 'en') {
+function getRoleLabel(role: string | null | undefined, locale: AppLocale) {
 	switch (role) {
 		case 'ADMIN':
 			return m.authRoleAdmin({}, { locale });
@@ -172,7 +172,9 @@ export default function DashboardPage() {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const locale = localeFromPathname(location.pathname);
-	const nextLocale = locale === 'es' ? 'en' : 'es';
+	const localeCycle: AppLocale[] = ['es', 'en', 'pt', 'fr'];
+	const nextLocale =
+		localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
 	const { user, selectedHospital, logout } = useAuthStore();
 	const [uiPreferences, setUiPreferences] = useState<UiPreferences>(() =>
 		readUiPreferences(),
@@ -355,7 +357,7 @@ export default function DashboardPage() {
 							className="gap-1"
 						>
 							<LanguageIcon className="h-4 w-4" />
-							EN/ES
+							{locale.toUpperCase()}
 						</Button>
 						{!hasSidebarNavigation && (
 							<Button
@@ -462,7 +464,7 @@ function SidebarSectionRenderer({
 }: {
 	section: NavSection;
 	user: DashboardUser;
-	locale: 'es' | 'en';
+	locale: AppLocale;
 	selectedHospitalId?: number;
 	overviewBlocks: OverviewBlockKey[];
 	theme: ThemeMode;
@@ -544,7 +546,7 @@ function RoleRenderer({
 	overviewBlocks,
 }: {
 	user: DashboardUser;
-	locale: 'es' | 'en';
+	locale: AppLocale;
 	selectedHospitalId?: number;
 	overviewBlocks?: OverviewBlockKey[];
 }) {
@@ -578,8 +580,8 @@ function RoleRenderer({
 type ColorModeOption = {
 	value: ColorMode;
 	swatchClass: string;
-	getLabel: (locale: 'es' | 'en') => string;
-	getDesc: ((locale: 'es' | 'en') => string) | null;
+	getLabel: (locale: AppLocale) => string;
+	getDesc: ((locale: AppLocale) => string) | null;
 };
 
 const COLOR_MODE_OPTIONS: ColorModeOption[] = [
@@ -592,8 +594,10 @@ const COLOR_MODE_OPTIONS: ColorModeOption[] = [
 	{
 		value: 'high-contrast',
 		swatchClass: 'bg-gradient-to-br from-black to-white border border-black',
-		getLabel: (locale) => m.dashboardSettingsColorModeHighContrast({}, { locale }),
-		getDesc: (locale) => m.dashboardSettingsColorModeHighContrastDesc({}, { locale }),
+		getLabel: (locale) =>
+			m.dashboardSettingsColorModeHighContrast({}, { locale }),
+		getDesc: (locale) =>
+			m.dashboardSettingsColorModeHighContrastDesc({}, { locale }),
 	},
 	{
 		value: 'sepia',
@@ -605,13 +609,16 @@ const COLOR_MODE_OPTIONS: ColorModeOption[] = [
 		value: 'grayscale',
 		swatchClass: 'bg-gradient-to-br from-gray-200 to-gray-500',
 		getLabel: (locale) => m.dashboardSettingsColorModeGrayscale({}, { locale }),
-		getDesc: (locale) => m.dashboardSettingsColorModeGrayscaleDesc({}, { locale }),
+		getDesc: (locale) =>
+			m.dashboardSettingsColorModeGrayscaleDesc({}, { locale }),
 	},
 	{
 		value: 'colorblind-rg',
 		swatchClass: 'bg-gradient-to-br from-sky-300 to-orange-300',
-		getLabel: (locale) => m.dashboardSettingsColorModeColorblindRg({}, { locale }),
-		getDesc: (locale) => m.dashboardSettingsColorModeColorblindRgDesc({}, { locale }),
+		getLabel: (locale) =>
+			m.dashboardSettingsColorModeColorblindRg({}, { locale }),
+		getDesc: (locale) =>
+			m.dashboardSettingsColorModeColorblindRgDesc({}, { locale }),
 	},
 ];
 
@@ -630,7 +637,7 @@ function SettingsPanel({
 	onOverviewBlockReset,
 	onOverviewBlocksReorder,
 }: {
-	locale: 'es' | 'en';
+	locale: AppLocale;
 	theme: ThemeMode;
 	colorMode: ColorMode;
 	dyslexiaFont: boolean;
@@ -667,7 +674,7 @@ function SettingsPanel({
 					<p className="text-sm font-medium text-foreground">
 						{m.dashboardSettingsLanguageTitle({}, { locale })}
 					</p>
-					<div className="flex gap-2">
+					<div className="flex flex-wrap gap-2">
 						<Button
 							type="button"
 							variant={locale === 'es' ? 'default' : 'outline'}
@@ -681,6 +688,20 @@ function SettingsPanel({
 							onClick={() => onLanguageChange('en')}
 						>
 							{m.dashboardSettingsLanguageEn({}, { locale })}
+						</Button>
+						<Button
+							type="button"
+							variant={locale === 'pt' ? 'default' : 'outline'}
+							onClick={() => onLanguageChange('pt')}
+						>
+							{m.dashboardSettingsLanguagePt({}, { locale })}
+						</Button>
+						<Button
+							type="button"
+							variant={locale === 'fr' ? 'default' : 'outline'}
+							onClick={() => onLanguageChange('fr')}
+						>
+							{m.dashboardSettingsLanguageFr({}, { locale })}
 						</Button>
 					</div>
 				</div>

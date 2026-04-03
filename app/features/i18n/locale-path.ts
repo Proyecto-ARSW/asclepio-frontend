@@ -1,8 +1,8 @@
 import { getLocale } from '@/features/i18n/paraglide/runtime';
 
-export type AppLocale = 'es' | 'en';
+export type AppLocale = 'es' | 'en' | 'pt' | 'fr';
 
-const SUPPORTED_LOCALES: AppLocale[] = ['es', 'en'];
+const SUPPORTED_LOCALES: AppLocale[] = ['es', 'en', 'pt', 'fr'];
 
 function normalizeLocale(value?: string | null): AppLocale {
 	if (value && SUPPORTED_LOCALES.includes(value as AppLocale)) {

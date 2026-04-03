@@ -16,6 +16,7 @@ import { currentLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import { paraglideMiddleware } from '@/features/i18n/paraglide/server';
 import { readAndApplyUiPreferences } from '@/features/preferences/ui-preferences';
+import { VoiceGuideButton } from '@/features/preferences/voice-guide-button';
 import { AppQueryClientProvider } from '@/providers/query-client.provider';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -60,7 +61,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<svg
 					aria-hidden="true"
 					focusable="false"
-					style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
+					style={{
+						position: 'absolute',
+						width: 0,
+						height: 0,
+						overflow: 'hidden',
+					}}
 				>
 					<defs>
 						<filter
@@ -81,6 +87,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 					</defs>
 				</svg>
 				{children}
+				<VoiceGuideButton locale={locale} />
 				<Toaster />
 				<Analytics />
 				<ScrollRestoration />

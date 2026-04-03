@@ -68,7 +68,8 @@ export default function LoginPage() {
 	const locale = currentLocale();
 	const content = getAuthContent(locale);
 	const [isDarkMode, setIsDarkMode] = useState(false);
-	const nextLocale = locale === 'es' ? 'en' : 'es';
+	const localeCycle = ['es', 'en', 'pt', 'fr'] as const;
+	const nextLocale = localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
 
 	useEffect(() => {
 		if (typeof document === 'undefined') return;
@@ -167,7 +168,7 @@ export default function LoginPage() {
 						'rounded-full bg-card/90 px-3 text-xs font-semibold backdrop-blur',
 					)}
 				>
-					EN/ES
+					{locale.toUpperCase()}
 				</Link>
 			</motion.div>
 

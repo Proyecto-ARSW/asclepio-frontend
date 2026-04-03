@@ -28,6 +28,7 @@ export interface UiPreferences {
 	theme: ThemeMode;
 	colorMode: ColorMode;
 	dyslexiaFont: boolean;
+	voiceGuideEnabled: boolean;
 	overviewBlocks: OverviewBlockKey[];
 }
 
@@ -37,6 +38,7 @@ const DEFAULT_PREFERENCES: UiPreferences = {
 	theme: 'light',
 	colorMode: 'none',
 	dyslexiaFont: false,
+	voiceGuideEnabled: false,
 	overviewBlocks: [...DEFAULT_OVERVIEW_BLOCKS],
 };
 
@@ -77,6 +79,7 @@ export function readUiPreferences(): UiPreferences {
 				? parsed.theme
 				: DEFAULT_PREFERENCES.theme;
 		const dyslexiaFont = Boolean(parsed.dyslexiaFont);
+		const voiceGuideEnabled = Boolean(parsed.voiceGuideEnabled);
 		const overviewBlocksField = Array.isArray(parsed.overviewBlocks)
 			? parsed.overviewBlocks
 			: null;
@@ -100,10 +103,18 @@ export function readUiPreferences(): UiPreferences {
 			'grayscale',
 			'colorblind-rg',
 		];
-		const colorMode: ColorMode = COLOR_MODES.includes(parsed.colorMode as ColorMode)
+		const colorMode: ColorMode = COLOR_MODES.includes(
+			parsed.colorMode as ColorMode,
+		)
 			? (parsed.colorMode as ColorMode)
 			: DEFAULT_PREFERENCES.colorMode;
-		return { theme, colorMode, dyslexiaFont, overviewBlocks };
+		return {
+			theme,
+			colorMode,
+			dyslexiaFont,
+			voiceGuideEnabled,
+			overviewBlocks,
+		};
 	} catch {
 		return DEFAULT_PREFERENCES;
 	}

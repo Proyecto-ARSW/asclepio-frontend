@@ -15,6 +15,8 @@ export type DashboardSection =
 	| 'medicines'
 	| 'doctors'
 	| 'userManagement'
+	| 'disponibilidad'
+	| 'historial'
 	| 'settings';
 
 export type OverviewBlockKey =

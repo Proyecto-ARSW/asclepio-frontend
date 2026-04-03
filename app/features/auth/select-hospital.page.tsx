@@ -5,6 +5,7 @@ import {
 	ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { useForm } from '@tanstack/react-form';
+import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { redirect, useNavigate } from 'react-router';
 import {
@@ -89,9 +90,7 @@ export default function SelectHospitalPage() {
 			submitError: '',
 		},
 		onSubmit: async ({ value }) => {
-			if (!hydrated) {
-				return;
-			}
+			if (!hydrated) return;
 
 			if (!value.hospitalId) {
 				form.setFieldValue(
@@ -138,136 +137,182 @@ export default function SelectHospitalPage() {
 	return (
 		<div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-8">
 			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.14),transparent_50%)]" />
-			<Card className="relative z-10 w-full max-w-xl">
-				<CardHeader className="space-y-2">
-					<div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-						<BuildingOffice2Icon className="h-6 w-6" />
-					</div>
-					<CardTitle>{content.selectHospital.title}</CardTitle>
-					<CardDescription>
-						{content.selectHospital.subtitle}
-						{user ? ` · ${user.nombre} ${user.apellido}` : ''}
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					{!hydrated && (
-						<div className="space-y-3" aria-hidden="true">
-							{[1, 2, 3].map((i) => (
-								<div
-									key={i}
-									className="h-16 animate-pulse rounded-lg bg-muted"
-								/>
-							))}
-						</div>
-					)}
 
-					{hydrated && hasNoHospitals && (
-						<div className="space-y-4">
-							<Alert>
-								<ExclamationTriangleIcon className="h-4 w-4" />
-								<AlertTitle>
-									{isAdmin
-										? content.selectHospital.emptyAdminTitle
-										: content.selectHospital.emptyUserTitle}
-								</AlertTitle>
-								<AlertDescription>
-									{isAdmin
-										? content.selectHospital.emptyAdminHint
-										: content.selectHospital.emptyUserHint}
-								</AlertDescription>
-							</Alert>
-							<Button
-								variant="outline"
-								className="w-full"
-								onClick={() => navigate(localePath('/login', locale))}
-							>
-								{content.selectHospital.backToLogin}
-							</Button>
-						</div>
-					)}
-
-					{hydrated && !hasNoHospitals && (
-						<form
-							onSubmit={(e) => {
-								e.preventDefault();
-								void form.handleSubmit();
-							}}
-							className="space-y-4"
+			{/* Card principal desliza desde abajo al montar */}
+			<motion.div
+				className="relative z-10 w-full max-w-xl"
+				initial={{ opacity: 0, y: 28 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ duration: 0.5, ease: 'easeOut' }}
+			>
+				<Card>
+					<CardHeader className="space-y-2">
+						<motion.div
+							className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"
+							initial={{ scale: 0.5, opacity: 0 }}
+							animate={{ scale: 1, opacity: 1 }}
+							transition={{ duration: 0.4, ease: 'backOut', delay: 0.2 }}
 						>
-							<p className="text-sm text-muted-foreground">
-								{content.selectHospital.listHint}
-							</p>
-							<form.Field name="hospitalId">
-								{(field) => (
-									<div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-										{hospitals.map((hospital) => {
-											const selected = field.state.value === hospital.id;
-											return (
-												<button
-													key={hospital.id}
-													type="button"
-													onClick={() => field.handleChange(hospital.id)}
-													className={[
-														'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors',
-														selected
-															? 'border-primary bg-primary/5'
-															: 'border-border bg-card hover:bg-muted/40',
-													].join(' ')}
-												>
-													<BuildingOffice2Icon className="h-5 w-5 shrink-0 text-primary" />
-													<div className="min-w-0 flex-1">
-														<p className="truncate text-sm font-medium text-foreground">
-															{hospital.nombre}
-														</p>
-														<p className="text-xs text-muted-foreground">
-															{hospital.ciudad}, {hospital.departamento}
-														</p>
-													</div>
-													{selected && (
-														<CheckCircleIcon className="h-5 w-5 shrink-0 text-primary" />
-													)}
-												</button>
-											);
-										})}
-									</div>
-								)}
-							</form.Field>
+							<BuildingOffice2Icon className="h-6 w-6" />
+						</motion.div>
+						<CardTitle>{content.selectHospital.title}</CardTitle>
+						<CardDescription>
+							{content.selectHospital.subtitle}
+							{user ? ` · ${user.nombre} ${user.apellido}` : ''}
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						{!hydrated && (
+							<div className="space-y-3" aria-hidden="true">
+								{[1, 2, 3].map((i) => (
+									<div
+										key={i}
+										className="h-16 animate-pulse rounded-lg bg-muted"
+									/>
+								))}
+							</div>
+						)}
 
-							<form.Field name="submitError">
-								{(field) =>
-									field.state.value ? (
-										<Alert variant="destructive">
-											<AlertDescription>{field.state.value}</AlertDescription>
-										</Alert>
-									) : null
-								}
-							</form.Field>
+						{hydrated && hasNoHospitals && (
+							<div className="space-y-4">
+								<Alert>
+									<ExclamationTriangleIcon className="h-4 w-4" />
+									<AlertTitle>
+										{isAdmin
+											? content.selectHospital.emptyAdminTitle
+											: content.selectHospital.emptyUserTitle}
+									</AlertTitle>
+									<AlertDescription>
+										{isAdmin
+											? content.selectHospital.emptyAdminHint
+											: content.selectHospital.emptyUserHint}
+									</AlertDescription>
+								</Alert>
+								<Button
+									variant="outline"
+									className="w-full"
+									onClick={() => navigate(localePath('/login', locale))}
+								>
+									{content.selectHospital.backToLogin}
+								</Button>
+							</div>
+						)}
 
-							<form.Subscribe
-								selector={(state) => [
-									state.values.hospitalId,
-									state.isSubmitting,
-								]}
+						{hydrated && !hasNoHospitals && (
+							<form
+								onSubmit={(e) => {
+									e.preventDefault();
+									void form.handleSubmit();
+								}}
+								className="space-y-4"
 							>
-								{([selectedHospitalId, isSubmitting]) => (
-									<Button
-										type="submit"
-										className="w-full"
-										disabled={Boolean(
-											!hydrated || !selectedHospitalId || isSubmitting,
-										)}
-									>
-										{isSubmitting
-											? content.selectHospital.submitLoading
-											: content.selectHospital.submit}
-										{!isSubmitting && <ArrowRightIcon className="h-4 w-4" />}
-									</Button>
-								)}
-							</form.Subscribe>
-						</form>
-					)}
-				</CardContent>
-			</Card>
+								<p className="text-sm text-muted-foreground">
+									{content.selectHospital.listHint}
+								</p>
+								<form.Field name="hospitalId">
+									{(field) => (
+										<div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+											{hospitals.map((hospital, index) => {
+												const selected = field.state.value === hospital.id;
+												return (
+													// Cada ítem de hospital entra escalonado (stagger)
+													<motion.button
+														key={hospital.id}
+														type="button"
+														onClick={() => field.handleChange(hospital.id)}
+														initial={{ opacity: 0, x: -12 }}
+														animate={{ opacity: 1, x: 0 }}
+														transition={{
+															duration: 0.3,
+															ease: 'easeOut',
+															delay: index * 0.06,
+														}}
+														// whileHover eleva la fila seleccionada
+														whileHover={{ x: 3 }}
+														className={[
+															'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors',
+															selected
+																? 'border-primary bg-primary/5'
+																: 'border-border bg-card hover:bg-muted/40',
+														].join(' ')}
+													>
+														<BuildingOffice2Icon className="h-5 w-5 shrink-0 text-primary" />
+														<div className="min-w-0 flex-1">
+															<p className="truncate text-sm font-medium text-foreground">
+																{hospital.nombre}
+															</p>
+															<p className="text-xs text-muted-foreground">
+																{hospital.ciudad}, {hospital.departamento}
+															</p>
+														</div>
+														<AnimatePresence>
+															{selected && (
+																<motion.span
+																	key="check"
+																	initial={{ scale: 0, opacity: 0 }}
+																	animate={{ scale: 1, opacity: 1 }}
+																	exit={{ scale: 0, opacity: 0 }}
+																	transition={{ duration: 0.2, ease: 'backOut' }}
+																>
+																	<CheckCircleIcon className="h-5 w-5 shrink-0 text-primary" />
+																</motion.span>
+															)}
+														</AnimatePresence>
+													</motion.button>
+												);
+											})}
+										</div>
+									)}
+								</form.Field>
+
+								<form.Field name="submitError">
+									{(field) => (
+										<AnimatePresence>
+											{field.state.value ? (
+												<motion.div
+													key="error"
+													initial={{ opacity: 0, height: 0 }}
+													animate={{ opacity: 1, height: 'auto' }}
+													exit={{ opacity: 0, height: 0 }}
+													transition={{ duration: 0.2 }}
+												>
+													<Alert variant="destructive">
+														<AlertDescription>{field.state.value}</AlertDescription>
+													</Alert>
+												</motion.div>
+											) : null}
+										</AnimatePresence>
+									)}
+								</form.Field>
+
+								<form.Subscribe
+									selector={(state) => [
+										state.values.hospitalId,
+										state.isSubmitting,
+									]}
+								>
+									{([selectedHospitalId, isSubmitting]) => (
+										<Button
+											type="submit"
+											className="w-full"
+											disabled={Boolean(
+												!hydrated || !selectedHospitalId || isSubmitting,
+											)}
+										>
+											{isSubmitting
+												? content.selectHospital.submitLoading
+												: content.selectHospital.submit}
+											{!isSubmitting && <ArrowRightIcon className="h-4 w-4" />}
+										</Button>
+									)}
+								</form.Subscribe>
+							</form>
+						)}
+					</CardContent>
+				</Card>
+			</motion.div>
 		</div>
 	);
 }
+
+// Daniel Useche

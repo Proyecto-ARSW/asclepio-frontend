@@ -14,7 +14,8 @@ import {
 	UserGroupIcon,
 	XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { useEffect, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, redirect, useLocation } from 'react-router';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { buttonVariants } from '@/components/ui/button/button.component';
@@ -50,6 +51,66 @@ export function meta() {
 	return [{ title: m.homeLandingMetaTitle({}, { locale }) }];
 }
 
+// Hook reutilizable: devuelve true cuando el elemento entra en viewport.
+// Usar IntersectionObserver directamente es más ligero que motion whileInView
+// para secciones enteras — evita re-renders en cada frame de scroll.
+function useInView(threshold = 0.15) {
+	const ref = useRef<HTMLDivElement>(null);
+	const [inView, setInView] = useState(false);
+	useEffect(() => {
+		const el = ref.current;
+		if (!el) return;
+		const observer = new IntersectionObserver(
+			([entry]) => {
+				if (entry.isIntersecting) {
+					setInView(true);
+					observer.disconnect(); // once: true
+				}
+			},
+			{ threshold },
+		);
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, [threshold]);
+	return { ref, inView };
+}
+
+// Wrapper genérico de sección que revela su contenido con fade+slide al entrar en viewport
+function RevealSection({
+	children,
+	className,
+	direction = 'up',
+	delay = 0,
+}: {
+	children: React.ReactNode;
+	className?: string;
+	direction?: 'up' | 'left' | 'right';
+	delay?: number;
+}) {
+	const { ref, inView } = useInView();
+	const prefersReduced = useReducedMotion();
+
+	const initial = prefersReduced
+		? { opacity: 0 }
+		: {
+				opacity: 0,
+				y: direction === 'up' ? 24 : 0,
+				x: direction === 'left' ? -24 : direction === 'right' ? 24 : 0,
+			};
+
+	return (
+		<motion.div
+			ref={ref}
+			className={className}
+			initial={initial}
+			animate={inView ? { opacity: 1, y: 0, x: 0 } : initial}
+			transition={{ duration: 0.55, ease: 'easeOut', delay }}
+		>
+			{children}
+		</motion.div>
+	);
+}
+
 export default function HomePage() {
 	const location = useLocation();
 	const locale = currentLocale(location.pathname);
@@ -57,6 +118,7 @@ export default function HomePage() {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const nextLocale = locale === 'es' ? 'en' : 'es';
 	const localeTogglePath = `${localePath(location.pathname, nextLocale)}${location.search}${location.hash}`;
+
 	const navItems = [
 		{ id: 'home', label: m.homeLandingNavHome({}, { locale }) },
 		{ id: 'about', label: m.homeLandingNavAbout({}, { locale }) },
@@ -85,7 +147,6 @@ export default function HomePage() {
 		{ value: '$100M', label: m.homeLandingStatCapital({}, { locale }) },
 		{ value: '60+', label: m.homeLandingStatTeam({}, { locale }) },
 	];
-
 	const integrations = [
 		{ icon: LinkIcon, label: m.homeLandingIntegrationFhir({}, { locale }) },
 		{
@@ -98,13 +159,11 @@ export default function HomePage() {
 			label: m.homeLandingIntegrationClaims({}, { locale }),
 		},
 	];
-
 	const channels = [
 		m.homeLandingChannelVoice({}, { locale }),
 		m.homeLandingChannelWhatsapp({}, { locale }),
 		m.homeLandingChannelTelegram({}, { locale }),
 	];
-
 	const roles = [
 		m.authRolePatient({}, { locale }),
 		m.authRoleDoctor({}, { locale }),
@@ -142,6 +201,7 @@ export default function HomePage() {
 		<main className="relative overflow-x-clip bg-background text-foreground selection:bg-primary/20">
 			<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_10%,color-mix(in_oklch,var(--color-primary)_20%,transparent),transparent_34%),radial-gradient(circle_at_80%_18%,color-mix(in_oklch,var(--color-secondary)_35%,white),transparent_30%),linear-gradient(180deg,color-mix(in_oklch,var(--color-background)_96%,white)_0%,color-mix(in_oklch,var(--color-secondary)_20%,white)_52%,var(--color-background)_100%)]" />
 
+			{/* ── NAVBAR ── */}
 			<section
 				id="home"
 				className="sticky top-0 z-40 border-b border-border/50 bg-background/80 px-4 py-4 backdrop-blur-xl motion-safe:animate-step-in sm:px-6 lg:px-8"
@@ -267,55 +327,69 @@ export default function HomePage() {
 							</Link>
 						</div>
 					</nav>
-					{mobileMenuOpen && (
-						<div className="mt-1 space-y-4 border-t border-border/60 pt-4 md:hidden">
-							<div className="flex flex-col gap-1.5">
-								{navItems.map((item) => (
-									<button
-										key={item.id}
-										type="button"
-										onClick={() => scrollToSection(item.id)}
-										className="w-full rounded-xl border border-border bg-background px-4 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-									>
-										{item.label}
-									</button>
-								))}
-							</div>
 
-							<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-								<Link
-									to={localePath('/register', locale)}
-									onClick={() => setMobileMenuOpen(false)}
-									className={cn(
-										buttonVariants({ variant: 'ghost', size: 'sm' }),
-										'justify-center rounded-full px-4',
-									)}
-								>
-									{m.homeLandingGetStarted({}, { locale })}
-								</Link>
-								<Link
-									to={localePath('/login', locale)}
-									onClick={() => setMobileMenuOpen(false)}
-									className={cn(
-										buttonVariants({ size: 'sm' }),
-										'justify-center rounded-full px-4',
-									)}
-								>
-									{m.homeLandingContactUs({}, { locale })}
-									<ArrowRightIcon className="h-3.5 w-3.5" />
-								</Link>
-							</div>
-						</div>
-					)}
+					{/* Menú móvil: entra/sale con AnimatePresence */}
+					<AnimatePresence>
+						{mobileMenuOpen && (
+							<motion.div
+								key="mobile-menu"
+								initial={{ opacity: 0, height: 0 }}
+								animate={{ opacity: 1, height: 'auto' }}
+								exit={{ opacity: 0, height: 0 }}
+								transition={{ duration: 0.25, ease: 'easeInOut' }}
+								className="overflow-hidden"
+							>
+								<div className="mt-1 space-y-4 border-t border-border/60 pt-4">
+									<div className="flex flex-col gap-1.5">
+										{navItems.map((item) => (
+											<button
+												key={item.id}
+												type="button"
+												onClick={() => scrollToSection(item.id)}
+												className="w-full rounded-xl border border-border bg-background px-4 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+											>
+												{item.label}
+											</button>
+										))}
+									</div>
+									<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+										<Link
+											to={localePath('/register', locale)}
+											onClick={() => setMobileMenuOpen(false)}
+											className={cn(
+												buttonVariants({ variant: 'ghost', size: 'sm' }),
+												'justify-center rounded-full px-4',
+											)}
+										>
+											{m.homeLandingGetStarted({}, { locale })}
+										</Link>
+										<Link
+											to={localePath('/login', locale)}
+											onClick={() => setMobileMenuOpen(false)}
+											className={cn(
+												buttonVariants({ size: 'sm' }),
+												'justify-center rounded-full px-4',
+											)}
+										>
+											{m.homeLandingContactUs({}, { locale })}
+											<ArrowRightIcon className="h-3.5 w-3.5" />
+										</Link>
+									</div>
+								</div>
+							</motion.div>
+						)}
+					</AnimatePresence>
 				</div>
 			</section>
 
+			{/* ── HERO ── */}
 			<section
 				id="about"
-				className="scroll-mt-28 px-4 pb-10 pt-8 motion-safe:animate-step-in-left sm:px-6 lg:px-8"
+				className="scroll-mt-28 px-4 pb-10 pt-8 sm:px-6 lg:px-8"
 			>
 				<div className="mx-auto grid max-w-7xl gap-8 rounded-[2rem] border border-border/60 bg-card/80 p-6 shadow-sm backdrop-blur-xl lg:grid-cols-[1.08fr_0.92fr] lg:p-8">
-					<div className="space-y-6">
+					{/* Columna izquierda: desliza desde la izquierda */}
+					<RevealSection direction="left" className="space-y-6">
 						<Badge
 							variant="secondary"
 							className="rounded-full px-3 py-1 text-xs"
@@ -335,14 +409,19 @@ export default function HomePage() {
 								{m.homeLandingChannelsTitle({}, { locale })}
 							</p>
 							<div className="flex flex-wrap gap-2">
-								{channels.map((channel) => (
-									<Badge
+								{channels.map((channel, i) => (
+									// Badges entran escalonados después de que el contenedor es visible
+									<motion.span
 										key={channel}
-										variant="outline"
-										className="rounded-full"
+										initial={{ opacity: 0, scale: 0.85 }}
+										whileInView={{ opacity: 1, scale: 1 }}
+										viewport={{ once: true }}
+										transition={{ duration: 0.25, delay: 0.1 + i * 0.07 }}
 									>
-										{channel}
-									</Badge>
+										<Badge variant="outline" className="rounded-full">
+											{channel}
+										</Badge>
+									</motion.span>
 								))}
 							</div>
 						</div>
@@ -352,14 +431,18 @@ export default function HomePage() {
 								{m.homeLandingRolesTitle({}, { locale })}
 							</p>
 							<div className="flex flex-wrap gap-2">
-								{roles.map((role) => (
-									<Badge
+								{roles.map((role, i) => (
+									<motion.span
 										key={role}
-										variant="secondary"
-										className="rounded-full"
+										initial={{ opacity: 0, scale: 0.85 }}
+										whileInView={{ opacity: 1, scale: 1 }}
+										viewport={{ once: true }}
+										transition={{ duration: 0.25, delay: 0.15 + i * 0.06 }}
 									>
-										{role}
-									</Badge>
+										<Badge variant="secondary" className="rounded-full">
+											{role}
+										</Badge>
+									</motion.span>
 								))}
 							</div>
 						</div>
@@ -374,9 +457,10 @@ export default function HomePage() {
 							{m.homeLandingHeroCta({}, { locale })}
 							<ArrowRightIcon className="h-4 w-4" />
 						</Link>
-					</div>
+					</RevealSection>
 
-					<div className="relative min-h-100 rounded-[2rem] border border-border/50 bg-linear-to-br from-secondary via-background to-accent p-4 shadow-sm sm:min-h-105 sm:p-6">
+					{/* Columna derecha: desliza desde la derecha */}
+					<RevealSection direction="right" delay={0.1} className="relative min-h-100 rounded-[2rem] border border-border/50 bg-linear-to-br from-secondary via-background to-accent p-4 shadow-sm sm:min-h-105 sm:p-6">
 						<div className="absolute left-1/2 top-1/2 h-52 w-52 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_oklch,var(--color-primary)_35%,white)_0%,transparent_72%)]" />
 						<img
 							src="/images/doctor-image.webp"
@@ -387,7 +471,12 @@ export default function HomePage() {
 							className="relative z-10 mt-20 mx-auto h-110 w-80 rounded-[1.75rem] object-cover object-top shadow-md sm:mt-8"
 						/>
 
-						<div className="absolute left-4 top-4 rounded-2xl border border-border bg-card/90 p-3 shadow-sm backdrop-blur md:left-6 md:top-6">
+						{/* Tarjeta flotante izquierda — rebota suavemente con float */}
+						<motion.div
+							className="absolute left-4 top-4 rounded-2xl border border-border bg-card/90 p-3 shadow-sm backdrop-blur md:left-6 md:top-6"
+							animate={{ y: [0, -6, 0] }}
+							transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+						>
 							<div className="mb-2 flex items-center gap-2">
 								<BeakerIcon className="h-4 w-4 text-primary" />
 								<p className="text-xs font-semibold text-foreground">
@@ -397,9 +486,14 @@ export default function HomePage() {
 							<div className="h-10 w-32 rounded-xl bg-linear-to-r from-secondary via-background to-accent p-2">
 								<div className="h-full w-full rounded-md bg-[linear-gradient(90deg,color-mix(in_oklch,var(--color-primary)_24%,transparent)_20%,transparent_20%)] bg-size-[10px_10px]" />
 							</div>
-						</div>
+						</motion.div>
 
-						<div className="absolute bottom-4 right-4 flex items-center gap-3 rounded-full border border-border bg-card/90 px-4 py-2 shadow-sm backdrop-blur md:bottom-6 md:right-6">
+						{/* Tarjeta flotante derecha — flota con fase opuesta */}
+						<motion.div
+							className="absolute bottom-4 right-4 flex items-center gap-3 rounded-full border border-border bg-card/90 px-4 py-2 shadow-sm backdrop-blur md:bottom-6 md:right-6"
+							animate={{ y: [0, 6, 0] }}
+							transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }}
+						>
 							<PlayCircleIcon className="h-6 w-6 text-primary" />
 							<div>
 								<p className="text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -410,17 +504,18 @@ export default function HomePage() {
 								</p>
 							</div>
 							<span className="h-2.5 w-2.5 rounded-full bg-primary" />
-						</div>
-					</div>
+						</motion.div>
+					</RevealSection>
 				</div>
 			</section>
 
+			{/* ── SERVICIOS ── */}
 			<section
 				id="services"
-				className="scroll-mt-28 px-4 pb-14 motion-safe:animate-step-in-right sm:px-6 lg:px-8"
+				className="scroll-mt-28 px-4 pb-14 sm:px-6 lg:px-8"
 			>
 				<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card/85 px-6 py-12 shadow-sm backdrop-blur">
-					<div className="mx-auto max-w-2xl text-center">
+					<RevealSection className="mx-auto max-w-2xl text-center">
 						<p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
 							{m.homeLandingServicesEyebrow({}, { locale })}
 						</p>
@@ -430,36 +525,46 @@ export default function HomePage() {
 						<p className="mt-3 text-sm text-muted-foreground">
 							{m.homeLandingServicesDescription({}, { locale })}
 						</p>
-					</div>
+					</RevealSection>
 
 					<div className="mt-10 grid gap-5 md:grid-cols-3">
-						{services.map((service) => (
-							<Card
+						{services.map((service, i) => (
+							// Cada tarjeta revela con stagger: delay crece 100ms por tarjeta
+							<motion.div
 								key={service.title}
-								className="rounded-3xl border-border/60 bg-background/95 p-6 transition-all duration-500 motion-reduce:transition-none hover:-translate-y-1 hover:shadow-md"
+								initial={{ opacity: 0, y: 30 }}
+								whileInView={{ opacity: 1, y: 0 }}
+								viewport={{ once: true, margin: '-60px' }}
+								transition={{ duration: 0.5, ease: 'easeOut', delay: i * 0.1 }}
+								whileHover={{ y: -6, transition: { duration: 0.2 } }}
 							>
-								<CardContent className="px-0">
-									<div className="grid h-12 w-12 place-items-center rounded-full border border-border bg-card">
-										<service.icon className="h-5 w-5 text-primary" />
-									</div>
-									<h3 className="mt-4 text-xl font-semibold tracking-tight text-foreground">
-										{service.title}
-									</h3>
-									<p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-										{service.description}
-									</p>
-								</CardContent>
-							</Card>
+								<Card className="rounded-3xl border-border/60 bg-background/95 p-6 transition-shadow duration-300 hover:shadow-md motion-reduce:transition-none h-full">
+									<CardContent className="px-0">
+										<div className="grid h-12 w-12 place-items-center rounded-full border border-border bg-card">
+											<service.icon className="h-5 w-5 text-primary" />
+										</div>
+										<h3 className="mt-4 text-xl font-semibold tracking-tight text-foreground">
+											{service.title}
+										</h3>
+										<p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+											{service.description}
+										</p>
+									</CardContent>
+								</Card>
+							</motion.div>
 						))}
 					</div>
 				</div>
 			</section>
 
-			<section className="px-4 pb-14 motion-safe:animate-step-in sm:px-6 lg:px-8">
+			{/* ── INTEGRACIONES ── */}
+			<section className="px-4 pb-14 sm:px-6 lg:px-8">
 				<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card px-6 py-12 shadow-sm">
-					<h2 className="mx-auto max-w-xl text-center text-4xl font-bold tracking-tight text-foreground">
-						{m.homeLandingIntegrationsTitle({}, { locale })}
-					</h2>
+					<RevealSection>
+						<h2 className="mx-auto max-w-xl text-center text-4xl font-bold tracking-tight text-foreground">
+							{m.homeLandingIntegrationsTitle({}, { locale })}
+						</h2>
+					</RevealSection>
 
 					<div className="relative mt-12 grid place-items-center">
 						<div className="absolute h-60 w-60 rounded-full border border-border" />
@@ -470,10 +575,15 @@ export default function HomePage() {
 							</span>
 						</div>
 						<div className="mt-8 grid w-full max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
-							{integrations.map((item) => (
-								<div
+							{integrations.map((item, i) => (
+								<motion.div
 									key={item.label}
 									className="relative flex flex-col items-center gap-2 rounded-2xl border border-border bg-background/80 p-4"
+									initial={{ opacity: 0, scale: 0.85 }}
+									whileInView={{ opacity: 1, scale: 1 }}
+									viewport={{ once: true }}
+									transition={{ duration: 0.35, ease: 'backOut', delay: 0.05 + i * 0.08 }}
+									whileHover={{ scale: 1.05 }}
 								>
 									<div className="absolute -top-6 left-1/2 h-6 w-px -translate-x-1/2 bg-border" />
 									<div className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card">
@@ -482,69 +592,83 @@ export default function HomePage() {
 									<p className="text-xs font-semibold text-muted-foreground">
 										{item.label}
 									</p>
-								</div>
+								</motion.div>
 							))}
 						</div>
 					</div>
 				</div>
 			</section>
 
-			<section className="px-4 pb-14 motion-safe:animate-step-in sm:px-6 lg:px-8">
-				<div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-linear-to-r from-primary via-secondary to-primary px-6 py-16 text-center text-primary-foreground shadow-md">
-					<div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.45)_1.5px,transparent_2px)] bg-size-[14px_14px] opacity-45" />
-					<h2 className="mx-auto max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">
-						{m.homeLandingCtaTitle({}, { locale })}
-					</h2>
-					<Link
-						to={localePath('/register', locale)}
-						className={cn(
-							buttonVariants({ variant: 'secondary', size: 'lg' }),
-							'mt-6 inline-flex rounded-full border border-white/30 bg-white/90 px-5 text-primary transition-all duration-500 motion-reduce:transition-none hover:-translate-y-0.5 hover:bg-white',
-						)}
-					>
-						{m.homeLandingCtaButton({}, { locale })}
-						<ArrowRightIcon className="h-4 w-4" />
-					</Link>
-				</div>
+			{/* ── CTA BANNER ── */}
+			<section className="px-4 pb-14 sm:px-6 lg:px-8">
+				<RevealSection>
+					<div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-linear-to-r from-primary via-secondary to-primary px-6 py-16 text-center text-primary-foreground shadow-md">
+						<div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.45)_1.5px,transparent_2px)] bg-size-[14px_14px] opacity-45" />
+						<h2 className="mx-auto max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">
+							{m.homeLandingCtaTitle({}, { locale })}
+						</h2>
+						<Link
+							to={localePath('/register', locale)}
+							className={cn(
+								buttonVariants({ variant: 'secondary', size: 'lg' }),
+								'mt-6 inline-flex rounded-full border border-white/30 bg-white/90 px-5 text-primary transition-all duration-500 motion-reduce:transition-none hover:-translate-y-0.5 hover:bg-white',
+							)}
+						>
+							{m.homeLandingCtaButton({}, { locale })}
+							<ArrowRightIcon className="h-4 w-4" />
+						</Link>
+					</div>
+				</RevealSection>
 			</section>
 
-			<section className="px-4 pb-20 motion-safe:animate-step-in sm:px-6 lg:px-8">
+			{/* ── STATS + TESTIMONIAL ── */}
+			<section className="px-4 pb-20 sm:px-6 lg:px-8">
 				<div className="mx-auto max-w-7xl space-y-8 rounded-[2rem] border border-border/60 bg-card/80 p-6 shadow-sm backdrop-blur">
+					{/* Stats: cada número entra escalonado */}
 					<div className="mx-auto grid max-w-4xl grid-cols-2 justify-items-center gap-6 text-center sm:grid-cols-4">
-						{stats.map((stat) => (
-							<div key={stat.label} className="flex flex-col items-center">
+						{stats.map((stat, i) => (
+							<motion.div
+								key={stat.label}
+								className="flex flex-col items-center"
+								initial={{ opacity: 0, y: 20 }}
+								whileInView={{ opacity: 1, y: 0 }}
+								viewport={{ once: true }}
+								transition={{ duration: 0.4, ease: 'easeOut', delay: i * 0.08 }}
+							>
 								<p className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
 									{stat.value}
 								</p>
-								<p className="mt-1 text-xs text-muted-foreground">
-									{stat.label}
-								</p>
-							</div>
+								<p className="mt-1 text-xs text-muted-foreground">{stat.label}</p>
+							</motion.div>
 						))}
 					</div>
 
-					<div className="grid items-center gap-6 rounded-3xl border border-border/60 bg-background p-5 md:grid-cols-2">
-						<div>
-							<p className="text-sm font-semibold text-muted-foreground">
-								{m.homeLandingTestimonialName({}, { locale })}
-							</p>
-							<p className="mt-1 text-xs text-muted-foreground">
-								{m.homeLandingTestimonialRole({}, { locale })}
-							</p>
-							<blockquote className="mt-4 max-w-lg text-lg font-medium leading-relaxed tracking-tight text-foreground">
-								{m.homeLandingTestimonialQuote({}, { locale })}
-							</blockquote>
+					<RevealSection direction="up" delay={0.05}>
+						<div className="grid items-center gap-6 rounded-3xl border border-border/60 bg-background p-5 md:grid-cols-2">
+							<div>
+								<p className="text-sm font-semibold text-muted-foreground">
+									{m.homeLandingTestimonialName({}, { locale })}
+								</p>
+								<p className="mt-1 text-xs text-muted-foreground">
+									{m.homeLandingTestimonialRole({}, { locale })}
+								</p>
+								<blockquote className="mt-4 max-w-lg text-lg font-medium leading-relaxed tracking-tight text-foreground">
+									{m.homeLandingTestimonialQuote({}, { locale })}
+								</blockquote>
+							</div>
+							<img
+								src="/images/doctor-image-2.webp"
+								alt={m.homeLandingTestimonialImageAlt({}, { locale })}
+								loading="lazy"
+								decoding="async"
+								className="h-56 w-full rounded-3xl object-cover md:h-64"
+							/>
 						</div>
-						<img
-							src="/images/doctor-image-2.webp"
-							alt={m.homeLandingTestimonialImageAlt({}, { locale })}
-							loading="lazy"
-							decoding="async"
-							className="h-56 w-full rounded-3xl object-cover md:h-64"
-						/>
-					</div>
+					</RevealSection>
 				</div>
 			</section>
 		</main>
 	);
 }
+
+// Daniel Useche

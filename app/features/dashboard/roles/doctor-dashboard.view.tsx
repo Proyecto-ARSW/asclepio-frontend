@@ -254,7 +254,7 @@ function toIsoTime(hhmm: string): string {
 function formatTime(t: string | Date): string {
 	if (!t) return '';
 	const d = new Date(t);
-	if (isNaN(d.getTime())) {
+	if (Number.isNaN(d.getTime())) {
 		return String(t).slice(0, 5);
 	}
 	// getHours/getMinutes retornan hora LOCAL, no UTC
@@ -272,7 +272,7 @@ const DURATION_PRESETS = [10, 15, 20, 30, 45, 60, 90] as const;
 function suggestDuration(inicio: string, fin: string): number {
 	const [sh, sm] = inicio.split(':').map(Number);
 	const [eh, em] = fin.split(':').map(Number);
-	const diff = (eh * 60 + em) - (sh * 60 + sm);
+	const diff = eh * 60 + em - (sh * 60 + sm);
 	if (diff <= 0) return 30;
 	return [...DURATION_PRESETS].reverse().find((p) => p <= diff) ?? 30;
 }
@@ -347,16 +347,13 @@ export function DoctorDashboardView({
 		return mine;
 	}, [user.id]);
 
-	const loadAppointments = useCallback(
-		async (id: string) => {
-			const res = await gqlQuery<{ appoinmentsByDoctor: Appointment[] }>(
-				DOCTOR_APPOINTMENTS_QUERY,
-				{ medicoId: id },
-			);
-			setAppointments(res.appoinmentsByDoctor);
-		},
-		[],
-	);
+	const loadAppointments = useCallback(async (id: string) => {
+		const res = await gqlQuery<{ appoinmentsByDoctor: Appointment[] }>(
+			DOCTOR_APPOINTMENTS_QUERY,
+			{ medicoId: id },
+		);
+		setAppointments(res.appoinmentsByDoctor);
+	}, []);
 
 	const loadDisponibilidad = useCallback(async (id: string) => {
 		const res = await gqlQuery<{
@@ -411,9 +408,8 @@ export function DoctorDashboardView({
 	const today = new Date().toDateString();
 	const kpiToday = useMemo(
 		() =>
-			appointments.filter(
-				(a) => new Date(a.fechaHora).toDateString() === today,
-			).length,
+			appointments.filter((a) => new Date(a.fechaHora).toDateString() === today)
+				.length,
 		[appointments, today],
 	);
 	const kpiPending = useMemo(
@@ -445,13 +441,17 @@ export function DoctorDashboardView({
 
 	// ── Acción: cancelar cita ──
 	async function handleCancel(id: string) {
-		setActionLoading(id + '-cancel');
+		setActionLoading(`${id}-cancel`);
 		setError('');
 		try {
 			// canceladaPor: user.id identifica quién cancela (requerido por el backend)
 			// motivoCancelacion: nombre correcto del campo en CancelAppoinmentInput
 			await gqlMutation(CANCEL_APPOINTMENT, {
-				input: { id, canceladaPor: user.id, motivoCancelacion: 'Cancelado por el médico' },
+				input: {
+					id,
+					canceladaPor: user.id,
+					motivoCancelacion: 'Cancelado por el médico',
+				},
 			});
 			setAppointments((prev) =>
 				prev.map((a) => (a.id === id ? { ...a, estado: 'CANCELADA' } : a)),
@@ -495,7 +495,9 @@ export function DoctorDashboardView({
 			setDisponibilidad((prev) => [...prev, res.createDisponibilidad]);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(friendlyDisponibilidadError(err instanceof Error ? err.message : ''));
+			setError(
+				friendlyDisponibilidadError(err instanceof Error ? err.message : ''),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -525,9 +527,7 @@ export function DoctorDashboardView({
 				input: { id: slot.id, activo: !slot.activo },
 			});
 			setDisponibilidad((prev) =>
-				prev.map((s) =>
-					s.id === slot.id ? { ...s, activo: !s.activo } : s,
-				),
+				prev.map((s) => (s.id === slot.id ? { ...s, activo: !s.activo } : s)),
 			);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Error');
@@ -633,9 +633,11 @@ export function DoctorDashboardView({
 								{m.dashboardPatientsEmptyDescription({}, { locale })}
 							</p>
 						) : (
-							appointments.slice(0, 4).map((a) => (
-								<AppointmentRow key={a.id} appointment={a} compact />
-							))
+							appointments
+								.slice(0, 4)
+								.map((a) => (
+									<AppointmentRow key={a.id} appointment={a} compact />
+								))
 						)}
 					</CardContent>
 				</Card>
@@ -655,9 +657,9 @@ export function DoctorDashboardView({
 								{m.dashboardPatientsEmptyDescription({}, { locale })}
 							</p>
 						) : (
-							disponibilidad.slice(0, 3).map((slot) => (
-								<SlotRow key={slot.id} slot={slot} compact />
-							))
+							disponibilidad
+								.slice(0, 3)
+								.map((slot) => <SlotRow key={slot.id} slot={slot} compact />)
 						)}
 					</CardContent>
 				</Card>
@@ -676,9 +678,7 @@ export function DoctorDashboardView({
 						{m.dashboardPatientsEmptyDescription({}, { locale })}
 					</p>
 				) : (
-					appointments.map((a) => (
-						<AppointmentRow key={a.id} appointment={a} />
-					))
+					appointments.map((a) => <AppointmentRow key={a.id} appointment={a} />)
 				)}
 			</div>
 		);
@@ -832,8 +832,7 @@ export function DoctorDashboardView({
 		// Construir lista de pacientes únicos desde las citas del médico
 		// para el selector del formulario de historial
 		const patientOptions = useMemo(
-			() =>
-				[...new Map(appointments.map((a) => [a.pacienteId, a])).values()],
+			() => [...new Map(appointments.map((a) => [a.pacienteId, a])).values()],
 			[],
 		);
 
@@ -1033,11 +1032,11 @@ export function DoctorDashboardView({
 									size="sm"
 									variant="destructive"
 									onClick={() => handleCancel(a.id)}
-									disabled={actionLoading === a.id + '-cancel'}
+									disabled={actionLoading === `${a.id}-cancel`}
 									className="gap-1 text-xs"
 								>
 									<XCircleIcon className="h-3.5 w-3.5" />
-									{actionLoading === a.id + '-cancel'
+									{actionLoading === `${a.id}-cancel`
 										? m.dashboardActionCancelling({}, { locale })
 										: m.dashboardDoctorCancelAppointment({}, { locale })}
 								</Button>
@@ -1070,8 +1069,8 @@ export function DoctorDashboardView({
 					<ClockIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
 					<div>
 						<p className="text-sm font-medium text-foreground">
-							{dayLabel(slot.diaSemana, locale)} — {formatTime(slot.horaInicio)} -{' '}
-							{formatTime(slot.horaFin)}
+							{dayLabel(slot.diaSemana, locale)} — {formatTime(slot.horaInicio)}{' '}
+							- {formatTime(slot.horaFin)}
 						</p>
 						<p className="text-xs text-muted-foreground">
 							{slot.duracionCita} min / cita
@@ -1096,10 +1095,7 @@ export function DoctorDashboardView({
 							>
 								{toggling
 									? '...'
-									: m.dashboardDoctorDisponibilidadToggleActive(
-											{},
-											{ locale },
-										)}
+									: m.dashboardDoctorDisponibilidadToggleActive({}, { locale })}
 							</Button>
 							<Button
 								type="button"

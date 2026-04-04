@@ -72,8 +72,8 @@ interface Doctor {
 }
 
 interface SlotDisponible {
-	inicio: string;
-	fin: string;
+	fechaHora: string;
+	duracionMinutos: number;
 }
 
 // ─── Queries & Mutations ──────────────────────────────────────────────────────
@@ -137,11 +137,12 @@ const DOCTORS_QUERY = `
 `;
 
 // Traer slots disponibles de un médico en una fecha
+// El backend devuelve fechaHora (Date) y duracionMinutos (Int)
 const AVAILABLE_SLOTS_QUERY = `
 	query AvailableSlots($medicoId: ID!, $fecha: DateTime!) {
 		availableSlots(medicoId: $medicoId, fecha: $fecha) {
-			inicio
-			fin
+			fechaHora
+			duracionMinutos
 		}
 	}
 `;
@@ -302,7 +303,8 @@ export function PatientDashboardView({
 		setSlotsLoading(true);
 		gqlQuery<{ availableSlots: SlotDisponible[] }>(AVAILABLE_SLOTS_QUERY, {
 			medicoId: booking.medicoId,
-			fecha: new Date(booking.fecha).toISOString(),
+			// Usar mediodía local para evitar que UTC midnight desplace el día en el servidor
+			fecha: new Date(`${booking.fecha}T12:00:00`).toISOString(),
 		})
 			.then((r) => setSlots(r.availableSlots))
 			.catch(() => setSlots([]))
@@ -410,12 +412,17 @@ export function PatientDashboardView({
 								/>
 							</SelectTrigger>
 							<SelectContent>
-								{doctors.map((d) => (
-									<SelectItem key={d.id} value={d.id}>
-										{d.nombre} {d.apellido}
-										{d.consultorio ? ` — ${d.consultorio}` : ''}
-									</SelectItem>
-								))}
+								{doctors.map((d) => {
+									// Base UI necesita `label` explícito para que SelectValue
+									// muestre el nombre en el trigger en vez del UUID
+									const label = `${d.nombre ?? ''} ${d.apellido ?? ''}`.trim();
+									return (
+										<SelectItem key={d.id} value={d.id} label={label}>
+											{label}
+											{d.consultorio ? ` — ${d.consultorio}` : ''}
+										</SelectItem>
+									);
+								})}
 							</SelectContent>
 						</Select>
 					</div>
@@ -470,19 +477,27 @@ export function PatientDashboardView({
 										/>
 									</SelectTrigger>
 									<SelectContent>
-										{slots.map((s) => (
-											<SelectItem key={s.inicio} value={s.inicio}>
-												{new Date(s.inicio).toLocaleTimeString(locale, {
-													hour: '2-digit',
-													minute: '2-digit',
-												})}{' '}
-												—{' '}
-												{new Date(s.fin).toLocaleTimeString(locale, {
-													hour: '2-digit',
-													minute: '2-digit',
-												})}
-											</SelectItem>
-										))}
+										{slots.map((s) => {
+											// fin se computa desde fechaHora + duracionMinutos
+											const inicio = new Date(s.fechaHora);
+											const fin = new Date(
+												inicio.getTime() + s.duracionMinutos * 60_000,
+											);
+											const timeOpts: Intl.DateTimeFormatOptions = {
+												hour: '2-digit',
+												minute: '2-digit',
+											};
+											const label = `${inicio.toLocaleTimeString(locale, timeOpts)} — ${fin.toLocaleTimeString(locale, timeOpts)}`;
+											return (
+												<SelectItem
+													key={s.fechaHora}
+													value={s.fechaHora}
+													label={label}
+												>
+													{label}
+												</SelectItem>
+											);
+										})}
 									</SelectContent>
 								</Select>
 							)}

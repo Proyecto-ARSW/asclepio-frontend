@@ -146,6 +146,7 @@ export function getDashboardContent(
 				overview: m.dashboardSidebarOverview({}, options),
 				hospitals: m.dashboardSidebarHospitals({}, options),
 				patients: m.dashboardSidebarPatients({}, options),
+				triage: m.triageNewMenu({}, options),
 				appointments: m.dashboardSidebarAppointments({}, options),
 				queue: m.dashboardSidebarQueue({}, options),
 				medicines: m.dashboardSidebarMedicines({}, options),

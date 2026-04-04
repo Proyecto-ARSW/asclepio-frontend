@@ -1,9 +1,11 @@
 import { ArrowPathIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Button } from '@/components/ui/button/button.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
+import { localePath } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import { gqlQuery } from '@/lib/graphql-client';
 import type { RoleViewProps } from './dashboard-role.types';
@@ -104,7 +106,12 @@ export function NurseDashboardView({ user, locale }: RoleViewProps) {
 			title={m.authRoleNurse({}, { locale })}
 			subtitle={m.authRegisterRoleNurseDescription({}, { locale })}
 		>
-			<div className="flex justify-end">
+			<div className="flex flex-wrap justify-end gap-2">
+				<Link to={localePath('/triage', locale)}>
+					<Button type="button" variant="secondary">
+						{m.triageNewMenu({}, { locale })}
+					</Button>
+				</Link>
 				<Button
 					type="button"
 					variant="outline"

@@ -1,9 +1,11 @@
 import { ArrowPathIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Button } from '@/components/ui/button/button.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
+import { localePath } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import { gqlQuery } from '@/lib/graphql-client';
 import type { RoleViewProps } from './dashboard-role.types';
@@ -131,6 +133,11 @@ export function DoctorDashboardView({ user, locale }: RoleViewProps) {
 						{m.dashboardSidebarAppointments({}, { locale })}
 					</Badge>
 					<Badge variant="outline">{pendingCount}</Badge>
+					<Link to={localePath('/triage', locale)}>
+						<Button type="button" size="sm" variant="secondary">
+							{m.triageNewMenu({}, { locale })}
+						</Button>
+					</Link>
 				</div>
 				<Button
 					type="button"

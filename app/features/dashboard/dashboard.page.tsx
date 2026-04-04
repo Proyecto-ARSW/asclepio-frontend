@@ -532,7 +532,12 @@ function SidebarSectionRenderer({
 			);
 		case 'PACIENTE':
 			return (
-				<PatientDashboardView user={user} locale={locale} section={section} />
+				<PatientDashboardView
+					user={user}
+					locale={locale}
+					section={section}
+					selectedHospitalId={selectedHospitalId}
+				/>
 			);
 		case 'MEDICO':
 			return (
@@ -548,6 +553,7 @@ function SidebarSectionRenderer({
 					user={user}
 					locale={locale}
 					section={section}
+					selectedHospitalId={selectedHospitalId}
 				/>
 			);
 		default:
@@ -581,10 +587,21 @@ function RoleRenderer({
 		case 'ENFERMERO':
 			return <NurseDashboardView user={user} locale={locale} />;
 		case 'RECEPCIONISTA':
-			return <ReceptionistDashboardView user={user} locale={locale} />;
+			return (
+				<ReceptionistDashboardView
+					user={user}
+					locale={locale}
+					selectedHospitalId={selectedHospitalId}
+				/>
+			);
 		default:
 			return (
-				<PatientDashboardView user={user} locale={locale} section="overview" />
+				<PatientDashboardView
+					user={user}
+					locale={locale}
+					section="overview"
+					selectedHospitalId={selectedHospitalId}
+				/>
 			);
 	}
 }

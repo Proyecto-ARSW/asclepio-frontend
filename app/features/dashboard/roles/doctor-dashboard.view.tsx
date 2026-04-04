@@ -233,25 +233,34 @@ function statusLabel(estado: string, locale: AppLocale) {
 // ─── Helpers de disponibilidad ───────────────────────────────────────────────
 
 /**
- * Convierte 'HH:MM' a un ISO 8601 completo que el backend puede parsear con new Date().
- * El backend solo usa la porción de tiempo; la fecha base 1970-01-01 es arbitraria.
+ * Convierte 'HH:MM' a ISO 8601 preservando la hora en la zona local.
+ * Se usa `new Date()` con setHours para que el offset local se incluya
+ * en el ISO string resultante → el backend recibe la hora UTC correcta.
+ * Antes usaba '1970-01-01T${hhmm}:00.000Z' (UTC fijo), que hacía que
+ * el médico en UTC-5 al ingresar "09:00" enviara 09:00 UTC = 04:00 local.
  */
 function toIsoTime(hhmm: string): string {
-	return `1970-01-01T${hhmm}:00.000Z`;
+	const [hours, minutes] = hhmm.split(':').map(Number);
+	const d = new Date();
+	d.setHours(hours, minutes, 0, 0);
+	return d.toISOString();
 }
 
 /**
- * Extrae 'HH:MM' de un ISO date string o de un string que ya esté en ese formato.
- * Necesario porque el backend devuelve la hora como datetime completo.
+ * Extrae 'HH:MM' en hora LOCAL de un ISO date string.
+ * Antes usaba toISOString().slice(11,16) que siempre daba UTC,
+ * causando que el médico viera horarios desfasados respecto al paciente.
  */
 function formatTime(t: string | Date): string {
 	if (!t) return '';
 	const d = new Date(t);
 	if (isNaN(d.getTime())) {
-		// ya es 'HH:MM' — tomar solo los primeros 5 caracteres por seguridad
 		return String(t).slice(0, 5);
 	}
-	return d.toISOString().slice(11, 16);
+	// getHours/getMinutes retornan hora LOCAL, no UTC
+	const h = String(d.getHours()).padStart(2, '0');
+	const min = String(d.getMinutes()).padStart(2, '0');
+	return `${h}:${min}`;
 }
 
 /**
@@ -413,12 +422,15 @@ export function DoctorDashboardView({
 	);
 
 	// ── Acción: confirmar cita ──
+	// UpdateAppoinmentInput solo acepta {id, notasMedico?, motivo?}.
+	// No existe un campo 'estado' en el DTO → enviarlo causaba 400 Bad Request.
+	// El estado CONFIRMADA lo gestiona el backend cuando el médico actualiza la cita.
 	async function handleConfirm(id: string) {
 		setActionLoading(id);
 		setError('');
 		try {
 			await gqlMutation(CONFIRM_APPOINTMENT, {
-				input: { id, estado: 'CONFIRMADA' },
+				input: { id },
 			});
 			setAppointments((prev) =>
 				prev.map((a) => (a.id === id ? { ...a, estado: 'CONFIRMADA' } : a)),
@@ -436,8 +448,10 @@ export function DoctorDashboardView({
 		setActionLoading(id + '-cancel');
 		setError('');
 		try {
+			// canceladaPor: user.id identifica quién cancela (requerido por el backend)
+			// motivoCancelacion: nombre correcto del campo en CancelAppoinmentInput
 			await gqlMutation(CANCEL_APPOINTMENT, {
-				input: { id, motivo: 'Cancelado por el médico' },
+				input: { id, canceladaPor: user.id, motivoCancelacion: 'Cancelado por el médico' },
 			});
 			setAppointments((prev) =>
 				prev.map((a) => (a.id === id ? { ...a, estado: 'CANCELADA' } : a)),

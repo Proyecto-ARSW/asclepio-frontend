@@ -35,6 +35,7 @@ import { DEFAULT_OVERVIEW_BLOCKS } from '@/features/preferences/ui-preferences';
 import { apiGet } from '@/lib/api';
 import { gqlMutation, gqlQuery } from '@/lib/graphql-client';
 import type { Hospital } from '@/store/auth.store';
+import { AdminCreateUserForm } from './admin-create-user.form';
 import { AdminRoleRowForm } from './admin-role-row.form';
 import type {
 	DashboardSection,
@@ -176,6 +177,7 @@ export function AdminDashboardView({
 	const [hospitals, setHospitals] = useState<Hospital[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
+	const [successMsg, setSuccessMsg] = useState('');
 	const [savingUserId, setSavingUserId] = useState<string | null>(null);
 	const [currentPage, setCurrentPage] = useState(1);
 	const [userSearch, setUserSearch] = useState('');
@@ -420,6 +422,11 @@ export function AdminDashboardView({
 		}
 	}
 
+	function flash(msg: string) {
+		setSuccessMsg(msg);
+		setTimeout(() => setSuccessMsg(''), 4000);
+	}
+
 	async function handleRoleUpdate(
 		user: AdminGqlData['users'][number],
 		payload: RoleUpdatePayload,
@@ -474,6 +481,20 @@ export function AdminDashboardView({
 
 	const roleManagementSection = (
 		<>
+			{/* Formulario de creación de cuentas — solo disponible si hay hospital seleccionado */}
+			{selectedHospitalId && (
+				<AdminCreateUserForm
+					locale={locale}
+					hospitalId={selectedHospitalId}
+					onSuccess={(msg) => {
+						// Recargar la tabla de usuarios tras crear uno nuevo
+						setLastRoleChange(null);
+						flash(msg);
+						void loadData();
+					}}
+				/>
+			)}
+
 			<div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<p className="text-sm font-medium text-foreground">
@@ -820,6 +841,11 @@ export function AdminDashboardView({
 					<AlertDescription>{error}</AlertDescription>
 				</Alert>
 			)}
+			{successMsg && (
+				<Alert>
+					<AlertDescription>{successMsg}</AlertDescription>
+				</Alert>
+			)}
 
 			{section === 'overview' && (
 				<>
@@ -975,3 +1001,5 @@ function MetricTile({
 		</div>
 	);
 }
+
+// Daniel Useche

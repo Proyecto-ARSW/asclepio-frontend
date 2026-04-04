@@ -176,6 +176,7 @@ function statusLabel(estado: string, locale: AppLocale) {
 export function ReceptionistDashboardView({
 	locale,
 	section = 'overview',
+	selectedHospitalId,
 }: RoleViewProps) {
 	const [turns, setTurns] = useState<Turno[]>([]);
 	const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -236,14 +237,16 @@ export function ReceptionistDashboardView({
 
 	// ── Acción: crear turno ──
 	async function handleCreateTurn() {
-		if (!newTurn.pacienteId) return;
+		if (!newTurn.pacienteId || !selectedHospitalId) return;
 		setActionLoading('create-turn');
 		setError('');
 		try {
+			// hospitalId es obligatorio en CreateTurnInput — sin él el backend devuelve 400
 			const res = await gqlMutation<{ crearTurno: Turno }>(CREATE_TURN, {
 				input: {
 					pacienteId: newTurn.pacienteId,
 					tipo: newTurn.tipo,
+					hospitalId: selectedHospitalId,
 				},
 			});
 			setTurns((prev) => [res.crearTurno, ...prev]);

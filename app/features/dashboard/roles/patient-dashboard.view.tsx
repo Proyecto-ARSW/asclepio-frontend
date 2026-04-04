@@ -159,6 +159,18 @@ const CREATE_APPOINTMENT = `
 	}
 `;
 
+// Crear turno en la cola del hospital — requiere hospitalId (obligatorio en el backend)
+const CREATE_PATIENT_TURN = `
+	mutation CreatePatientTurn($input: CreateTurnInput!) {
+		crearTurno(input: $input) {
+			id
+			numeroTurno
+			tipo
+			estado
+		}
+	}
+`;
+
 // Cancelar cita del paciente
 const CANCEL_APPOINTMENT = `
 	mutation CancelPatientAppointment($input: CancelAppoinmentInput!) {
@@ -208,6 +220,7 @@ export function PatientDashboardView({
 	user,
 	locale,
 	section,
+	selectedHospitalId,
 }: RoleViewProps) {
 	const [patientId, setPatientId] = useState<string | null>(null);
 	const [missingProfile, setMissingProfile] = useState(false);
@@ -339,13 +352,42 @@ export function PatientDashboardView({
 		}
 	}
 
+	// ── Acción: crear turno ──
+	// El paciente puede unirse a la cola del hospital directamente.
+	// hospitalId viene de selectedHospitalId (hospital seleccionado al iniciar sesión).
+	async function handleCreateTurn() {
+		if (!patientId || !selectedHospitalId) return;
+		setActionLoading('create-turn');
+		setError('');
+		try {
+			const res = await gqlMutation<{ crearTurno: Turno }>(CREATE_PATIENT_TURN, {
+				input: {
+					pacienteId: patientId,
+					hospitalId: selectedHospitalId,
+					tipo: 'NORMAL',
+				},
+			});
+			setTurns((prev) => [res.crearTurno, ...prev]);
+			flash(
+				locale === 'es'
+					? `Turno #${res.crearTurno.numeroTurno} creado`
+					: `Turn #${res.crearTurno.numeroTurno} created`,
+			);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Error');
+		} finally {
+			setActionLoading(null);
+		}
+	}
+
 	// ── Acción: cancelar cita ──
 	async function handleCancelAppointment(id: string) {
 		setActionLoading(`cancel-${id}`);
 		setError('');
 		try {
+			// canceladaPor requerido por CancelAppoinmentInput; motivoCancelacion es el nombre correcto del campo
 			await gqlMutation(CANCEL_APPOINTMENT, {
-				input: { id, motivo: 'Cancelado por el paciente' },
+				input: { id, canceladaPor: user.id, motivoCancelacion: 'Cancelado por el paciente' },
 			});
 			setAppointments((prev) =>
 				prev.map((a) => (a.id === id ? { ...a, estado: 'CANCELADA' } : a)),
@@ -622,9 +664,10 @@ export function PatientDashboardView({
 
 			{/* ── Citas + Turnos (overview / secciones individuales) ── */}
 			{(showAppointments || (showQueue && !showGame)) && (
+				{/* md:grid-cols-2 en vez de lg para que tablets también aprovechen el espacio */}
 				<div
 					className={`grid gap-4 ${
-						showAppointments && showQueue ? 'lg:grid-cols-2' : ''
+						showAppointments && showQueue ? 'md:grid-cols-2' : ''
 					}`}
 				>
 					{showAppointments && (
@@ -709,6 +752,36 @@ export function PatientDashboardView({
 							<h3 className="text-sm font-semibold text-foreground">
 								{m.dashboardSidebarQueue({}, { locale })}
 							</h3>
+
+							{/* Crear turno — paciente puede unirse a la cola directamente */}
+							{section === 'queue' && selectedHospitalId && (
+								<div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+									<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+										<div>
+											<h4 className="text-sm font-semibold text-foreground">
+												{locale === 'es' ? 'Unirse a la cola' : 'Join the queue'}
+											</h4>
+											<p className="text-xs text-muted-foreground">
+												{locale === 'es'
+													? 'Solicita un turno de atención en el hospital'
+													: 'Request a service turn at the hospital'}
+											</p>
+										</div>
+										<Button
+											type="button"
+											onClick={handleCreateTurn}
+											disabled={actionLoading === 'create-turn' || !patientId}
+											size="sm"
+											className="shrink-0 gap-2"
+										>
+											<PlusIcon className="h-4 w-4" />
+											{actionLoading === 'create-turn'
+												? m.dashboardActionSaving({}, { locale })
+												: locale === 'es' ? 'Pedir turno' : 'Get turn'}
+										</Button>
+									</div>
+								</div>
+							)}
 
 							{/* Botón de sala de espera con juego interactivo */}
 							{section === 'queue' && (

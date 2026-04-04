@@ -354,20 +354,45 @@ export function SidebarNav(props: SidebarNavProps) {
 		</>
 	);
 
+	// ── Sidebar móvil en el portal ──────────────────────────────────────────────
+	// Problema: cuando se aplica un filtro CSS (grayscale, daltonismo) a #filter-scope,
+	// ese div crea un nuevo "containing block" para position:fixed. Los elementos fixed
+	// dentro de filter-scope quedan posicionados relativo a él, no al viewport.
+	// Además, #portal-root viene DESPUÉS de #filter-scope en el DOM; por tanto, todo
+	// lo renderizado en portal-root se pinta ENCIMA de filter-scope sin importar z-index.
+	// Resultado: el backdrop (z-40 en portal) tapaba el sidebar (z-50 en filter-scope).
+	//
+	// Solución: el sidebar móvil también se monta en portal-root.
+	// Así sidebar (z-50) y backdrop (z-40) comparten el mismo stacking context
+	// y z-50 > z-40 funciona correctamente.
+	// El sidebar de escritorio (lg:) sigue siendo estático en el DOM normal.
+	const mobileSidebar = (
+		<aside
+			id="sidebar-aside"
+			aria-label={m.dashboardSidebarBrandName({}, { locale })}
+			className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-sidebar text-sidebar-foreground transition-transform duration-200 ease-in-out lg:hidden ${
+				mobileOpen ? 'translate-x-0' : '-translate-x-full'
+			}`}
+		>
+			<SidebarContent {...props} onClose={() => toggleMenu(false)} />
+		</aside>
+	);
+
 	return (
 		<>
-			{/* Portal hacia #portal-root (fuera del filter-scope).
-			    Fallback: renderizar inline hasta que el cliente monte el portal. */}
-			{portalEl ? createPortal(fabContent, portalEl) : fabContent}
+			{/* Portal agrupa FAB + backdrop + sidebar-móvil fuera de filter-scope.
+			    Fallback inline hasta que useEffect monte el portal en el cliente. */}
+			{portalEl
+				? createPortal(<>{mobileSidebar}{fabContent}</>, portalEl)
+				: <>{mobileSidebar}{fabContent}</>
+			}
 
+			{/* Sidebar de escritorio: estático, fuera del portal, sin position:fixed */}
 			<aside
-				id="sidebar-aside"
 				aria-label={m.dashboardSidebarBrandName({}, { locale })}
-				className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-sidebar text-sidebar-foreground transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 lg:shrink-0 ${
-					mobileOpen ? 'translate-x-0' : '-translate-x-full'
-				}`}
+				className="hidden lg:flex lg:static lg:shrink-0 lg:w-64 border-r border-border bg-sidebar text-sidebar-foreground"
 			>
-				<SidebarContent {...props} onClose={() => toggleMenu(false)} />
+				<SidebarContent {...props} />
 			</aside>
 		</>
 	);

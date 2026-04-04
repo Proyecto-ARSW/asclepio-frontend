@@ -230,6 +230,64 @@ function statusLabel(estado: string, locale: AppLocale) {
 	}
 }
 
+// ─── Helpers de disponibilidad ───────────────────────────────────────────────
+
+/**
+ * Convierte 'HH:MM' a un ISO 8601 completo que el backend puede parsear con new Date().
+ * El backend solo usa la porción de tiempo; la fecha base 1970-01-01 es arbitraria.
+ */
+function toIsoTime(hhmm: string): string {
+	return `1970-01-01T${hhmm}:00.000Z`;
+}
+
+/**
+ * Extrae 'HH:MM' de un ISO date string o de un string que ya esté en ese formato.
+ * Necesario porque el backend devuelve la hora como datetime completo.
+ */
+function formatTime(t: string | Date): string {
+	if (!t) return '';
+	const d = new Date(t);
+	if (isNaN(d.getTime())) {
+		// ya es 'HH:MM' — tomar solo los primeros 5 caracteres por seguridad
+		return String(t).slice(0, 5);
+	}
+	return d.toISOString().slice(11, 16);
+}
+
+/**
+ * Calcula la duración sugerida (en minutos) dado el rango horario.
+ * Elige el mayor preset que quepa al menos una vez dentro del bloque.
+ */
+const DURATION_PRESETS = [10, 15, 20, 30, 45, 60, 90] as const;
+
+function suggestDuration(inicio: string, fin: string): number {
+	const [sh, sm] = inicio.split(':').map(Number);
+	const [eh, em] = fin.split(':').map(Number);
+	const diff = (eh * 60 + em) - (sh * 60 + sm);
+	if (diff <= 0) return 30;
+	return [...DURATION_PRESETS].reverse().find((p) => p <= diff) ?? 30;
+}
+
+/**
+ * Traduce errores del backend a mensajes amigables en español para el usuario final.
+ * Los mensajes técnicos de GraphQL/class-validator nunca deben mostrarse directamente.
+ */
+function friendlyDisponibilidadError(raw: string): string {
+	if (/horaFin debe ser posterior/i.test(raw))
+		return 'La hora de fin debe ser posterior a la hora de inicio.';
+	if (/Ya existe un bloque/i.test(raw))
+		return 'Ya tienes un horario registrado para ese día y hora de inicio. Elige un horario diferente.';
+	if (/diaSemana/i.test(raw))
+		return 'El día de la semana seleccionado no es válido.';
+	if (/duracionCita/i.test(raw))
+		return 'La duración de la cita debe ser mayor a cero.';
+	if (/Bad Request|validation/i.test(raw))
+		return 'Los datos ingresados no son válidos. Revisa las horas y la duración e intenta de nuevo.';
+	if (/network|fetch|unavailable/i.test(raw))
+		return 'No se pudo conectar con el servidor. Verifica tu conexión e intenta de nuevo.';
+	return 'Ocurrió un error al guardar la disponibilidad. Por favor, intenta de nuevo.';
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function DoctorDashboardView({
@@ -395,6 +453,15 @@ export function DoctorDashboardView({
 	// ── Acción: agregar bloque de disponibilidad ──
 	async function handleAddSlot() {
 		if (!doctorId) return;
+
+		// Validación en cliente antes de llamar al backend — evita un round-trip innecesario
+		const [sh, sm] = newSlot.horaInicio.split(':').map(Number);
+		const [eh, em] = newSlot.horaFin.split(':').map(Number);
+		if (eh * 60 + em <= sh * 60 + sm) {
+			setError('La hora de fin debe ser posterior a la hora de inicio.');
+			return;
+		}
+
 		setActionLoading('new-slot');
 		setError('');
 		try {
@@ -403,14 +470,18 @@ export function DoctorDashboardView({
 				{
 					input: {
 						medicoId: doctorId,
-						...newSlot,
+						diaSemana: newSlot.diaSemana,
+						// El backend espera un Date completo; enviamos ISO con fecha base arbitraria
+						horaInicio: toIsoTime(newSlot.horaInicio),
+						horaFin: toIsoTime(newSlot.horaFin),
+						duracionCita: newSlot.duracionCita,
 					},
 				},
 			);
 			setDisponibilidad((prev) => [...prev, res.createDisponibilidad]);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(friendlyDisponibilidadError(err instanceof Error ? err.message : ''));
 		} finally {
 			setActionLoading(null);
 		}
@@ -648,12 +719,15 @@ export function DoctorDashboardView({
 								<Input
 									type="time"
 									value={newSlot.horaInicio}
-									onChange={(e) =>
+									onChange={(e) => {
+										const horaInicio = e.target.value;
+										// Al cambiar la hora de inicio, recalcular la duración sugerida
 										setNewSlot((prev) => ({
 											...prev,
-											horaInicio: e.target.value,
-										}))
-									}
+											horaInicio,
+											duracionCita: suggestDuration(horaInicio, prev.horaFin),
+										}));
+									}}
 								/>
 							</div>
 							<div className="space-y-1">
@@ -663,31 +737,39 @@ export function DoctorDashboardView({
 								<Input
 									type="time"
 									value={newSlot.horaFin}
-									onChange={(e) =>
+									onChange={(e) => {
+										const horaFin = e.target.value;
+										// Al cambiar la hora de fin, recalcular la duración sugerida
 										setNewSlot((prev) => ({
 											...prev,
-											horaFin: e.target.value,
-										}))
-									}
+											horaFin,
+											duracionCita: suggestDuration(prev.horaInicio, horaFin),
+										}));
+									}}
 								/>
 							</div>
 							<div className="space-y-1">
 								<label className="text-xs font-medium text-muted-foreground">
 									{m.dashboardDoctorDisponibilidadDuracion({}, { locale })}
 								</label>
-								<Input
-									type="number"
-									min={10}
-									max={120}
-									step={5}
-									value={newSlot.duracionCita}
-									onChange={(e) =>
-										setNewSlot((prev) => ({
-											...prev,
-											duracionCita: Number(e.target.value),
-										}))
+								{/* Select con presets comunes — elimina errores de entrada manual */}
+								<Select
+									value={String(newSlot.duracionCita)}
+									onValueChange={(v) =>
+										setNewSlot((prev) => ({ ...prev, duracionCita: Number(v) }))
 									}
-								/>
+								>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{DURATION_PRESETS.map((min) => (
+											<SelectItem key={min} value={String(min)}>
+												{min} min
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</div>
 						</div>
 						<Button
@@ -974,8 +1056,8 @@ export function DoctorDashboardView({
 					<ClockIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
 					<div>
 						<p className="text-sm font-medium text-foreground">
-							{dayLabel(slot.diaSemana, locale)} — {slot.horaInicio} -{' '}
-							{slot.horaFin}
+							{dayLabel(slot.diaSemana, locale)} — {formatTime(slot.horaInicio)} -{' '}
+							{formatTime(slot.horaFin)}
 						</p>
 						<p className="text-xs text-muted-foreground">
 							{slot.duracionCita} min / cita

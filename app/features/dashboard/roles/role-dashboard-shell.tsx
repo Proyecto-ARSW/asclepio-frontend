@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import {
 	Card,
 	CardContent,
@@ -21,11 +21,22 @@ export function RoleDashboardShell({
 	children: ReactNode;
 }) {
 	const shouldShowCardHeader = showCardIdentity || Boolean(headerAction);
+	// useId genera un id único y estable para vincular section → h1 con aria-labelledby.
+	// Esto permite que lectores de pantalla anuncien el título de la sección al entrar.
+	const headingId = useId();
 
 	return (
-		<section className="space-y-4">
+		// aria-labelledby vincula la sección al h1 interno: el lector de pantalla
+		// anuncia "Resumen — región" cuando el foco entra, sin necesidad de navegar al h1.
+		<section className="space-y-4" aria-labelledby={headingId}>
 			<header className="space-y-1">
-				<h1 className="text-balance text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+				<h1
+					id={headingId}
+					// tabIndex=-1 permite que skip-links o el guía de voz hagan foco
+					// programático en el heading sin añadirlo al orden natural de Tab.
+					tabIndex={-1}
+					className="text-balance text-2xl font-semibold tracking-tight text-foreground focus:outline-none sm:text-3xl"
+				>
 					{title}
 				</h1>
 				<p className="text-sm text-muted-foreground sm:text-base">{subtitle}</p>
@@ -57,3 +68,5 @@ export function RoleDashboardShell({
 		</section>
 	);
 }
+
+// Daniel Useche

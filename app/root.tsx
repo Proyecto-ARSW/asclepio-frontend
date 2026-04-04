@@ -6,13 +6,14 @@ import {
 	Outlet,
 	Scripts,
 	ScrollRestoration,
+	useLocation,
 } from 'react-router';
 import type { Route } from './+types/root';
 import '@/app.css';
 import { Analytics } from '@vercel/analytics/react';
 import { useEffect } from 'react';
 import { Toaster } from '@/components/ui/sonner/sonner.component';
-import { currentLocale } from '@/features/i18n/locale-path';
+import { currentLocale, localeFromPathname } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import { paraglideMiddleware } from '@/features/i18n/paraglide/server';
 import { readAndApplyUiPreferences } from '@/features/preferences/ui-preferences';
@@ -42,7 +43,11 @@ export const middleware: MiddlewareFunction[] = [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
-	const locale = currentLocale();
+	// useLocation() hace que Layout re-renderice en cada navegación,
+	// garantizando que locale sea siempre el correcto sin recargar la página.
+	// Esto es clave para que VoiceGuideButton reciba el prop actualizado.
+	const location = useLocation();
+	const locale = localeFromPathname(location.pathname);
 
 	return (
 		<html lang={locale} suppressHydrationWarning>
@@ -86,7 +91,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
 						</filter>
 					</defs>
 				</svg>
-				{children}
+
+				{/* filter-scope: los filtros CSS de accesibilidad (grayscale, colorblind)
+				    se aplican a este div en lugar de a body. De esta forma los elementos
+				    con position:fixed que viven FUERA de este div (portal-root,
+				    VoiceGuideButton) mantienen su referencia de posicionamiento al
+				    viewport, no al contenedor filtrado. */}
+				<div id="filter-scope">
+					{children}
+				</div>
+
+				{/* portal-root: punto de montaje externo al scope del filtro.
+				    El sidebar FAB y otros elementos fixed usan createPortal aquí
+				    para escapar del containing-block que crea filter: en su ancestro. */}
+				<div id="portal-root" />
+
 				<VoiceGuideButton locale={locale} />
 				<Toaster />
 				<Analytics />

@@ -247,7 +247,10 @@ export function PatientDashboardView({
 	const loadProfile = useCallback(async () => {
 		const res = await gqlQuery<{ patients: PatientProfile[] }>(PATIENTS_QUERY);
 		const mine = res.patients.find((p) => p.usuarioId === user.id);
-		if (!mine) { setMissingProfile(true); return null; }
+		if (!mine) {
+			setMissingProfile(true);
+			return null;
+		}
 		setPatientId(mine.id);
 		return mine;
 	}, [user.id]);
@@ -262,13 +265,13 @@ export function PatientDashboardView({
 
 			// Carga paralela por sección para evitar waterfalls
 			await Promise.all([
-				(section === 'overview' || section === 'appointments' || !section)
+				section === 'overview' || section === 'appointments' || !section
 					? gqlQuery<{ appoinmentsByPatient: Appointment[] }>(
 							PATIENT_APPOINTMENTS_QUERY,
 							{ pacienteId: profile.id },
 						).then((r) => setAppointments(r.appoinmentsByPatient))
 					: Promise.resolve(),
-				(section === 'overview' || section === 'queue' || !section)
+				section === 'overview' || section === 'queue' || !section
 					? gqlQuery<{ turnosPorPaciente: Turno[] }>(PATIENT_TURNS_QUERY, {
 							pacienteId: profile.id,
 						}).then((r) => setTurns(r.turnosPorPaciente))
@@ -294,7 +297,9 @@ export function PatientDashboardView({
 		}
 	}, [loadProfile, section]);
 
-	useEffect(() => { void loadData(); }, [loadData]);
+	useEffect(() => {
+		void loadData();
+	}, [loadData]);
 
 	// Cerrar sala de espera al cambiar de sección
 	useEffect(() => {
@@ -360,13 +365,16 @@ export function PatientDashboardView({
 		setActionLoading('create-turn');
 		setError('');
 		try {
-			const res = await gqlMutation<{ crearTurno: Turno }>(CREATE_PATIENT_TURN, {
-				input: {
-					pacienteId: patientId,
-					hospitalId: selectedHospitalId,
-					tipo: 'NORMAL',
+			const res = await gqlMutation<{ crearTurno: Turno }>(
+				CREATE_PATIENT_TURN,
+				{
+					input: {
+						pacienteId: patientId,
+						hospitalId: selectedHospitalId,
+						tipo: 'NORMAL',
+					},
 				},
-			});
+			);
 			setTurns((prev) => [res.crearTurno, ...prev]);
 			flash(
 				locale === 'es'
@@ -387,7 +395,11 @@ export function PatientDashboardView({
 		try {
 			// canceladaPor requerido por CancelAppoinmentInput; motivoCancelacion es el nombre correcto del campo
 			await gqlMutation(CANCEL_APPOINTMENT, {
-				input: { id, canceladaPor: user.id, motivoCancelacion: 'Cancelado por el paciente' },
+				input: {
+					id,
+					canceladaPor: user.id,
+					motivoCancelacion: 'Cancelado por el paciente',
+				},
 			});
 			setAppointments((prev) =>
 				prev.map((a) => (a.id === id ? { ...a, estado: 'CANCELADA' } : a)),
@@ -415,7 +427,7 @@ export function PatientDashboardView({
 	const showAi = section === 'ai';
 	const showGame = section === 'queue' && isWaitingRoomOpen;
 	const showHistorial = section === 'historial';
-	const showQueueList = showQueue && !(section === 'queue' && showGame);
+	const _showQueueList = showQueue && !(section === 'queue' && showGame);
 	const headerSubtitle =
 		section === 'ai'
 			? m.dashboardPatientAiHeaderSubtitle({}, { locale })
@@ -564,9 +576,7 @@ export function PatientDashboardView({
 						type="button"
 						onClick={handleBook}
 						disabled={
-							actionLoading === 'book' ||
-							!booking.medicoId ||
-							!booking.slot
+							actionLoading === 'book' || !booking.medicoId || !booking.slot
 						}
 						className="gap-2"
 					>
@@ -625,7 +635,9 @@ export function PatientDashboardView({
 						</p>
 					</div>
 					{loading ? (
-						[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)
+						[1, 2, 3].map((i) => (
+							<Skeleton key={i} className="h-20 rounded-xl" />
+						))
 					) : historial.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
 							{missingProfile
@@ -663,8 +675,8 @@ export function PatientDashboardView({
 			)}
 
 			{/* ── Citas + Turnos (overview / secciones individuales) ── */}
+			{/* md:grid-cols-2 en vez de lg: tablets (768-1023px) también aprovechan el layout */}
 			{(showAppointments || (showQueue && !showGame)) && (
-				{/* md:grid-cols-2 en vez de lg para que tablets también aprovechen el espacio */}
 				<div
 					className={`grid gap-4 ${
 						showAppointments && showQueue ? 'md:grid-cols-2' : ''
@@ -677,9 +689,7 @@ export function PatientDashboardView({
 							</h3>
 
 							{/* Formulario de agendar cita — solo en sección appointments, no en overview */}
-							{section === 'appointments' && (
-								<AppointmentBookingForm />
-							)}
+							{section === 'appointments' && <AppointmentBookingForm />}
 
 							{loading ? (
 								<Skeleton className="h-16 rounded-lg" />
@@ -691,57 +701,56 @@ export function PatientDashboardView({
 								</p>
 							) : (
 								<ul className="space-y-2">
-									{(isOverview
-										? appointments.slice(0, 4)
-										: appointments
-									).map((a) => {
-										const canCancel =
-											a.estado === 'PENDIENTE' || a.estado === 'CONFIRMADA';
-										return (
-											<li
-												key={a.id}
-												className="rounded-lg bg-muted/30 p-2"
-											>
-												<div className="flex items-start justify-between gap-2">
-													<div className="min-w-0">
-														<div className="flex items-center gap-2">
-															<span className="text-xs text-muted-foreground truncate">
-																{a.id}
-															</span>
-															<Badge variant={statusVariant(a.estado)}>
-																{statusLabel(a.estado, locale)}
-															</Badge>
-														</div>
-														<p className="mt-1 flex items-center gap-1 text-xs text-foreground">
-															<ClockIcon className="h-3.5 w-3.5 shrink-0" />
-															{new Date(a.fechaHora).toLocaleString(locale)}
-														</p>
-														{a.motivo && (
-															<p className="text-xs text-muted-foreground truncate">
-																{a.motivo}
+									{(isOverview ? appointments.slice(0, 4) : appointments).map(
+										(a) => {
+											const canCancel =
+												a.estado === 'PENDIENTE' || a.estado === 'CONFIRMADA';
+											return (
+												<li key={a.id} className="rounded-lg bg-muted/30 p-2">
+													<div className="flex items-start justify-between gap-2">
+														<div className="min-w-0">
+															<div className="flex items-center gap-2">
+																<span className="text-xs text-muted-foreground truncate">
+																	{a.id}
+																</span>
+																<Badge variant={statusVariant(a.estado)}>
+																	{statusLabel(a.estado, locale)}
+																</Badge>
+															</div>
+															<p className="mt-1 flex items-center gap-1 text-xs text-foreground">
+																<ClockIcon className="h-3.5 w-3.5 shrink-0" />
+																{new Date(a.fechaHora).toLocaleString(locale)}
 															</p>
+															{a.motivo && (
+																<p className="text-xs text-muted-foreground truncate">
+																	{a.motivo}
+																</p>
+															)}
+														</div>
+														{/* Botón de cancelar — solo si la cita aún está activa */}
+														{!isOverview && canCancel && (
+															<Button
+																type="button"
+																size="sm"
+																variant="destructive"
+																onClick={() => handleCancelAppointment(a.id)}
+																disabled={actionLoading === `cancel-${a.id}`}
+																className="shrink-0 gap-1 text-xs"
+															>
+																<XCircleIcon className="h-3.5 w-3.5" />
+																{actionLoading === `cancel-${a.id}`
+																	? m.dashboardActionCancelling({}, { locale })
+																	: m.dashboardPatientCancelAction(
+																			{},
+																			{ locale },
+																		)}
+															</Button>
 														)}
 													</div>
-													{/* Botón de cancelar — solo si la cita aún está activa */}
-													{!isOverview && canCancel && (
-														<Button
-															type="button"
-															size="sm"
-															variant="destructive"
-															onClick={() => handleCancelAppointment(a.id)}
-															disabled={actionLoading === `cancel-${a.id}`}
-															className="shrink-0 gap-1 text-xs"
-														>
-															<XCircleIcon className="h-3.5 w-3.5" />
-															{actionLoading === `cancel-${a.id}`
-																? m.dashboardActionCancelling({}, { locale })
-																: m.dashboardPatientCancelAction({}, { locale })}
-														</Button>
-													)}
-												</div>
-											</li>
-										);
-									})}
+												</li>
+											);
+										},
+									)}
 								</ul>
 							)}
 						</section>
@@ -759,7 +768,9 @@ export function PatientDashboardView({
 									<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 										<div>
 											<h4 className="text-sm font-semibold text-foreground">
-												{locale === 'es' ? 'Unirse a la cola' : 'Join the queue'}
+												{locale === 'es'
+													? 'Unirse a la cola'
+													: 'Join the queue'}
 											</h4>
 											<p className="text-xs text-muted-foreground">
 												{locale === 'es'
@@ -777,7 +788,9 @@ export function PatientDashboardView({
 											<PlusIcon className="h-4 w-4" />
 											{actionLoading === 'create-turn'
 												? m.dashboardActionSaving({}, { locale })
-												: locale === 'es' ? 'Pedir turno' : 'Get turn'}
+												: locale === 'es'
+													? 'Pedir turno'
+													: 'Get turn'}
 										</Button>
 									</div>
 								</div>
@@ -792,7 +805,10 @@ export function PatientDashboardView({
 												{m.dashboardPatientWaitingRoomTitle({}, { locale })}
 											</h4>
 											<p className="text-xs text-muted-foreground">
-												{m.dashboardPatientWaitingRoomDescription({}, { locale })}
+												{m.dashboardPatientWaitingRoomDescription(
+													{},
+													{ locale },
+												)}
 											</p>
 										</div>
 										<Button
@@ -825,7 +841,9 @@ export function PatientDashboardView({
 												<p className="text-sm font-medium text-foreground">
 													#{t.numeroTurno}
 												</p>
-												<p className="text-xs text-muted-foreground">{t.tipo}</p>
+												<p className="text-xs text-muted-foreground">
+													{t.tipo}
+												</p>
 											</div>
 											<Badge variant="secondary">
 												{statusLabel(t.estado, locale)}

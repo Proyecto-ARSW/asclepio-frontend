@@ -8,10 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
-import {
-	Field,
-	FieldLabel,
-} from '@/components/ui/field/field.component';
+import { Field, FieldLabel } from '@/components/ui/field/field.component';
 import { Input } from '@/components/ui/input/input.component';
 import {
 	Select,
@@ -85,9 +82,16 @@ export function AdminCreateUserForm({
 	const [nurseTriage, setNurseTriage] = useState(false);
 
 	function resetForm() {
-		setNombre(''); setApellido(''); setEmail(''); setPassword('');
-		setDoctorLicense(''); setDoctorSpecialtyId(''); setDoctorOffice('');
-		setNurseRegistration(''); setNurseLevel('1'); setNurseAreaId('');
+		setNombre('');
+		setApellido('');
+		setEmail('');
+		setPassword('');
+		setDoctorLicense('');
+		setDoctorSpecialtyId('');
+		setDoctorOffice('');
+		setNurseRegistration('');
+		setNurseLevel('1');
+		setNurseAreaId('');
 		setNurseTriage(false);
 		setError('');
 	}
@@ -97,12 +101,25 @@ export function AdminCreateUserForm({
 		setError('');
 
 		// Validación mínima en cliente — el backend valida exhaustivamente
-		if (!nombre.trim() || !apellido.trim() || !email.trim() || !password.trim()) {
-			setError(locale === 'es' ? 'Completa todos los campos obligatorios.' : 'Fill all required fields.');
+		if (
+			!nombre.trim() ||
+			!apellido.trim() ||
+			!email.trim() ||
+			!password.trim()
+		) {
+			setError(
+				locale === 'es'
+					? 'Completa todos los campos obligatorios.'
+					: 'Fill all required fields.',
+			);
 			return;
 		}
 		if (password.length < 6) {
-			setError(locale === 'es' ? 'La contraseña debe tener al menos 6 caracteres.' : 'Password must be at least 6 characters.');
+			setError(
+				locale === 'es'
+					? 'La contraseña debe tener al menos 6 caracteres.'
+					: 'Password must be at least 6 characters.',
+			);
 			return;
 		}
 
@@ -117,7 +134,7 @@ export function AdminCreateUserForm({
 
 		if (role === 'MEDICO') {
 			const specId = Number(doctorSpecialtyId);
-			if (!doctorLicense.trim() || isNaN(specId) || specId < 1) {
+			if (!doctorLicense.trim() || Number.isNaN(specId) || specId < 1) {
 				setError(
 					locale === 'es'
 						? 'Para médico se requiere número de registro y especialidad válida.'
@@ -134,7 +151,7 @@ export function AdminCreateUserForm({
 
 		if (role === 'ENFERMERO') {
 			const lvl = Number(nurseLevel);
-			if (!nurseRegistration.trim() || isNaN(lvl) || lvl < 1) {
+			if (!nurseRegistration.trim() || Number.isNaN(lvl) || lvl < 1) {
 				setError(
 					locale === 'es'
 						? 'Para enfermero se requiere número de registro y nivel de formación.'
@@ -146,7 +163,8 @@ export function AdminCreateUserForm({
 			payload.enfermeroData = {
 				numeroRegistro: nurseRegistration.trim(),
 				nivelFormacion: lvl,
-				areaEspecializacion: areaId && !isNaN(areaId) && areaId > 0 ? areaId : undefined,
+				areaEspecializacion:
+					areaId && !Number.isNaN(areaId) && areaId > 0 ? areaId : undefined,
 				certificacionTriage: nurseTriage,
 			};
 		}
@@ -194,11 +212,18 @@ export function AdminCreateUserForm({
 						type="button"
 						variant={open ? 'secondary' : 'default'}
 						size="sm"
-						onClick={() => { setOpen((o) => !o); if (open) resetForm(); }}
+						onClick={() => {
+							setOpen((o) => !o);
+							if (open) resetForm();
+						}}
 					>
 						{open
-							? (locale === 'es' ? 'Cancelar' : 'Cancel')
-							: (locale === 'es' ? '+ Nueva cuenta' : '+ New account')}
+							? locale === 'es'
+								? 'Cancelar'
+								: 'Cancel'
+							: locale === 'es'
+								? '+ Nueva cuenta'
+								: '+ New account'}
 					</Button>
 				</div>
 			</CardHeader>
@@ -211,15 +236,21 @@ export function AdminCreateUserForm({
 							<FieldLabel>{m.authRegisterLabelRol({}, { locale })}</FieldLabel>
 							<Select
 								value={role}
-								onValueChange={(v) => setRole((v as CreatableRole | null) ?? 'RECEPCIONISTA')}
+								onValueChange={(v) =>
+									setRole((v as CreatableRole | null) ?? 'RECEPCIONISTA')
+								}
 							>
 								<SelectTrigger>
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
 									<SelectItem value="MEDICO">{roleLabelMap.MEDICO}</SelectItem>
-									<SelectItem value="ENFERMERO">{roleLabelMap.ENFERMERO}</SelectItem>
-									<SelectItem value="RECEPCIONISTA">{roleLabelMap.RECEPCIONISTA}</SelectItem>
+									<SelectItem value="ENFERMERO">
+										{roleLabelMap.ENFERMERO}
+									</SelectItem>
+									<SelectItem value="RECEPCIONISTA">
+										{roleLabelMap.RECEPCIONISTA}
+									</SelectItem>
 								</SelectContent>
 							</Select>
 						</Field>
@@ -227,7 +258,9 @@ export function AdminCreateUserForm({
 						{/* Datos básicos */}
 						<div className="grid gap-3 sm:grid-cols-2">
 							<Field>
-								<FieldLabel>{m.authRegisterLabelNombre({}, { locale })}</FieldLabel>
+								<FieldLabel>
+									{m.authRegisterLabelNombre({}, { locale })}
+								</FieldLabel>
 								<Input
 									value={nombre}
 									onChange={(e) => setNombre(e.target.value)}
@@ -236,7 +269,9 @@ export function AdminCreateUserForm({
 								/>
 							</Field>
 							<Field>
-								<FieldLabel>{m.authRegisterLabelApellido({}, { locale })}</FieldLabel>
+								<FieldLabel>
+									{m.authRegisterLabelApellido({}, { locale })}
+								</FieldLabel>
 								<Input
 									value={apellido}
 									onChange={(e) => setApellido(e.target.value)}
@@ -245,7 +280,9 @@ export function AdminCreateUserForm({
 								/>
 							</Field>
 							<Field>
-								<FieldLabel>{m.authRegisterLabelEmail({}, { locale })}</FieldLabel>
+								<FieldLabel>
+									{m.authRegisterLabelEmail({}, { locale })}
+								</FieldLabel>
 								<Input
 									type="email"
 									value={email}
@@ -255,7 +292,9 @@ export function AdminCreateUserForm({
 								/>
 							</Field>
 							<Field>
-								<FieldLabel>{m.authRegisterLabelPassword({}, { locale })}</FieldLabel>
+								<FieldLabel>
+									{m.authRegisterLabelPassword({}, { locale })}
+								</FieldLabel>
 								<Input
 									type="password"
 									value={password}
@@ -274,28 +313,40 @@ export function AdminCreateUserForm({
 									{locale === 'es' ? 'Datos del médico' : 'Doctor data'}
 								</p>
 								<Field>
-									<FieldLabel>{m.authRegisterLabelNumeroRegistroMedico({}, { locale })}</FieldLabel>
+									<FieldLabel>
+										{m.authRegisterLabelNumeroRegistroMedico({}, { locale })}
+									</FieldLabel>
 									<Input
 										value={doctorLicense}
 										onChange={(e) => setDoctorLicense(e.target.value)}
-										placeholder={m.authRegisterPlaceholderNumeroRegistroMedico({}, { locale })}
-										required
-									/>
-								</Field>
-								<Field>
-									<FieldLabel>{m.authRegisterLabelEspecialidadId({}, { locale })}</FieldLabel>
-									<Input
-										type="number"
-										min={1}
-										value={doctorSpecialtyId}
-										onChange={(e) => setDoctorSpecialtyId(e.target.value)}
-										placeholder={m.authRegisterPlaceholderEspecialidadId({}, { locale })}
+										placeholder={m.authRegisterPlaceholderNumeroRegistroMedico(
+											{},
+											{ locale },
+										)}
 										required
 									/>
 								</Field>
 								<Field>
 									<FieldLabel>
-										{locale === 'es' ? 'Consultorio (opcional)' : 'Office (optional)'}
+										{m.authRegisterLabelEspecialidadId({}, { locale })}
+									</FieldLabel>
+									<Input
+										type="number"
+										min={1}
+										value={doctorSpecialtyId}
+										onChange={(e) => setDoctorSpecialtyId(e.target.value)}
+										placeholder={m.authRegisterPlaceholderEspecialidadId(
+											{},
+											{ locale },
+										)}
+										required
+									/>
+								</Field>
+								<Field>
+									<FieldLabel>
+										{locale === 'es'
+											? 'Consultorio (opcional)'
+											: 'Office (optional)'}
 									</FieldLabel>
 									<Input
 										value={doctorOffice}
@@ -313,36 +364,59 @@ export function AdminCreateUserForm({
 									{locale === 'es' ? 'Datos del enfermero' : 'Nurse data'}
 								</p>
 								<Field>
-									<FieldLabel>{m.authRegisterLabelNumeroRegistroEnfermero({}, { locale })}</FieldLabel>
+									<FieldLabel>
+										{m.authRegisterLabelNumeroRegistroEnfermero({}, { locale })}
+									</FieldLabel>
 									<Input
 										value={nurseRegistration}
 										onChange={(e) => setNurseRegistration(e.target.value)}
-										placeholder={m.authRegisterPlaceholderNumeroRegistroEnfermero({}, { locale })}
+										placeholder={m.authRegisterPlaceholderNumeroRegistroEnfermero(
+											{},
+											{ locale },
+										)}
 										required
 									/>
 								</Field>
 								<Field>
-									<FieldLabel>{m.authRegisterLabelNivelFormacion({}, { locale })}</FieldLabel>
-									<Select value={nurseLevel} onValueChange={(v) => setNurseLevel(v ?? '1')}>
+									<FieldLabel>
+										{m.authRegisterLabelNivelFormacion({}, { locale })}
+									</FieldLabel>
+									<Select
+										value={nurseLevel}
+										onValueChange={(v) => setNurseLevel(v ?? '1')}
+									>
 										<SelectTrigger>
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="1">{m.authRegisterTrainingLevel1({}, { locale })}</SelectItem>
-											<SelectItem value="2">{m.authRegisterTrainingLevel2({}, { locale })}</SelectItem>
-											<SelectItem value="3">{m.authRegisterTrainingLevel3({}, { locale })}</SelectItem>
-											<SelectItem value="4">{m.authRegisterTrainingLevel4({}, { locale })}</SelectItem>
+											<SelectItem value="1">
+												{m.authRegisterTrainingLevel1({}, { locale })}
+											</SelectItem>
+											<SelectItem value="2">
+												{m.authRegisterTrainingLevel2({}, { locale })}
+											</SelectItem>
+											<SelectItem value="3">
+												{m.authRegisterTrainingLevel3({}, { locale })}
+											</SelectItem>
+											<SelectItem value="4">
+												{m.authRegisterTrainingLevel4({}, { locale })}
+											</SelectItem>
 										</SelectContent>
 									</Select>
 								</Field>
 								<Field>
-									<FieldLabel>{m.authRegisterLabelAreaEspecializacion({}, { locale })}</FieldLabel>
+									<FieldLabel>
+										{m.authRegisterLabelAreaEspecializacion({}, { locale })}
+									</FieldLabel>
 									<Input
 										type="number"
 										min={1}
 										value={nurseAreaId}
 										onChange={(e) => setNurseAreaId(e.target.value)}
-										placeholder={m.authRegisterPlaceholderAreaEspecializacion({}, { locale })}
+										placeholder={m.authRegisterPlaceholderAreaEspecializacion(
+											{},
+											{ locale },
+										)}
 									/>
 								</Field>
 								<Field>
@@ -368,7 +442,9 @@ export function AdminCreateUserForm({
 						<Button type="submit" disabled={loading} className="gap-2">
 							{loading
 								? m.authRegisterNavSubmitLoading({}, { locale })
-								: locale === 'es' ? 'Crear cuenta' : 'Create account'}
+								: locale === 'es'
+									? 'Crear cuenta'
+									: 'Create account'}
 						</Button>
 					</form>
 				</CardContent>

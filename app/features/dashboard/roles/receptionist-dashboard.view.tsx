@@ -251,9 +251,7 @@ export function ReceptionistDashboardView({
 			});
 			setTurns((prev) => [res.crearTurno, ...prev]);
 			setNewTurn({ pacienteId: '', tipo: 'NORMAL' });
-			flash(
-				`Turno #${res.crearTurno.numeroTurno} creado`
-			);
+			flash(`Turno #${res.crearTurno.numeroTurno} creado`);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Error');
 		} finally {
@@ -266,7 +264,10 @@ export function ReceptionistDashboardView({
 		setActionLoading('call-next');
 		setError('');
 		try {
-			const res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(CALL_NEXT, {});
+			const res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(
+				CALL_NEXT,
+				{},
+			);
 			if (res.llamarSiguienteTurno) {
 				flash(`Turno #${res.llamarSiguienteTurno.numeroTurno} llamado`);
 				void loadData();
@@ -379,9 +380,9 @@ export function ReceptionistDashboardView({
 								{m.dashboardPatientsEmptyDescription({}, { locale })}
 							</p>
 						) : (
-							turns.slice(0, 6).map((t) => (
-								<TurnRow key={t.id} turn={t} compact />
-							))
+							turns
+								.slice(0, 6)
+								.map((t) => <TurnRow key={t.id} turn={t} compact />)
 						)}
 					</CardContent>
 				</Card>
@@ -520,9 +521,7 @@ export function ReceptionistDashboardView({
 								type="button"
 								variant="outline"
 								onClick={handleCallNext}
-								disabled={
-									actionLoading === 'call-next' || waitingTurns === 0
-								}
+								disabled={actionLoading === 'call-next' || waitingTurns === 0}
 								className="gap-2"
 							>
 								<QueueListIcon className="h-4 w-4" />

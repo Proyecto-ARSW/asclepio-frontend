@@ -200,40 +200,48 @@ function SidebarContent({
 			{/* role="list" + aria-label: el lector de pantalla anuncia "X de Y elementos"
 			    al navegar con Tab/flechas, y el aria-label identifica el propósito del nav. */}
 			<nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
-				<ul role="list" className="space-y-0.5">
-				{visibleNavItems.map(({ key, icon: Icon, iconActive: IconActive }) => {
-					const isActive = active === key;
-					return (
-						<li key={key} role="listitem">
-							<Button
-								type="button"
-								onClick={() => {
-									onNavigate(key);
-									onClose?.();
-									// Despacha el label localizado al guía de voz vía CustomEvent.
-									// Desacoplamiento: sidebar no sabe nada de VoiceGuideButton.
-									if (typeof window !== 'undefined') {
-										window.dispatchEvent(
-											new CustomEvent('asclepio:section-change', {
-												detail: { label: sectionLabels[key] },
-											}),
-										);
-									}
-								}}
-								variant={isActive ? 'secondary' : 'ghost'}
-								aria-current={isActive ? 'page' : undefined}
-								className="h-10 w-full justify-start gap-3"
-							>
-								{isActive ? (
-									<IconActive className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
-								) : (
-									<Icon className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
-								)}
-								{sectionLabels[key]}
-							</Button>
-						</li>
-					);
-				})}
+				<ul className="space-y-0.5">
+					{visibleNavItems.map(
+						({ key, icon: Icon, iconActive: IconActive }) => {
+							const isActive = active === key;
+							return (
+								<li key={key}>
+									<Button
+										type="button"
+										onClick={() => {
+											onNavigate(key);
+											onClose?.();
+											// Despacha el label localizado al guía de voz vía CustomEvent.
+											// Desacoplamiento: sidebar no sabe nada de VoiceGuideButton.
+											if (typeof window !== 'undefined') {
+												window.dispatchEvent(
+													new CustomEvent('asclepio:section-change', {
+														detail: { label: sectionLabels[key] },
+													}),
+												);
+											}
+										}}
+										variant={isActive ? 'secondary' : 'ghost'}
+										aria-current={isActive ? 'page' : undefined}
+										className="h-10 w-full justify-start gap-3"
+									>
+										{isActive ? (
+											<IconActive
+												className="h-4.5 w-4.5 shrink-0"
+												aria-hidden="true"
+											/>
+										) : (
+											<Icon
+												className="h-4.5 w-4.5 shrink-0"
+												aria-hidden="true"
+											/>
+										)}
+										{sectionLabels[key]}
+									</Button>
+								</li>
+							);
+						},
+					)}
 				</ul>
 			</nav>
 
@@ -312,9 +320,9 @@ export function SidebarNav(props: SidebarNavProps) {
 				size="sm"
 				className={`sidebar-mobile-fab fixed z-50 border border-primary/20 bg-gradient-to-r from-primary to-[color-mix(in_oklch,var(--color-primary)_58%,white)] text-primary-foreground shadow-[0_18px_35px_-16px_var(--color-primary)] transition-all duration-300 active:scale-[0.98] lg:hidden ${
 					mobileOpen
-						// Cuando está abierto mostramos solo icono para evitar overflow en
-						// pantallas estrechas (< 320 px): el texto añadiría ~80 px extra.
-						? 'top-1/2 left-64 -translate-y-1/2 h-11 w-11 rounded-l-none rounded-r-2xl border-l-0 p-0 hover:translate-x-1'
+						? // Cuando está abierto mostramos solo icono para evitar overflow en
+							// pantallas estrechas (< 320 px): el texto añadiría ~80 px extra.
+							'top-1/2 left-64 -translate-y-1/2 h-11 w-11 rounded-l-none rounded-r-2xl border-l-0 p-0 hover:translate-x-1'
 						: 'bottom-5 left-1/2 h-11 -translate-x-1/2 gap-2 rounded-full px-4 hover:scale-[1.03] hover:shadow-[0_24px_45px_-18px_var(--color-primary)] sm:left-5 sm:translate-x-0'
 				}`}
 			>
@@ -382,10 +390,20 @@ export function SidebarNav(props: SidebarNavProps) {
 		<>
 			{/* Portal agrupa FAB + backdrop + sidebar-móvil fuera de filter-scope.
 			    Fallback inline hasta que useEffect monte el portal en el cliente. */}
-			{portalEl
-				? createPortal(<>{mobileSidebar}{fabContent}</>, portalEl)
-				: <>{mobileSidebar}{fabContent}</>
-			}
+			{portalEl ? (
+				createPortal(
+					<>
+						{mobileSidebar}
+						{fabContent}
+					</>,
+					portalEl,
+				)
+			) : (
+				<>
+					{mobileSidebar}
+					{fabContent}
+				</>
+			)}
 
 			{/* Sidebar de escritorio: estático, fuera del portal, sin position:fixed */}
 			<aside

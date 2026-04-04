@@ -29,7 +29,8 @@ import {
 	UserGroupIcon as UserGroupIconSolid,
 	UserIcon as UserIconSolid,
 } from '@heroicons/react/24/solid';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button/button.component';
 import type { AppLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
@@ -196,29 +197,44 @@ function SidebarContent({
 				)}
 			</div>
 
+			{/* role="list" + aria-label: el lector de pantalla anuncia "X de Y elementos"
+			    al navegar con Tab/flechas, y el aria-label identifica el propósito del nav. */}
 			<nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
+				<ul role="list" className="space-y-0.5">
 				{visibleNavItems.map(({ key, icon: Icon, iconActive: IconActive }) => {
 					const isActive = active === key;
 					return (
-						<Button
-							key={key}
-							type="button"
-							onClick={() => {
-								onNavigate(key);
-								onClose?.();
-							}}
-							variant={isActive ? 'secondary' : 'ghost'}
-							className="h-10 w-full justify-start gap-3"
-						>
-							{isActive ? (
-								<IconActive className="h-4.5 w-4.5 shrink-0" />
-							) : (
-								<Icon className="h-4.5 w-4.5 shrink-0" />
-							)}
-							{sectionLabels[key]}
-						</Button>
+						<li key={key} role="listitem">
+							<Button
+								type="button"
+								onClick={() => {
+									onNavigate(key);
+									onClose?.();
+									// Despacha el label localizado al guía de voz vía CustomEvent.
+									// Desacoplamiento: sidebar no sabe nada de VoiceGuideButton.
+									if (typeof window !== 'undefined') {
+										window.dispatchEvent(
+											new CustomEvent('asclepio:section-change', {
+												detail: { label: sectionLabels[key] },
+											}),
+										);
+									}
+								}}
+								variant={isActive ? 'secondary' : 'ghost'}
+								aria-current={isActive ? 'page' : undefined}
+								className="h-10 w-full justify-start gap-3"
+							>
+								{isActive ? (
+									<IconActive className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
+								) : (
+									<Icon className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
+								)}
+								{sectionLabels[key]}
+							</Button>
+						</li>
 					);
 				})}
+				</ul>
 			</nav>
 
 			<div className="border-t border-border px-3 py-3">
@@ -253,26 +269,53 @@ function SidebarContent({
 
 export function SidebarNav(props: SidebarNavProps) {
 	const [mobileOpen, setMobileOpen] = useState(false);
+	// portalEl se resuelve solo en el cliente para evitar errores de SSR.
+	// createPortal requiere un nodo DOM real; durante el SSR no existe.
+	const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
 	const { locale } = props;
 	const openMenuLabel =
 		props.labels?.openMenu ?? m.dashboardSidebarOpenMenu({}, { locale });
 	const closeMenuLabel =
 		props.labels?.closeMenu ?? m.dashboardSidebarCloseMenu({}, { locale });
-	const floatingButtonLabel = mobileOpen ? closeMenuLabel : openMenuLabel;
 
-	return (
+	useEffect(() => {
+		// #portal-root vive fuera de #filter-scope en root.tsx, por eso los
+		// elementos fixed que se montan aquí mantienen su referencia al viewport
+		// aunque el resto de la página tenga filter:grayscale o colorblind.
+		setPortalEl(document.getElementById('portal-root'));
+	}, []);
+
+	function toggleMenu(next: boolean) {
+		setMobileOpen(next);
+		// Notifica al guía de voz cuando el menú se abre o cierra.
+		if (typeof window !== 'undefined') {
+			window.dispatchEvent(
+				new CustomEvent('asclepio:section-change', {
+					detail: { label: next ? openMenuLabel : closeMenuLabel },
+				}),
+			);
+		}
+	}
+
+	// El FAB se renderiza vía portal fuera del filter-scope para que
+	// position:fixed funcione relativo al viewport, no al contenedor filtrado.
+	const fabContent = (
 		<>
 			<Button
 				type="button"
-				aria-label={floatingButtonLabel}
-				onClick={() => setMobileOpen((prev) => !prev)}
+				aria-label={mobileOpen ? closeMenuLabel : openMenuLabel}
+				aria-expanded={mobileOpen}
+				aria-controls="sidebar-aside"
+				onClick={() => toggleMenu(!mobileOpen)}
 				data-open={mobileOpen ? 'true' : 'false'}
 				variant="default"
 				size="sm"
-				className={`sidebar-mobile-fab fixed z-50 h-11 gap-2 border border-primary/20 bg-gradient-to-r from-primary to-[color-mix(in_oklch,var(--color-primary)_58%,white)] px-4 text-primary-foreground shadow-[0_18px_35px_-16px_var(--color-primary)] transition-all duration-300 active:scale-[0.98] lg:hidden ${
+				className={`sidebar-mobile-fab fixed z-50 border border-primary/20 bg-gradient-to-r from-primary to-[color-mix(in_oklch,var(--color-primary)_58%,white)] text-primary-foreground shadow-[0_18px_35px_-16px_var(--color-primary)] transition-all duration-300 active:scale-[0.98] lg:hidden ${
 					mobileOpen
-						? 'top-1/2 left-64 -translate-y-1/2 rounded-l-none rounded-r-2xl border-l-0 hover:translate-x-1 hover:shadow-[0_24px_44px_-16px_var(--color-primary)]'
-						: 'bottom-5 left-1/2 -translate-x-1/2 rounded-full hover:scale-[1.03] hover:shadow-[0_24px_45px_-18px_var(--color-primary)] sm:left-5 sm:translate-x-0'
+						// Cuando está abierto mostramos solo icono para evitar overflow en
+						// pantallas estrechas (< 320 px): el texto añadiría ~80 px extra.
+						? 'top-1/2 left-64 -translate-y-1/2 h-11 w-11 rounded-l-none rounded-r-2xl border-l-0 p-0 hover:translate-x-1'
+						: 'bottom-5 left-1/2 h-11 -translate-x-1/2 gap-2 rounded-full px-4 hover:scale-[1.03] hover:shadow-[0_24px_45px_-18px_var(--color-primary)] sm:left-5 sm:translate-x-0'
 				}`}
 			>
 				<span className="relative flex h-5 w-5 items-center justify-center">
@@ -282,16 +325,21 @@ export function SidebarNav(props: SidebarNavProps) {
 								? 'motion-safe:animate-[ping_1.8s_ease-in-out_infinite]'
 								: 'motion-safe:animate-ping'
 						}`}
+						aria-hidden="true"
 					/>
 					{mobileOpen ? (
-						<XMarkIcon className="relative h-5 w-5" />
+						<XMarkIcon className="relative h-5 w-5" aria-hidden="true" />
 					) : (
-						<Bars3Icon className="relative h-5 w-5" />
+						<Bars3Icon className="relative h-5 w-5" aria-hidden="true" />
 					)}
 				</span>
-				<span className="text-xs font-semibold tracking-wide">
-					{floatingButtonLabel}
-				</span>
+				{/* Label solo visible cuando está cerrado; cuando está abierto
+				    el icono X comunica la acción por sí solo y el aria-label lo confirma. */}
+				{!mobileOpen && (
+					<span className="text-xs font-semibold tracking-wide">
+						{openMenuLabel}
+					</span>
+				)}
 			</Button>
 
 			{mobileOpen && (
@@ -299,17 +347,27 @@ export function SidebarNav(props: SidebarNavProps) {
 					type="button"
 					aria-label={closeMenuLabel}
 					className="fixed inset-0 z-40 bg-foreground/30 lg:hidden"
-					onClick={() => setMobileOpen(false)}
-					onKeyDown={(event) => event.key === 'Escape' && setMobileOpen(false)}
+					onClick={() => toggleMenu(false)}
+					onKeyDown={(event) => event.key === 'Escape' && toggleMenu(false)}
 				/>
 			)}
+		</>
+	);
+
+	return (
+		<>
+			{/* Portal hacia #portal-root (fuera del filter-scope).
+			    Fallback: renderizar inline hasta que el cliente monte el portal. */}
+			{portalEl ? createPortal(fabContent, portalEl) : fabContent}
 
 			<aside
+				id="sidebar-aside"
+				aria-label={m.dashboardSidebarBrandName({}, { locale })}
 				className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-sidebar text-sidebar-foreground transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 lg:shrink-0 ${
 					mobileOpen ? 'translate-x-0' : '-translate-x-full'
 				}`}
 			>
-				<SidebarContent {...props} onClose={() => setMobileOpen(false)} />
+				<SidebarContent {...props} onClose={() => toggleMenu(false)} />
 			</aside>
 		</>
 	);

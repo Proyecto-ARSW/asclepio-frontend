@@ -318,49 +318,66 @@ html.color-sepia {
 }
 
 /* --- Escala de grises (acromatopsia) --- */
-/* filter: grayscale aplicado al body — el <html> queda limpio para no
-   crear un stacking context extra que rompería position:fixed. */
-html.color-grayscale body {
+/* Se aplica a #filter-scope (no a body) para que los elementos con
+   position:fixed que viven fuera de ese div (VoiceGuideButton, sidebar FAB
+   via portal) no pierdan su referencia al viewport.
+   Razón técnica: filter:* en un ancestro convierte ese ancestro en
+   "containing block" de todos sus descendientes con position:fixed,
+   haciendo que se comporten como position:absolute. */
+html.color-grayscale #filter-scope {
 	filter: grayscale(1);
 }
 
 /* --- Daltonismo rojo-verde: deuteranopia / protanopia --- */
-/* Referencia al filtro SVG (<filter id="asclepio-colorblind-filter">)
-   que se inyecta en root.tsx. La matriz feColorMatrix redistribuye los
-   canales R/G/B para que colores antes confundibles se vean distintos.
-   Se aplica a body por la misma razón que el grayscale. */
-html.color-colorblind-rg body {
+html.color-colorblind-rg #filter-scope {
 	filter: url("#asclepio-colorblind-filter");
 }
 
 /* Boton flotante del sidebar movil.
-   Mantiene el mismo estilo en todos los temas y modos de color. */
+   Vive en #portal-root (fuera de #filter-scope), por lo que no es
+   filtrado automáticamente. Aplicamos estilos monocromáticos explícitos
+   para que luzca coherente con el modo de color activo. */
 .sidebar-mobile-fab {
 	outline: 1px solid color-mix(in oklch, var(--color-border) 78%, transparent);
 }
 
-/* En modos de accesibilidad con filtros globales, reforzamos contraste
-   sin cambiar posición ni tamaño para preservar el responsive base. */
-html.color-grayscale body .sidebar-mobile-fab,
-html.color-colorblind-rg body .sidebar-mobile-fab {
-	position: fixed;
-	z-index: 60;
-	opacity: 1;
-	background: color-mix(in oklch, var(--color-foreground) 88%, black);
-	color: color-mix(in oklch, var(--color-background) 92%, white);
-	border-color: color-mix(in oklch, var(--color-background) 78%, white);
-	outline: 2px solid color-mix(in oklch, var(--color-background) 86%, white);
-	text-shadow: 0 1px 0 color-mix(in oklch, black 35%, transparent);
+/* En modos de accesibilidad cromática, forzamos un esquema de alto
+   contraste explícito ya que el botón escapa al filtro global (portal). */
+html.color-grayscale .sidebar-mobile-fab,
+html.color-colorblind-rg .sidebar-mobile-fab {
+	background: oklch(0.14 0 0);
+	color: oklch(0.97 0 0);
+	border: 2px solid oklch(0.45 0 0);
+	outline: 2px solid oklch(0.6 0 0);
+	text-shadow: none;
 	box-shadow:
-		0 16px 34px -14px color-mix(in oklch, black 75%, transparent),
-		0 0 0 2px color-mix(in oklch, var(--color-background) 36%, transparent);
+		0 4px 18px oklch(0 0 0 / 0.55),
+		0 0 0 3px oklch(0.55 0 0 / 0.35);
 }
 
-html.color-grayscale body .sidebar-mobile-fab:hover,
-html.color-colorblind-rg body .sidebar-mobile-fab:hover {
+html.color-grayscale .sidebar-mobile-fab:hover,
+html.color-colorblind-rg .sidebar-mobile-fab:hover {
+	background: oklch(0.22 0 0);
 	box-shadow:
-		0 20px 42px -14px color-mix(in oklch, black 82%, transparent),
-		0 0 0 2px color-mix(in oklch, var(--color-background) 42%, transparent);
+		0 6px 22px oklch(0 0 0 / 0.65),
+		0 0 0 3px oklch(0.65 0 0 / 0.45);
+}
+
+/* VoiceGuideButton también vive fuera de #filter-scope: mismo esquema. */
+html.color-grayscale .voice-guide-fab,
+html.color-colorblind-rg .voice-guide-fab {
+	background: oklch(0.14 0 0) !important;
+	color: oklch(0.97 0 0) !important;
+	border-color: oklch(0.45 0 0) !important;
+	outline: 2px solid oklch(0.6 0 0);
+	box-shadow: 0 4px 18px oklch(0 0 0 / 0.55) !important;
+}
+
+html.color-grayscale .voice-guide-fab-panel,
+html.color-colorblind-rg .voice-guide-fab-panel {
+	background: oklch(0.1 0 0) !important;
+	border-color: oklch(0.35 0 0) !important;
+	color: oklch(0.9 0 0) !important;
 }
 
 @keyframes stepIn {

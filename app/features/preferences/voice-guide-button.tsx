@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { Button } from '@/components/ui/button/button.component';
 import type { AppLocale } from '@/features/i18n/locale-path';
+import { localeFromPathname } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import { cn } from '@/lib/utils';
 import { readUiPreferences, saveUiPreferences } from './ui-preferences';
@@ -43,8 +44,13 @@ function getRouteLabel(pathname: string, locale: SupportedLocale): string {
 	return m.a11yRouteDefault({}, { locale });
 }
 
-export function VoiceGuideButton({ locale }: { locale: SupportedLocale }) {
+export function VoiceGuideButton({ locale: localeProp }: { locale: SupportedLocale }) {
 	const location = useLocation();
+	// Derivamos el locale reactivamente desde la URL para que el botón
+	// siempre hable en el idioma correcto sin depender de que el componente
+	// padre se re-renderice tras un cambio de idioma por navegación.
+	const locale = (localeFromPathname(location.pathname) as SupportedLocale) || localeProp;
+
 	const shouldReduceMotion = useReducedMotion();
 	const [enabled, setEnabled] = useState(false);
 	const [isPaused, setIsPaused] = useState(false);
@@ -217,6 +223,24 @@ export function VoiceGuideButton({ locale }: { locale: SupportedLocale }) {
 		return () => window.removeEventListener('keydown', handleShortcut);
 	}, [enabled, toggleVoiceGuide]);
 
+	// Escucha eventos de cambio de sección del dashboard (sidebar nav).
+	// El sidebar los despacha con el label localizado listo para narrar,
+	// así el guía no necesita resolver traducciones por su cuenta.
+	useEffect(() => {
+		function onSectionChange(event: Event) {
+			if (!enabled) return;
+			const detail = (event as CustomEvent<{ label: string }>).detail;
+			if (!detail?.label) return;
+			const msg = `${text.routeIntro} ${detail.label}`;
+			setLiveMessage(msg);
+			speak(msg, true);
+		}
+
+		window.addEventListener('asclepio:section-change', onSectionChange);
+		return () =>
+			window.removeEventListener('asclepio:section-change', onSectionChange);
+	}, [enabled, speak, text.routeIntro]);
+
 	function handlePauseResume() {
 		if (typeof window === 'undefined' || !enabled) {
 			return;
@@ -264,7 +288,7 @@ export function VoiceGuideButton({ locale }: { locale: SupportedLocale }) {
 			</span>
 
 			{enabled && (
-				<div className="rounded-2xl border border-primary/25 bg-card/95 p-2 shadow-xl backdrop-blur">
+				<div className="voice-guide-fab-panel rounded-2xl border border-primary/25 bg-card/95 p-2 shadow-xl backdrop-blur">
 					<div className="flex items-center gap-2">
 						<Button
 							type="button"
@@ -297,7 +321,9 @@ export function VoiceGuideButton({ locale }: { locale: SupportedLocale }) {
 				aria-label={enabled ? text.deactivate : text.activate}
 				onClick={() => toggleVoiceGuide(!enabled)}
 				className={cn(
-					'rounded-2xl border border-primary/30 shadow-2xl transition-all',
+					// size-12 = 48×48 px: supera el mínimo WCAG 2.5.8 (44px táctil recomendado)
+					// y mejora el área de toque para usuarios con motor grueso o pantalla táctil.
+					'voice-guide-fab size-12 rounded-2xl border border-primary/30 shadow-2xl transition-all',
 					enabled
 						? 'bg-primary text-primary-foreground hover:bg-primary/90'
 						: 'bg-card/95 text-foreground hover:bg-accent',

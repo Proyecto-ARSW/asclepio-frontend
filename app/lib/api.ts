@@ -1,9 +1,9 @@
+import { REST_API_URL } from '@/lib/env';
 import { currentLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 
-const API_URL = (
-	import.meta.env.VITE_APP_API_URL ?? 'http://localhost:3000'
-).replace(/\/$/, '');
+// Alias local — toda la lógica de resolución vive en env.ts
+const API_URL = REST_API_URL;
 
 function getNetworkErrorMessage() {
 	const locale = currentLocale();

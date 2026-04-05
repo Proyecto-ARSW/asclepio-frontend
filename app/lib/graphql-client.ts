@@ -1,9 +1,6 @@
+import { GRAPHQL_URL } from '@/lib/env';
 import { currentLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
-
-const API_URL = (
-	import.meta.env.VITE_APP_API_URL ?? 'http://localhost:3000'
-).replace(/\/$/, '');
 
 function getNetworkErrorMessage() {
 	const locale = currentLocale();
@@ -44,7 +41,7 @@ export async function gqlQuery<T>(
 	const token = getAccessToken();
 	let res: Response;
 	try {
-		res = await fetch(`${API_URL}/graphql`, {
+		res = await fetch(GRAPHQL_URL, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',

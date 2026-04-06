@@ -271,6 +271,18 @@ function formatTime(t: string | Date): string {
  */
 const DURATION_PRESETS = [10, 15, 20, 30, 45, 60, 90] as const;
 
+function buildTimeOptions(stepMinutes: number): string[] {
+	const options: string[] = [];
+	for (let total = 0; total < 24 * 60; total += stepMinutes) {
+		const hours = String(Math.floor(total / 60)).padStart(2, '0');
+		const minutes = String(total % 60).padStart(2, '0');
+		options.push(`${hours}:${minutes}`);
+	}
+	return options;
+}
+
+const TIME_OPTIONS = buildTimeOptions(15);
+
 function suggestDuration(inicio: string, fin: string): number {
 	const [sh, sm] = inicio.split(':').map(Number);
 	const [eh, em] = fin.split(':').map(Number);
@@ -683,7 +695,7 @@ export function DoctorDashboardView({
 							<Skeleton className="h-16 rounded-lg" />
 						) : disponibilidad.slice(0, 3).length === 0 ? (
 							<p className="text-sm text-muted-foreground">
-								{m.dashboardPatientsEmptyDescription({}, { locale })}
+								{m.dashboardDoctorDisponibilidadEmptyDescription({}, { locale })}
 							</p>
 						) : (
 							disponibilidad
@@ -734,7 +746,7 @@ export function DoctorDashboardView({
 					</CardHeader>
 					<CardContent className="space-y-3">
 						{/* Grid responsivo para los campos del formulario */}
-						<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+						<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)_10rem]">
 							<div className="space-y-1">
 								<label
 									htmlFor={daySelectId}
@@ -751,8 +763,8 @@ export function DoctorDashboardView({
 										}))
 									}
 								>
-									<SelectTrigger id={daySelectId}>
-										<SelectValue />
+										<SelectTrigger id={daySelectId} className="w-full">
+											<SelectValue>{dayLabel(newSlot.diaSemana, locale)}</SelectValue>
 									</SelectTrigger>
 									<SelectContent>
 										{[0, 1, 2, 3, 4, 5, 6].map((d) => (
@@ -770,20 +782,28 @@ export function DoctorDashboardView({
 								>
 									{m.dashboardDoctorDisponibilidadHoraInicio({}, { locale })}
 								</label>
-								<Input
-									id={startTimeId}
-									type="time"
+								<Select
 									value={newSlot.horaInicio}
-									onChange={(e) => {
-										const horaInicio = e.target.value;
-										// Al cambiar la hora de inicio, recalcular la duración sugerida
+									onValueChange={(horaInicio) => {
+										if (!horaInicio) return;
 										setNewSlot((prev) => ({
 											...prev,
 											horaInicio,
 											duracionCita: suggestDuration(horaInicio, prev.horaFin),
 										}));
 									}}
-								/>
+								>
+									<SelectTrigger id={startTimeId} className="w-full">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{TIME_OPTIONS.map((time) => (
+											<SelectItem key={`start-${time}`} value={time}>
+												{time}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</div>
 							<div className="space-y-1">
 								<label
@@ -792,20 +812,28 @@ export function DoctorDashboardView({
 								>
 									{m.dashboardDoctorDisponibilidadHoraFin({}, { locale })}
 								</label>
-								<Input
-									id={endTimeId}
-									type="time"
+								<Select
 									value={newSlot.horaFin}
-									onChange={(e) => {
-										const horaFin = e.target.value;
-										// Al cambiar la hora de fin, recalcular la duración sugerida
+									onValueChange={(horaFin) => {
+										if (!horaFin) return;
 										setNewSlot((prev) => ({
 											...prev,
 											horaFin,
 											duracionCita: suggestDuration(prev.horaInicio, horaFin),
 										}));
 									}}
-								/>
+								>
+									<SelectTrigger id={endTimeId} className="w-full">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{TIME_OPTIONS.map((time) => (
+											<SelectItem key={`end-${time}`} value={time}>
+												{time}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</div>
 							<div className="space-y-1">
 								<label
@@ -821,7 +849,7 @@ export function DoctorDashboardView({
 										setNewSlot((prev) => ({ ...prev, duracionCita: Number(v) }))
 									}
 								>
-									<SelectTrigger id={durationSelectId}>
+									<SelectTrigger id={durationSelectId} className="w-full">
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
@@ -856,7 +884,7 @@ export function DoctorDashboardView({
 						))
 					) : disponibilidad.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
-							{m.dashboardPatientsEmptyDescription({}, { locale })}
+							{m.dashboardDoctorDisponibilidadEmptyDescription({}, { locale })}
 						</p>
 					) : (
 						disponibilidad.map((slot) => (

@@ -30,6 +30,7 @@
 	"dashboardDoctorDisponibilidadSave": "Save",
 	"dashboardDoctorDisponibilidadDelete": "Delete",
 	"dashboardDoctorDisponibilidadToggleActive": "Toggle active",
+	"dashboardDoctorDisponibilidadEmptyDescription": "You have not configured any availability slots yet.",
 	"dashboardDoctorHistorialTitle": "Medical history",
 	"dashboardDoctorHistorialSubtitle": "Create medical records for your patients",
 	"dashboardDoctorHistorialNew": "New entry",

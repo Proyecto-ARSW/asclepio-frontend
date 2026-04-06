@@ -30,6 +30,7 @@
 	"dashboardDoctorDisponibilidadSave": "Salvar",
 	"dashboardDoctorDisponibilidadDelete": "Excluir",
 	"dashboardDoctorDisponibilidadToggleActive": "Ativar / Desativar",
+	"dashboardDoctorDisponibilidadEmptyDescription": "Você ainda não configurou horários de disponibilidade.",
 	"dashboardDoctorHistorialTitle": "Histórico médico",
 	"dashboardDoctorHistorialSubtitle": "Crie entradas de histórico para seus pacientes",
 	"dashboardDoctorHistorialNew": "Nova entrada",

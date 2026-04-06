@@ -30,6 +30,7 @@
 	"dashboardDoctorDisponibilidadSave": "Enregistrer",
 	"dashboardDoctorDisponibilidadDelete": "Supprimer",
 	"dashboardDoctorDisponibilidadToggleActive": "Activer/Désactiver",
+	"dashboardDoctorDisponibilidadEmptyDescription": "Vous n'avez pas encore configuré de créneaux de disponibilité.",
 	"dashboardDoctorHistorialTitle": "Historique médical",
 	"dashboardDoctorHistorialSubtitle": "Créez des dossiers médicaux pour vos patients",
 	"dashboardDoctorHistorialNew": "Nouvelle entrée",

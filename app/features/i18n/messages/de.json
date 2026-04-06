@@ -30,6 +30,7 @@
 	"dashboardDoctorDisponibilidadSave": "Speichern",
 	"dashboardDoctorDisponibilidadDelete": "Löschen",
 	"dashboardDoctorDisponibilidadToggleActive": "Aktivieren/Deaktivieren",
+	"dashboardDoctorDisponibilidadEmptyDescription": "Sie haben noch keine Verfügbarkeitszeiten konfiguriert.",
 	"dashboardDoctorHistorialTitle": "Krankengeschichte",
 	"dashboardDoctorHistorialSubtitle": "Erstellen Sie Krankenakten für Ihre Patienten",
 	"dashboardDoctorHistorialNew": "Neuer Eintrag",

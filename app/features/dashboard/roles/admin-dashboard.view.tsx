@@ -1056,6 +1056,8 @@ export function AdminDashboardView({
 							locale={locale}
 							doctorProfile={doctorProfileByUserId.get(user.id)}
 							nurseProfile={nurseProfileByUserId.get(user.id)}
+							doctorProfilesCount={data?.doctors.length ?? 0}
+							nurseProfilesCount={data?.nurses.length ?? 0}
 							specialties={specialtyOptions}
 							saving={savingUserId === user.id}
 							lastUpdatedAt={

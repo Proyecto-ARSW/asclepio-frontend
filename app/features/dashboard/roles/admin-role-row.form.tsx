@@ -61,6 +61,11 @@ interface NurseProfileSummary {
 	certificacionTriage: boolean;
 }
 
+function recommendedRegistration(prefix: 'DC' | 'EF', totalProfiles: number) {
+	const year = new Date().getFullYear();
+	return `${prefix}-${year}-${totalProfiles + 1}`;
+}
+
 function trainingLevelLabel(level: number | string, locale: AppLocale) {
 	switch (Number(level)) {
 		case 1:
@@ -85,6 +90,8 @@ export function AdminRoleRowForm({
 	onSubmit,
 	saving,
 	lastUpdatedAt,
+	doctorProfilesCount,
+	nurseProfilesCount,
 }: {
 	user: DashboardUser;
 	locale: AppLocale;
@@ -94,6 +101,8 @@ export function AdminRoleRowForm({
 	onSubmit: (payload: RoleUpdatePayload) => Promise<void>;
 	saving: boolean;
 	lastUpdatedAt?: string;
+	doctorProfilesCount: number;
+	nurseProfilesCount: number;
 }) {
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const [validationError, setValidationError] = useState('');
@@ -226,6 +235,16 @@ export function AdminRoleRowForm({
 		[locale],
 	);
 
+	const recommendedDoctorRegistration = useMemo(
+		() => recommendedRegistration('DC', doctorProfilesCount),
+		[doctorProfilesCount],
+	);
+
+	const recommendedNurseRegistration = useMemo(
+		() => recommendedRegistration('EF', nurseProfilesCount),
+		[nurseProfilesCount],
+	);
+
 	const doctorProfileLocked =
 		selectedRole === 'MEDICO' &&
 		user.rol === 'MEDICO' &&
@@ -258,6 +277,20 @@ export function AdminRoleRowForm({
 								onValueChange={(value) => {
 									const nextRole = (value as UserRole | null) ?? user.rol;
 									field.handleChange(nextRole);
+									if (nextRole === 'MEDICO') {
+										form.setFieldValue(
+											'doctorLicense',
+											doctorProfile?.numeroRegistro ??
+												recommendedDoctorRegistration,
+										);
+									}
+									if (nextRole === 'ENFERMERO') {
+										form.setFieldValue(
+											'nurseRegistration',
+											nurseProfile?.numeroRegistro ??
+												recommendedNurseRegistration,
+										);
+									}
 									setSelectedRole(nextRole);
 								}}
 							>

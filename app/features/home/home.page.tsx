@@ -42,20 +42,20 @@ import {
 	saveUiPreferences,
 	type ThemeMode,
 } from '@/features/preferences/ui-preferences';
+import {
+	getStoredPreToken,
+	hasValidAccessTokenInStorage,
+} from '@/lib/auth-session';
 import { cn } from '@/lib/utils';
 
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
 	const locale = currentLocale(window.location.pathname);
-	const raw = localStorage.getItem('asclepio-auth');
-	if (raw) {
-		try {
-			const parsed = JSON.parse(raw);
-			if (parsed.state?.accessToken)
-				return redirect(localePath('/dashboard', locale));
-			if (parsed.state?.preToken)
-				return redirect(localePath('/select-hospital', locale));
-		} catch {}
+	if (hasValidAccessTokenInStorage()) {
+		return redirect(localePath('/dashboard', locale));
+	}
+	if (getStoredPreToken()) {
+		return redirect(localePath('/select-hospital', locale));
 	}
 	return null;
 }

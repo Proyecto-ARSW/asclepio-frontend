@@ -55,6 +55,7 @@ import {
 	type ThemeMode,
 	type UiPreferences,
 } from '@/features/preferences/ui-preferences';
+import { hasValidAccessTokenInStorage } from '@/lib/auth-session';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/dashboard.page';
@@ -139,13 +140,7 @@ function getSidebarSectionsForRole(
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
 	const locale = currentLocale(window.location.pathname);
-	const raw = localStorage.getItem('asclepio-auth');
-	if (!raw) return redirect(localePath('/login', locale));
-	try {
-		const parsed = JSON.parse(raw);
-		if (!parsed.state?.accessToken)
-			return redirect(localePath('/login', locale));
-	} catch {
+	if (!hasValidAccessTokenInStorage()) {
 		return redirect(localePath('/login', locale));
 	}
 	return null;

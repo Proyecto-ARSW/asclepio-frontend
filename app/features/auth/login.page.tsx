@@ -33,6 +33,7 @@ import {
 	type ThemeMode,
 } from '@/features/preferences/ui-preferences';
 import { ApiError, apiPost } from '@/lib/api';
+import { hasValidAccessTokenInStorage } from '@/lib/auth-session';
 import { cn } from '@/lib/utils';
 import { type Hospital, type Usuario, useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/login.page';
@@ -125,14 +126,8 @@ function resolveLoginSubmitError(
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
 	const locale = currentLocale(window.location.pathname);
-	const raw = localStorage.getItem('asclepio-auth');
-	if (raw) {
-		try {
-			const parsed = JSON.parse(raw);
-			if (parsed.state?.accessToken) {
-				return redirect(localePath('/dashboard', locale));
-			}
-		} catch {}
+	if (hasValidAccessTokenInStorage()) {
+		return redirect(localePath('/dashboard', locale));
 	}
 	return null;
 }

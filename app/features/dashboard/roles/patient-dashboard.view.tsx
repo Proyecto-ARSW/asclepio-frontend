@@ -331,7 +331,10 @@ export function PatientDashboardView({
 
 	const loadProfile = useCallback(async () => {
 		const res = await gqlQuery<{ patients: PatientProfile[] }>(PATIENTS_QUERY);
-		const mine = res.patients.find((p) => p.usuarioId === user.id);
+		const normalizedUserId = String(user.id);
+		const mine = res.patients.find(
+			(p) => String(p.usuarioId) === normalizedUserId,
+		);
 		if (!mine) {
 			setMissingProfile(true);
 			return null;

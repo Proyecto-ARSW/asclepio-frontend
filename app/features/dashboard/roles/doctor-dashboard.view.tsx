@@ -39,6 +39,7 @@ import { RoleDashboardShell } from './role-dashboard-shell';
 interface DoctorProfile {
 	id: string;
 	usuarioId: string;
+	email: string;
 	especialidadId: number;
 	consultorio: string | null;
 }
@@ -75,6 +76,7 @@ const DOCTOR_PROFILE_QUERY = `
 		doctors {
 			id
 			usuarioId
+			email
 			especialidadId
 			consultorio
 		}
@@ -338,14 +340,20 @@ export function DoctorDashboardView({
 		const doctors = await gqlQuery<{ doctors: DoctorProfile[] }>(
 			DOCTOR_PROFILE_QUERY,
 		);
-		const mine = doctors.doctors.find((d) => d.usuarioId === user.id);
+		const normalizedUserId = String(user.id);
+		const normalizedUserEmail = user.email.trim().toLowerCase();
+		const mine =
+			doctors.doctors.find((d) => String(d.usuarioId) === normalizedUserId) ??
+			doctors.doctors.find(
+				(d) => d.email.trim().toLowerCase() === normalizedUserEmail,
+			);
 		if (!mine) {
 			setMissingProfile(true);
 			return null;
 		}
 		setDoctorId(mine.id);
 		return mine;
-	}, [user.id]);
+	}, [user.email, user.id]);
 
 	const loadAppointments = useCallback(async (id: string) => {
 		const res = await gqlQuery<{ appoinmentsByDoctor: Appointment[] }>(

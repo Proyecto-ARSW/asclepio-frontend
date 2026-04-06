@@ -168,6 +168,40 @@ const UPDATE_USER_ROLE_MUTATION = `
 	}
 `;
 
+const CREATE_DOCTOR_MUTATION = `
+	mutation CreateDoctorFromAdmin($input: CreateDoctorInput!) {
+		createDoctor(input: $input) {
+			id
+		}
+	}
+`;
+
+const STAFF_PROFILE_LINK_QUERY = `
+	query StaffProfileLink {
+		doctors {
+			id
+			usuarioId
+			email
+		}
+		nurses {
+			id
+			usuarioId
+		}
+	}
+`;
+
+interface StaffProfileLinkData {
+	doctors: Array<{
+		id: string;
+		usuarioId: string;
+		email: string;
+	}>;
+	nurses: Array<{
+		id: string;
+		usuarioId: string;
+	}>;
+}
+
 export function AdminDashboardView({
 	locale,
 	section = 'overview',
@@ -435,10 +469,17 @@ export function AdminDashboardView({
 		setSavingUserId(user.id);
 		setError('');
 		try {
+			const isClinicalRole =
+				payload.role === 'MEDICO' || payload.role === 'ENFERMERO';
+			if (isClinicalRole && !selectedHospitalId) {
+				setError(m.authRegisterErrorRequiredHospital({}, { locale }));
+				return;
+			}
+
 			const input: Record<string, unknown> = {
 				id: user.id,
 				rol: payload.role,
-				hospitalId: selectedHospitalId,
+				...(selectedHospitalId ? { hospitalId: selectedHospitalId } : {}),
 			};
 			if (payload.medicoData) {
 				input.medicoData = payload.medicoData;
@@ -451,6 +492,60 @@ export function AdminDashboardView({
 				UPDATE_USER_ROLE_MUTATION,
 				{ input },
 			);
+
+			const hasDoctorPayload = Boolean(payload.medicoData);
+			const hasNursePayload = Boolean(payload.enfermeroData);
+			if (hasDoctorPayload || hasNursePayload) {
+				const normalizedUserId = String(user.id);
+				const normalizedUserEmail = user.email.trim().toLowerCase();
+
+				const hasLinkedProfile = async () => {
+					const linkData = await gqlQuery<StaffProfileLinkData>(
+						STAFF_PROFILE_LINK_QUERY,
+					);
+
+					if (hasDoctorPayload) {
+						return linkData.doctors.some(
+							(doctor) =>
+								String(doctor.usuarioId) === normalizedUserId ||
+								doctor.email.trim().toLowerCase() === normalizedUserEmail,
+						);
+					}
+
+					return linkData.nurses.some(
+						(nurse) => String(nurse.usuarioId) === normalizedUserId,
+					);
+				};
+
+				let linked = await hasLinkedProfile();
+				if (!linked && hasDoctorPayload && payload.medicoData) {
+					await gqlMutation(CREATE_DOCTOR_MUTATION, {
+						input: {
+							usuarioId: user.id,
+							especialidadId: payload.medicoData.especialidadId,
+							numeroRegistro: payload.medicoData.numeroRegistro,
+							consultorio: payload.medicoData.consultorio,
+						},
+					});
+					linked = await hasLinkedProfile();
+				}
+
+				if (!linked) {
+					await gqlMutation<UpdateUserRoleData>(UPDATE_USER_ROLE_MUTATION, {
+						input,
+					});
+					linked = await hasLinkedProfile();
+				}
+
+				if (!linked) {
+					throw new Error(
+						hasDoctorPayload
+							? m.dashboardDoctorMissingProfile({}, { locale })
+							: m.dashboardNurseMissingProfile({}, { locale }),
+					);
+				}
+			}
+
 			setData((prev) => {
 				if (!prev) return prev;
 				return {

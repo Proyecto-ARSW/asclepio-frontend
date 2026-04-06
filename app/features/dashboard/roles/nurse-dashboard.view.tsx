@@ -208,7 +208,10 @@ export function NurseDashboardView({
 
 	const loadProfile = useCallback(async () => {
 		const res = await gqlQuery<{ nurses: NurseProfile[] }>(NURSE_PROFILE_QUERY);
-		const mine = res.nurses.find((n) => n.usuarioId === user.id);
+		const normalizedUserId = String(user.id);
+		const mine = res.nurses.find(
+			(n) => String(n.usuarioId) === normalizedUserId,
+		);
 		if (!mine) {
 			setMissingProfile(true);
 			return null;

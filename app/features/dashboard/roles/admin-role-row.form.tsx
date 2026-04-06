@@ -71,8 +71,6 @@ export function AdminRoleRowForm({
 			nurseTriage: false,
 		},
 		onSubmit: async ({ value }) => {
-			if (value.role === user.rol) return;
-
 			if (value.role === 'MEDICO') {
 				if (!value.doctorLicense.trim()) {
 					setValidationError(
@@ -130,6 +128,8 @@ export function AdminRoleRowForm({
 				});
 				return;
 			}
+
+			if (value.role === user.rol) return;
 
 			setValidationError('');
 			await onSubmit({ role: value.role });
@@ -340,54 +340,74 @@ export function AdminRoleRowForm({
 					</p>
 				)}
 			</div>
-			<form.Subscribe selector={(state) => state.canSubmit}>
-				{(canSubmit) => (
-					<>
-						<Button
-							type="button"
-							disabled={!canSubmit || saving || selectedRole === user.rol}
-							onClick={() => setConfirmOpen(true)}
-						>
-							{saving
-								? m.authRegisterNavSubmitLoading({}, { locale })
-								: m.dashboardAdminRoleApply({}, { locale })}
-						</Button>
+			<form.Subscribe
+				selector={(state) => ({
+					canSubmit: state.canSubmit,
+					values: state.values,
+				})}
+			>
+				{({ canSubmit, values }) => {
+					const isSameRole = values.role === user.rol;
+					const hasDoctorPayload =
+						values.role === 'MEDICO' &&
+						Boolean(values.doctorLicense.trim()) &&
+						Number(values.doctorSpecialtyId) > 0;
+					const hasNursePayload =
+						values.role === 'ENFERMERO' &&
+						Boolean(values.nurseRegistration.trim()) &&
+						Number(values.nurseTrainingLevel) > 0;
+					const canSubmitSameRole = hasDoctorPayload || hasNursePayload;
 
-						<AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-							<AlertDialogContent>
-								<AlertDialogHeader>
-									<AlertDialogTitle>
-										{m.dashboardAdminRoleConfirmTitle({}, { locale })}
-									</AlertDialogTitle>
-									<AlertDialogDescription>
-										{m.dashboardAdminRoleConfirmDescription(
-											{
-												user: `${user.nombre} ${user.apellido}`,
-												from: roleLabelMap[user.rol],
-												to: roleLabelMap[selectedRole],
-											},
-											{ locale },
-										)}
-									</AlertDialogDescription>
-								</AlertDialogHeader>
-								<AlertDialogFooter>
-									<AlertDialogCancel>
-										{m.dashboardAdminRoleConfirmCancel({}, { locale })}
-									</AlertDialogCancel>
-									<AlertDialogAction
-										onClick={() => {
-											void form
-												.handleSubmit()
-												.finally(() => setConfirmOpen(false));
-										}}
-									>
-										{m.dashboardAdminRoleConfirmAction({}, { locale })}
-									</AlertDialogAction>
-								</AlertDialogFooter>
-							</AlertDialogContent>
-						</AlertDialog>
-					</>
-				)}
+					return (
+						<>
+							<Button
+								type="button"
+								disabled={
+									!canSubmit || saving || (isSameRole && !canSubmitSameRole)
+								}
+								onClick={() => setConfirmOpen(true)}
+							>
+								{saving
+									? m.authRegisterNavSubmitLoading({}, { locale })
+									: m.dashboardAdminRoleApply({}, { locale })}
+							</Button>
+
+							<AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+								<AlertDialogContent>
+									<AlertDialogHeader>
+										<AlertDialogTitle>
+											{m.dashboardAdminRoleConfirmTitle({}, { locale })}
+										</AlertDialogTitle>
+										<AlertDialogDescription>
+											{m.dashboardAdminRoleConfirmDescription(
+												{
+													user: `${user.nombre} ${user.apellido}`,
+													from: roleLabelMap[user.rol],
+													to: roleLabelMap[selectedRole],
+												},
+												{ locale },
+											)}
+										</AlertDialogDescription>
+									</AlertDialogHeader>
+									<AlertDialogFooter>
+										<AlertDialogCancel>
+											{m.dashboardAdminRoleConfirmCancel({}, { locale })}
+										</AlertDialogCancel>
+										<AlertDialogAction
+											onClick={() => {
+												void form
+													.handleSubmit()
+													.finally(() => setConfirmOpen(false));
+											}}
+										>
+											{m.dashboardAdminRoleConfirmAction({}, { locale })}
+										</AlertDialogAction>
+									</AlertDialogFooter>
+								</AlertDialogContent>
+							</AlertDialog>
+						</>
+					);
+				}}
 			</form.Subscribe>
 		</div>
 	);

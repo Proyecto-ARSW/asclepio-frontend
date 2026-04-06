@@ -176,11 +176,17 @@ export function AdminRoleRowForm({
 								}}
 							>
 								<SelectTrigger className="w-full sm:w-56">
-									<SelectValue />
+									<SelectValue>
+										{roleLabelMap[(field.state.value as UserRole) ?? user.rol]}
+									</SelectValue>
 								</SelectTrigger>
 								<SelectContent>
 									{ROLE_OPTIONS.map((role) => (
-										<SelectItem key={role} value={role}>
+										<SelectItem
+											key={role}
+											value={role}
+											label={roleLabelMap[role]}
+										>
 											{roleLabelMap[role]}
 										</SelectItem>
 									))}

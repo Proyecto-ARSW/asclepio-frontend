@@ -525,25 +525,47 @@ export function AdminDashboardView({
 						}}
 					>
 						<SelectTrigger>
-							<SelectValue />
+							<SelectValue>
+								{roleFilter === 'ALL'
+									? m.dashboardAdminFilterAllRoles({}, { locale })
+									: getLocalizedRoleLabel(roleFilter, locale)}
+							</SelectValue>
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="ALL">
+							<SelectItem
+								value="ALL"
+								label={m.dashboardAdminFilterAllRoles({}, { locale })}
+							>
 								{m.dashboardAdminFilterAllRoles({}, { locale })}
 							</SelectItem>
-							<SelectItem value="ADMIN">
+							<SelectItem
+								value="ADMIN"
+								label={getLocalizedRoleLabel('ADMIN', locale)}
+							>
 								{getLocalizedRoleLabel('ADMIN', locale)}
 							</SelectItem>
-							<SelectItem value="MEDICO">
+							<SelectItem
+								value="MEDICO"
+								label={getLocalizedRoleLabel('MEDICO', locale)}
+							>
 								{getLocalizedRoleLabel('MEDICO', locale)}
 							</SelectItem>
-							<SelectItem value="ENFERMERO">
+							<SelectItem
+								value="ENFERMERO"
+								label={getLocalizedRoleLabel('ENFERMERO', locale)}
+							>
 								{getLocalizedRoleLabel('ENFERMERO', locale)}
 							</SelectItem>
-							<SelectItem value="RECEPCIONISTA">
+							<SelectItem
+								value="RECEPCIONISTA"
+								label={getLocalizedRoleLabel('RECEPCIONISTA', locale)}
+							>
 								{getLocalizedRoleLabel('RECEPCIONISTA', locale)}
 							</SelectItem>
-							<SelectItem value="PACIENTE">
+							<SelectItem
+								value="PACIENTE"
+								label={getLocalizedRoleLabel('PACIENTE', locale)}
+							>
 								{getLocalizedRoleLabel('PACIENTE', locale)}
 							</SelectItem>
 						</SelectContent>

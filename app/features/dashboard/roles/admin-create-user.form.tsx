@@ -228,14 +228,19 @@ export function AdminCreateUserForm({
 								}
 							>
 								<SelectTrigger>
-									<SelectValue />
+									<SelectValue>{roleLabelMap[role]}</SelectValue>
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="MEDICO">{roleLabelMap.MEDICO}</SelectItem>
-									<SelectItem value="ENFERMERO">
+									<SelectItem value="MEDICO" label={roleLabelMap.MEDICO}>
+										{roleLabelMap.MEDICO}
+									</SelectItem>
+									<SelectItem value="ENFERMERO" label={roleLabelMap.ENFERMERO}>
 										{roleLabelMap.ENFERMERO}
 									</SelectItem>
-									<SelectItem value="RECEPCIONISTA">
+									<SelectItem
+										value="RECEPCIONISTA"
+										label={roleLabelMap.RECEPCIONISTA}
+									>
 										{roleLabelMap.RECEPCIONISTA}
 									</SelectItem>
 								</SelectContent>

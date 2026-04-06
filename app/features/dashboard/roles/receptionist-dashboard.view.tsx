@@ -1,8 +1,11 @@
 import {
 	ArrowPathIcon,
+	CalendarDaysIcon,
 	CheckCircleIcon,
+	ClockIcon,
 	PlusIcon,
 	QueueListIcon,
+	UserGroupIcon,
 	XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -192,21 +195,27 @@ export function ReceptionistDashboardView({
 		tipo: 'NORMAL' as 'NORMAL' | 'PRIORITARIO' | 'URGENTE',
 	});
 
+	const loadMainData = useCallback(async () => {
+		const main = await gqlQuery<{
+			turnosPorHospital: Turno[];
+			appointments: Appointment[];
+		}>(RECEPTIONIST_QUERY);
+		setTurns(main.turnosPorHospital);
+		setAppointments(main.appointments);
+		return main;
+	}, []);
+
 	const loadData = useCallback(async () => {
 		setLoading(true);
 		setError('');
 		try {
-			const [main, patientsRes] = await Promise.all([
-				gqlQuery<{ turnosPorHospital: Turno[]; appointments: Appointment[] }>(
-					RECEPTIONIST_QUERY,
-				),
+			const [, patientsRes] = await Promise.all([
+				loadMainData(),
 				// Cargar pacientes solo para la sección de crear turnos
 				section === 'queue'
 					? gqlQuery<{ patients: Patient[] }>(PATIENTS_QUERY)
 					: Promise.resolve({ patients: [] as Patient[] }),
 			]);
-			setTurns(main.turnosPorHospital);
-			setAppointments(main.appointments);
 			setPatients(patientsRes.patients);
 		} catch (err) {
 			setError(
@@ -217,11 +226,45 @@ export function ReceptionistDashboardView({
 		} finally {
 			setLoading(false);
 		}
-	}, [locale, section]);
+	}, [loadMainData, locale, section]);
 
 	useEffect(() => {
 		void loadData();
 	}, [loadData]);
+
+	useEffect(() => {
+		if (!(section === 'queue' || section === 'overview')) return;
+
+		let disposed = false;
+		const runRefresh = async () => {
+			if (disposed) return;
+			if (
+				typeof document !== 'undefined' &&
+				document.visibilityState === 'hidden'
+			) {
+				return;
+			}
+			try {
+				await loadMainData();
+			} catch (err) {
+				setError(
+					err instanceof Error
+						? err.message
+						: m.rootErrorUnexpected({}, { locale }),
+				);
+			}
+		};
+
+		void runRefresh();
+		const interval = window.setInterval(() => {
+			void runRefresh();
+		}, 4000);
+
+		return () => {
+			disposed = true;
+			window.clearInterval(interval);
+		};
+	}, [loadMainData, locale, section]);
 
 	function flash(msg: string) {
 		setSuccessMsg(msg);
@@ -236,6 +279,21 @@ export function ReceptionistDashboardView({
 	);
 	const waitingTurns = useMemo(
 		() => turns.filter((t) => t.estado === 'EN_ESPERA').length,
+		[turns],
+	);
+	const currentTurn = useMemo(
+		() =>
+			[...turns]
+				.filter((t) => t.estado === 'EN_CONSULTA')
+				.sort((a, b) => b.numeroTurno - a.numeroTurno)[0],
+		[turns],
+	);
+	const turnHistory = useMemo(
+		() =>
+			[...turns]
+				.filter((t) => t.estado === 'ATENDIDO' || t.estado === 'CANCELADO')
+				.sort((a, b) => b.numeroTurno - a.numeroTurno)
+				.slice(0, 6),
 		[turns],
 	);
 
@@ -343,7 +401,8 @@ export function ReceptionistDashboardView({
 				{/* KPIs en grid de 3 columnas */}
 				<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 					<div className="rounded-xl border border-border/70 bg-background/80 p-3">
-						<p className="text-xs text-muted-foreground">
+						<p className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">
+							<QueueListIcon className="h-3.5 w-3.5" />
 							{m.dashboardSidebarQueue({}, { locale })}
 						</p>
 						<p className="text-2xl font-semibold tabular-nums text-foreground">
@@ -351,7 +410,8 @@ export function ReceptionistDashboardView({
 						</p>
 					</div>
 					<div className="rounded-xl border border-border/70 bg-background/80 p-3">
-						<p className="text-xs text-muted-foreground">
+						<p className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">
+							<ClockIcon className="h-3.5 w-3.5" />
 							{m.dashboardStatusWaiting({}, { locale })}
 						</p>
 						<p className="text-2xl font-semibold tabular-nums text-foreground">
@@ -359,7 +419,8 @@ export function ReceptionistDashboardView({
 						</p>
 					</div>
 					<div className="rounded-xl border border-border/70 bg-background/80 p-3">
-						<p className="text-xs text-muted-foreground">
+						<p className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">
+							<CalendarDaysIcon className="h-3.5 w-3.5" />
 							{m.dashboardSidebarAppointments({}, { locale })} (
 							{m.dashboardStatusPending({}, { locale })})
 						</p>
@@ -453,10 +514,73 @@ export function ReceptionistDashboardView({
 
 		return (
 			<div className="space-y-4">
+				{/* Turno actual grande + historial compacto */}
+				<Card className="border-border/70">
+					<CardHeader className="pb-2">
+						<CardTitle className="flex items-center gap-2 text-base">
+							<QueueListIcon className="h-4 w-4" />
+							{m.dashboardSidebarQueue({}, { locale })}
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+							<div className="flex items-center justify-between gap-2">
+								<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+									{m.dashboardPatientCalledTurnLabel({}, { locale })}
+								</p>
+								<Button
+									type="button"
+									onClick={handleCallNext}
+									disabled={actionLoading === 'call-next' || waitingTurns === 0}
+									size="sm"
+									className="gap-2"
+								>
+									<QueueListIcon className="h-4 w-4" />
+									{actionLoading === 'call-next'
+										? m.dashboardActionCreating({}, { locale })
+										: m.dashboardReceptionistCallNext({}, { locale })}
+								</Button>
+							</div>
+							<p className="mt-2 text-center text-3xl font-bold tabular-nums text-primary sm:text-4xl">
+								{currentTurn ? `#${currentTurn.numeroTurno}` : '--'}
+							</p>
+							<p className="mt-1 text-center text-xs text-muted-foreground">
+								{currentTurn
+									? `${currentTurn.tipo} - ${statusLabel(currentTurn.estado, locale)}`
+									: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
+							</p>
+						</div>
+
+						{turnHistory.length > 0 && (
+							<div className="space-y-2 border-t border-border/60 pt-3">
+								<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+									{m.dashboardSidebarHistorial({}, { locale })}
+								</p>
+								<ul className="space-y-1.5">
+									{turnHistory.map((turn) => (
+										<li
+											key={turn.id}
+											className="flex items-center justify-between rounded-md bg-background/80 px-2 py-1.5"
+										>
+											<span className="text-sm font-semibold tabular-nums text-foreground">
+												#{turn.numeroTurno}
+											</span>
+											<span className="text-xs text-muted-foreground">
+												{statusLabel(turn.estado, locale)}
+											</span>
+										</li>
+									))}
+								</ul>
+							</div>
+						)}
+					</CardContent>
+				</Card>
+
 				{/* Formulario para crear turno nuevo */}
 				<Card className="border-border/70">
 					<CardHeader className="pb-2">
-						<CardTitle className="text-base">
+						<CardTitle className="flex items-center gap-2 text-base">
+							<UserGroupIcon className="h-4 w-4" />
 							{m.dashboardReceptionistCreateTurnTitle({}, { locale })}
 						</CardTitle>
 						<CardDescription>
@@ -479,7 +603,10 @@ export function ReceptionistDashboardView({
 										setNewTurn((prev) => ({ ...prev, pacienteId: v ?? '' }))
 									}
 								>
-									<SelectTrigger id={patientSelectId}>
+									<SelectTrigger
+										id={patientSelectId}
+										className="h-10 w-full sm:w-72"
+									>
 										<SelectValue
 											placeholder={m.dashboardReceptionistSelectPatient(
 												{},
@@ -514,7 +641,10 @@ export function ReceptionistDashboardView({
 										}))
 									}
 								>
-									<SelectTrigger id={turnTypeSelectId}>
+									<SelectTrigger
+										id={turnTypeSelectId}
+										className="h-10 w-full sm:w-72"
+									>
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
@@ -613,10 +743,14 @@ export function ReceptionistDashboardView({
 		return (
 			<div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/90 p-3">
 				<div>
-					<p className="text-sm font-semibold text-foreground">
-						#{t.numeroTurno}
+					<p className="flex items-center gap-1 text-sm font-semibold text-foreground">
+						<QueueListIcon className="h-4 w-4 text-muted-foreground" />#
+						{t.numeroTurno}
 					</p>
-					<p className="text-xs text-muted-foreground">{t.tipo}</p>
+					<p className="flex items-center gap-1 text-xs text-muted-foreground">
+						<ClockIcon className="h-3.5 w-3.5" />
+						{t.tipo}
+					</p>
 				</div>
 				<div className="flex items-center gap-2">
 					<Badge variant={turnVariant(t.estado)}>
@@ -668,13 +802,13 @@ export function ReceptionistDashboardView({
 	function renderSection() {
 		switch (section) {
 			case 'overview':
-				return <OverviewSection />;
+				return OverviewSection();
 			case 'appointments':
-				return <AppointmentsSection />;
+				return AppointmentsSection();
 			case 'queue':
-				return <QueueSection />;
+				return QueueSection();
 			default:
-				return <OverviewSection />;
+				return OverviewSection();
 		}
 	}
 

@@ -176,6 +176,14 @@ const CREATE_DOCTOR_MUTATION = `
 	}
 `;
 
+const CREATE_NURSE_MUTATION = `
+	mutation CreateNurseFromAdmin($input: CreateNurseInput!) {
+		createNurse(input: $input) {
+			id
+		}
+	}
+`;
+
 const STAFF_PROFILE_LINK_QUERY = `
 	query StaffProfileLink {
 		doctors {
@@ -525,6 +533,19 @@ export function AdminDashboardView({
 							especialidadId: payload.medicoData.especialidadId,
 							numeroRegistro: payload.medicoData.numeroRegistro,
 							consultorio: payload.medicoData.consultorio,
+						},
+					});
+					linked = await hasLinkedProfile();
+				}
+
+				if (!linked && hasNursePayload && payload.enfermeroData) {
+					await gqlMutation(CREATE_NURSE_MUTATION, {
+						input: {
+							usuarioId: user.id,
+							numeroRegistro: payload.enfermeroData.numeroRegistro,
+							nivelFormacion: payload.enfermeroData.nivelFormacion,
+							areaEspecializacion: payload.enfermeroData.areaEspecializacion,
+							certificacionTriage: payload.enfermeroData.certificacionTriage,
 						},
 					});
 					linked = await hasLinkedProfile();

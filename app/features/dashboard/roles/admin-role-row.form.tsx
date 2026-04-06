@@ -106,10 +106,13 @@ export function AdminRoleRowForm({
 				if (
 					!value.nurseRegistration.trim() ||
 					Number.isNaN(trainingLevel) ||
-					trainingLevel < 1
+					trainingLevel < 1 ||
+					!areaId ||
+					Number.isNaN(areaId) ||
+					areaId < 1
 				) {
 					setValidationError(
-						m.authRegisterErrorRequiredNurseRegistration({}, { locale }),
+						m.dashboardAdminCreateUserErrorNurseRequirements({}, { locale }),
 					);
 					return;
 				}
@@ -119,10 +122,7 @@ export function AdminRoleRowForm({
 					enfermeroData: {
 						numeroRegistro: value.nurseRegistration.trim(),
 						nivelFormacion: trainingLevel,
-						areaEspecializacion:
-							areaId && !Number.isNaN(areaId) && areaId > 0
-								? areaId
-								: undefined,
+						areaEspecializacion: areaId,
 						certificacionTriage: value.nurseTriage,
 					},
 				});
@@ -355,7 +355,8 @@ export function AdminRoleRowForm({
 					const hasNursePayload =
 						values.role === 'ENFERMERO' &&
 						Boolean(values.nurseRegistration.trim()) &&
-						Number(values.nurseTrainingLevel) > 0;
+						Number(values.nurseTrainingLevel) > 0 &&
+						Number(values.nurseAreaId) > 0;
 					const canSubmitSameRole = hasDoctorPayload || hasNursePayload;
 
 					return (

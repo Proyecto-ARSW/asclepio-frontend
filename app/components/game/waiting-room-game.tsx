@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input/input.component';
 import { currentLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
+import { GAME_SERVER_URL } from '@/lib/env';
 import { useAuthStore } from '@/store/auth.store';
 
 // ─── Constants matching the Go server ────────────────────────────────────────
@@ -144,8 +145,7 @@ function getThemeColors() {
 
 // ─── WS URL derivation ────────────────────────────────────────────────────────
 function buildWsUrl(token: string, setup?: GameSetupValues): string {
-	const base = import.meta.env.VITE_GAME_SERVER_URL as string | undefined;
-	const origin = base ?? 'http://localhost:3002';
+	const origin = GAME_SERVER_URL;
 	// Convert http(s) → ws(s)
 	const wsOrigin = origin
 		.replace(/^https:\/\//, 'wss://')

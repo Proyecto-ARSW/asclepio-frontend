@@ -14,10 +14,8 @@ import { Input } from '@/components/ui/input/input.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import type { AppLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
+import { AI_API_URL } from '@/lib/env';
 
-const AI_API_URL = (
-	import.meta.env.VITE_AI_API_URL ?? 'http://localhost:8000'
-).replace(/\/$/, '');
 const MAX_FILE_MB = 10;
 
 interface AiResult {

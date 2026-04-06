@@ -33,6 +33,7 @@ import type {
 	RoleUpdatePayload,
 	UserRole,
 } from './dashboard-role.types';
+import { getLocalizedRoleLabel } from './role-label';
 
 const ROLE_OPTIONS: UserRole[] = [
 	'PACIENTE',
@@ -141,11 +142,11 @@ export function AdminRoleRowForm({
 	}, [form, user.rol]);
 
 	const roleLabelMap: Record<UserRole, string> = {
-		ADMIN: m.authRoleAdmin({}, { locale }),
-		MEDICO: m.authRoleDoctor({}, { locale }),
-		ENFERMERO: m.authRoleNurse({}, { locale }),
-		RECEPCIONISTA: m.authRoleReceptionist({}, { locale }),
-		PACIENTE: m.authRolePatient({}, { locale }),
+		ADMIN: getLocalizedRoleLabel('ADMIN', locale),
+		MEDICO: getLocalizedRoleLabel('MEDICO', locale),
+		ENFERMERO: getLocalizedRoleLabel('ENFERMERO', locale),
+		RECEPCIONISTA: getLocalizedRoleLabel('RECEPCIONISTA', locale),
+		PACIENTE: getLocalizedRoleLabel('PACIENTE', locale),
 	};
 
 	return (

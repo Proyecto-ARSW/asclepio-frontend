@@ -37,6 +37,7 @@ import { DoctorDashboardView } from '@/features/dashboard/roles/doctor-dashboard
 import { NurseDashboardView } from '@/features/dashboard/roles/nurse-dashboard.view';
 import { PatientDashboardView } from '@/features/dashboard/roles/patient-dashboard.view';
 import { ReceptionistDashboardView } from '@/features/dashboard/roles/receptionist-dashboard.view';
+import { getLocalizedRoleLabel } from '@/features/dashboard/roles/role-label';
 import { LanguageSwitcher } from '@/features/i18n/language-switcher';
 import type { AppLocale } from '@/features/i18n/locale-path';
 import {
@@ -132,21 +133,6 @@ function getSidebarSectionsForRole(
 			return RECEPTIONIST_SIDEBAR_SECTIONS;
 		default:
 			return [];
-	}
-}
-
-function getRoleLabel(role: string | null | undefined, locale: AppLocale) {
-	switch (role) {
-		case 'ADMIN':
-			return m.authRoleAdmin({}, { locale });
-		case 'MEDICO':
-			return m.authRoleDoctor({}, { locale });
-		case 'ENFERMERO':
-			return m.authRoleNurse({}, { locale });
-		case 'RECEPCIONISTA':
-			return m.authRoleReceptionist({}, { locale });
-		default:
-			return m.authRolePatient({}, { locale });
 	}
 }
 
@@ -266,7 +252,7 @@ export default function DashboardPage() {
 		return null;
 	}
 
-	const roleLabel = getRoleLabel(user.rol, locale);
+	const roleLabel = getLocalizedRoleLabel(user.rol, locale);
 	const overviewBlockChoices: Array<{ key: OverviewBlockKey; label: string }> =
 		[
 			{

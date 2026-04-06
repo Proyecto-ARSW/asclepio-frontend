@@ -45,6 +45,7 @@ import type {
 	UserRole,
 } from './dashboard-role.types';
 import { RoleDashboardShell } from './role-dashboard-shell';
+import { getLocalizedRoleLabel } from './role-label';
 
 interface AdminGqlData {
 	users: Array<{
@@ -393,18 +394,7 @@ export function AdminDashboardView({
 	}, [currentPage, totalPages]);
 
 	function roleLabel(role: UserRole) {
-		switch (role) {
-			case 'ADMIN':
-				return m.authRoleAdmin({}, { locale });
-			case 'MEDICO':
-				return m.authRoleDoctor({}, { locale });
-			case 'ENFERMERO':
-				return m.authRoleNurse({}, { locale });
-			case 'RECEPCIONISTA':
-				return m.authRoleReceptionist({}, { locale });
-			default:
-				return m.authRolePatient({}, { locale });
-		}
+		return getLocalizedRoleLabel(role, locale);
 	}
 
 	function getStatusLabel(status: string) {
@@ -542,19 +532,19 @@ export function AdminDashboardView({
 								{m.dashboardAdminFilterAllRoles({}, { locale })}
 							</SelectItem>
 							<SelectItem value="ADMIN">
-								{m.authRoleAdmin({}, { locale })}
+								{getLocalizedRoleLabel('ADMIN', locale)}
 							</SelectItem>
 							<SelectItem value="MEDICO">
-								{m.authRoleDoctor({}, { locale })}
+								{getLocalizedRoleLabel('MEDICO', locale)}
 							</SelectItem>
 							<SelectItem value="ENFERMERO">
-								{m.authRoleNurse({}, { locale })}
+								{getLocalizedRoleLabel('ENFERMERO', locale)}
 							</SelectItem>
 							<SelectItem value="RECEPCIONISTA">
-								{m.authRoleReceptionist({}, { locale })}
+								{getLocalizedRoleLabel('RECEPCIONISTA', locale)}
 							</SelectItem>
 							<SelectItem value="PACIENTE">
-								{m.authRolePatient({}, { locale })}
+								{getLocalizedRoleLabel('PACIENTE', locale)}
 							</SelectItem>
 						</SelectContent>
 					</Select>

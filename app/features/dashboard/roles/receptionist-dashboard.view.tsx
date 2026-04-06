@@ -225,10 +225,7 @@ function isCalledTurn(estado: string) {
 	return /^(EN_CONSULTA|LLAMADO|LLAMANDO|EN_ATENCION)$/i.test(estado);
 }
 
-function activeTurnConflictMessage(
-	locale: AppLocale,
-	turnNumber?: number,
-) {
+function activeTurnConflictMessage(locale: AppLocale, turnNumber?: number) {
 	if (locale === 'es') {
 		return turnNumber
 			? `El paciente ya tiene un turno activo (#${turnNumber}). Debes atenderlo o cancelarlo antes de crear otro.`
@@ -399,18 +396,14 @@ export function ReceptionistDashboardView({
 				.slice(0, 6),
 		[turns],
 	);
-	const activeQueueTurns = useMemo(
+	const upcomingTurns = useMemo(
 		() =>
 			[...turns]
-				.filter((t) => !isTurnClosed(t.estado))
-				.sort((a, b) => a.numeroTurno - b.numeroTurno)
-				.slice(0, 6),
+				.filter((t) => isWaitingTurn(t.estado))
+				.sort((a, b) => a.numeroTurno - b.numeroTurno),
 		[turns],
 	);
-	const nextWaitingTurn = useMemo(
-		() => activeQueueTurns.find((t) => isWaitingTurn(t.estado)),
-		[activeQueueTurns],
-	);
+	const nextWaitingTurn = useMemo(() => upcomingTurns[0], [upcomingTurns]);
 	const selectedPatientLabel = useMemo(() => {
 		if (!newTurn.pacienteId) return '';
 		const patient = patients.find((p) => p.id === newTurn.pacienteId);
@@ -464,9 +457,7 @@ export function ReceptionistDashboardView({
 					const activeTurn = (patientTurns.turnosPorPaciente ?? [])
 						.filter((turn) => !isTurnClosed(turn.estado))
 						.sort((a, b) => b.numeroTurno - a.numeroTurno)[0];
-					setError(
-						activeTurnConflictMessage(locale, activeTurn?.numeroTurno),
-					);
+					setError(activeTurnConflictMessage(locale, activeTurn?.numeroTurno));
 				} catch {
 					setError(activeTurnConflictMessage(locale));
 				}
@@ -492,7 +483,10 @@ export function ReceptionistDashboardView({
 						{ hospitalId: selectedHospitalId },
 					);
 				} catch {
-					res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(CALL_NEXT, {});
+					res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(
+						CALL_NEXT,
+						{},
+					);
 				}
 			} else {
 				res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(CALL_NEXT, {});
@@ -658,7 +652,9 @@ export function ReceptionistDashboardView({
 											{m.dashboardStatusWaiting({}, { locale })}
 										</p>
 										<p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-											{nextWaitingTurn ? `#${nextWaitingTurn.numeroTurno}` : '--'}
+											{nextWaitingTurn
+												? `#${nextWaitingTurn.numeroTurno}`
+												: '--'}
 										</p>
 										<p className="mt-1 text-xs text-muted-foreground">
 											{nextWaitingTurn
@@ -672,13 +668,13 @@ export function ReceptionistDashboardView({
 									<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
 										{m.dashboardSidebarQueue({}, { locale })}
 									</p>
-									{activeQueueTurns.length === 0 ? (
+									{upcomingTurns.length === 0 ? (
 										<p className="text-sm text-muted-foreground">
 											{m.dashboardPatientsEmptyDescription({}, { locale })}
 										</p>
 									) : (
 										<ul className="space-y-1.5">
-											{activeQueueTurns.map((turn) => (
+											{upcomingTurns.slice(0, 6).map((turn) => (
 												<li
 													key={turn.id}
 													className="flex items-center justify-between rounded-md bg-background/80 px-2 py-1.5"
@@ -802,6 +798,33 @@ export function ReceptionistDashboardView({
 								</ul>
 							</div>
 						)}
+
+						<div className="space-y-2 border-t border-border/60 pt-3">
+							<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+								{m.dashboardStatusWaiting({}, { locale })}
+							</p>
+							{upcomingTurns.length === 0 ? (
+								<p className="text-sm text-muted-foreground">
+									{m.dashboardPatientsEmptyDescription({}, { locale })}
+								</p>
+							) : (
+								<ul className="space-y-1.5">
+									{upcomingTurns.slice(0, 6).map((turn) => (
+										<li
+											key={turn.id}
+											className="flex items-center justify-between rounded-md bg-background/80 px-2 py-1.5"
+										>
+											<span className="text-sm font-semibold tabular-nums text-foreground">
+												#{turn.numeroTurno}
+											</span>
+											<span className="text-xs text-muted-foreground">
+												{turn.tipo} - {statusLabel(turn.estado, locale)}
+											</span>
+										</li>
+									))}
+								</ul>
+							)}
+						</div>
 					</CardContent>
 				</Card>
 
@@ -919,7 +942,7 @@ export function ReceptionistDashboardView({
 								type="button"
 								variant="outline"
 								onClick={handleCallNext}
-									disabled={actionLoading === 'call-next'}
+								disabled={actionLoading === 'call-next'}
 								className="gap-2"
 							>
 								<QueueListIcon className="h-4 w-4" />
@@ -937,12 +960,12 @@ export function ReceptionistDashboardView({
 						[1, 2, 3, 4, 5].map((i) => (
 							<Skeleton key={i} className="h-20 rounded-xl" />
 						))
-					) : turns.length === 0 ? (
+					) : upcomingTurns.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
 							{m.dashboardPatientsEmptyDescription({}, { locale })}
 						</p>
 					) : (
-						turns.map((t) => (
+						upcomingTurns.map((t) => (
 							<TurnRow
 								key={t.id}
 								turn={t}

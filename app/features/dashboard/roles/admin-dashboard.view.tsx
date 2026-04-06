@@ -7,11 +7,14 @@ import {
 	ClockIcon,
 	CubeIcon,
 	PaperAirplaneIcon,
+	PlusIcon,
 	ShieldCheckIcon,
+	TrashIcon,
 	UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CreateHospitalModal } from '@/components/medical/create-hospital-modal';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Button } from '@/components/ui/button/button.component';
@@ -31,6 +34,7 @@ import {
 	SelectValue,
 } from '@/components/ui/select/select.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
+import { Switch } from '@/components/ui/switch/switch.component';
 import { m } from '@/features/i18n/paraglide/messages';
 import { DEFAULT_OVERVIEW_BLOCKS } from '@/features/preferences/ui-preferences';
 import { apiGet } from '@/lib/api';
@@ -68,6 +72,7 @@ interface AdminGqlData {
 	}>;
 	doctors: Array<{
 		id: string;
+		usuarioId: string;
 		nombre: string;
 		apellido: string;
 		email: string;
@@ -75,7 +80,14 @@ interface AdminGqlData {
 		especialidadId: number;
 		consultorio?: string | null;
 	}>;
-	nurses: Array<{ id: string }>;
+	nurses: Array<{
+		id: string;
+		usuarioId: string;
+		numeroRegistro: string;
+		nivelFormacion: number;
+		areaEspecializacion: number;
+		certificacionTriage: boolean;
+	}>;
 	appointments: Array<{
 		id: string;
 		pacienteId: string;
@@ -86,6 +98,8 @@ interface AdminGqlData {
 	}>;
 	turnosPorHospital: Array<{
 		id: string;
+		pacienteId: string;
+		hospitalId?: number | null;
 		numeroTurno: number;
 		estado: string;
 		tipo: string;
@@ -93,6 +107,7 @@ interface AdminGqlData {
 	medicines: Array<{
 		id: number;
 		nombreComercial: string;
+		nombreGenerico?: string | null;
 		requiereReceta: boolean;
 		activo: boolean;
 	}>;
@@ -126,6 +141,7 @@ const ADMIN_DASHBOARD_QUERY = `
 		}
 		doctors {
 			id
+			usuarioId
 			nombre
 			apellido
 			email
@@ -135,6 +151,11 @@ const ADMIN_DASHBOARD_QUERY = `
 		}
 		nurses {
 			id
+			usuarioId
+			numeroRegistro
+			nivelFormacion
+			areaEspecializacion
+			certificacionTriage
 		}
 		appointments: appoinments {
 			id
@@ -146,6 +167,8 @@ const ADMIN_DASHBOARD_QUERY = `
 		}
 		turnosPorHospital {
 			id
+			pacienteId
+			hospitalId
 			numeroTurno
 			estado
 			tipo
@@ -153,6 +176,7 @@ const ADMIN_DASHBOARD_QUERY = `
 		medicines {
 			id
 			nombreComercial
+			nombreGenerico
 			requiereReceta
 			activo
 		}
@@ -168,49 +192,110 @@ const UPDATE_USER_ROLE_MUTATION = `
 	}
 `;
 
-const CREATE_DOCTOR_MUTATION = `
-	mutation CreateDoctorFromAdmin($input: CreateDoctorInput!) {
+const CALL_NEXT_TURN = `
+	mutation AdminCallNextTurn {
+		llamarSiguienteTurno {
+			id
+			numeroTurno
+			estado
+			tipo
+		}
+	}
+`;
+
+const CREATE_DOCTOR_PROFILE_MUTATION = `
+	mutation AdminCreateDoctorProfile($input: CreateDoctorInput!) {
 		createDoctor(input: $input) {
 			id
 		}
 	}
 `;
 
-const CREATE_NURSE_MUTATION = `
-	mutation CreateNurseFromAdmin($input: CreateNurseInput!) {
+const UPDATE_DOCTOR_PROFILE_MUTATION = `
+	mutation AdminUpdateDoctorProfile($input: UpdateDoctorInput!) {
+		updateDoctor(input: $input) {
+			id
+		}
+	}
+`;
+
+const CREATE_NURSE_PROFILE_MUTATION = `
+	mutation AdminCreateNurseProfile($input: CreateNurseInput!) {
 		createNurse(input: $input) {
 			id
 		}
 	}
 `;
 
-const STAFF_PROFILE_LINK_QUERY = `
-	query StaffProfileLink {
-		doctors {
+const UPDATE_NURSE_PROFILE_MUTATION = `
+	mutation AdminUpdateNurseProfile($input: UpdateNurseInput!) {
+		updateNurse(input: $input) {
 			id
-			usuarioId
-			email
-		}
-		nurses {
-			id
-			usuarioId
 		}
 	}
 `;
 
-interface StaffProfileLinkData {
-	doctors: Array<{
-		id: string;
-		usuarioId: string;
-		email: string;
-	}>;
-	nurses: Array<{
-		id: string;
-		usuarioId: string;
-	}>;
-}
+const DEFAULT_SPECIALTY_OPTIONS = [
+	{ id: 1, nombre: 'Medicina General' },
+	{ id: 2, nombre: 'Cardiologia' },
+	{ id: 3, nombre: 'Pediatria' },
+	{ id: 4, nombre: 'Dermatologia' },
+	{ id: 5, nombre: 'Ginecologia' },
+	{ id: 6, nombre: 'Neurologia' },
+	{ id: 7, nombre: 'Ortopedia' },
+];
+
+const ATTEND_TURN = `
+	mutation AdminAttendTurn($id: ID!) {
+		atenderTurno(id: $id) {
+			id
+			estado
+		}
+	}
+`;
+
+const CANCEL_TURN = `
+	mutation AdminCancelTurn($id: ID!) {
+		cancelarTurno(id: $id) {
+			id
+			estado
+		}
+	}
+`;
+
+const CANCEL_APPOINTMENT = `
+	mutation AdminCancelAppointment($input: CancelAppoinmentInput!) {
+		cancelAppoinment(input: $input) {
+			id
+			estado
+		}
+	}
+`;
+
+const REMOVE_MEDICINE = `
+	mutation AdminRemoveMedicine($id: Int!) {
+		removeMedicine(id: $id) {
+			id
+			activo
+		}
+	}
+`;
+
+const CREATE_MEDICINE = `
+	mutation AdminCreateMedicine($input: CreateMedicineInput!) {
+		createMedicine(input: $input) {
+			id
+			nombreComercial
+			nombreGenerico
+			presentacion
+			requiereReceta
+			activo
+		}
+	}
+`;
 
 export function AdminDashboardView({
+	user,
 	locale,
 	section = 'overview',
 	selectedHospitalId,
@@ -223,6 +308,17 @@ export function AdminDashboardView({
 	const [error, setError] = useState('');
 	const [successMsg, setSuccessMsg] = useState('');
 	const [savingUserId, setSavingUserId] = useState<string | null>(null);
+	const [sectionActionLoading, setSectionActionLoading] = useState<
+		string | null
+	>(null);
+	const [hospitalModalOpen, setHospitalModalOpen] = useState(false);
+	const [medicineFormOpen, setMedicineFormOpen] = useState(false);
+	const [newMedicine, setNewMedicine] = useState({
+		nombreComercial: '',
+		nombreGenerico: '',
+		presentacion: '',
+		requiereReceta: true,
+	});
 	const [currentPage, setCurrentPage] = useState(1);
 	const [userSearch, setUserSearch] = useState('');
 	const [userSearchInput, setUserSearchInput] = useState('');
@@ -282,6 +378,69 @@ export function AdminDashboardView({
 		[data?.users],
 	);
 
+	const doctorProfileByUserId = useMemo(
+		() =>
+			new Map(
+				(data?.doctors ?? []).map((doctor) => [doctor.usuarioId, doctor]),
+			),
+		[data?.doctors],
+	);
+
+	const nurseProfileByUserId = useMemo(
+		() =>
+			new Map((data?.nurses ?? []).map((nurse) => [nurse.usuarioId, nurse])),
+		[data?.nurses],
+	);
+
+	const specialtyOptions = useMemo(() => {
+		const merged = new Map<number, string>(
+			DEFAULT_SPECIALTY_OPTIONS.map((item) => [item.id, item.nombre]),
+		);
+
+		for (const doctor of data?.doctors ?? []) {
+			if (!merged.has(doctor.especialidadId)) {
+				merged.set(
+					doctor.especialidadId,
+					locale === 'es'
+						? `Especialidad ${doctor.especialidadId}`
+						: `Specialty ${doctor.especialidadId}`,
+				);
+			}
+		}
+
+		for (const nurse of data?.nurses ?? []) {
+			if (!merged.has(nurse.areaEspecializacion)) {
+				merged.set(
+					nurse.areaEspecializacion,
+					locale === 'es'
+						? `Especialidad ${nurse.areaEspecializacion}`
+						: `Specialty ${nurse.areaEspecializacion}`,
+				);
+			}
+		}
+
+		return [...merged.entries()]
+			.sort((a, b) => a[0] - b[0])
+			.map(([id, nombre]) => ({ id, nombre }));
+	}, [data?.doctors, data?.nurses, locale]);
+
+	const specialtyById = useMemo(
+		() =>
+			new Map(specialtyOptions.map((specialty) => [specialty.id, specialty])),
+		[specialtyOptions],
+	);
+
+	const patientById = useMemo(
+		() =>
+			new Map((data?.patients ?? []).map((patient) => [patient.id, patient])),
+		[data?.patients],
+	);
+
+	const doctorById = useMemo(
+		() => new Map((data?.doctors ?? []).map((doctor) => [doctor.id, doctor])),
+		[data?.doctors],
+	);
+
 	const patientsOnly = useMemo(
 		() =>
 			(data?.patients ?? []).filter(
@@ -317,6 +476,39 @@ export function AdminDashboardView({
 		() => [...(data?.turnosPorHospital ?? [])].slice(0, 6),
 		[data?.turnosPorHospital],
 	);
+
+	const hospitalTurns = useMemo(() => data?.turnosPorHospital ?? [], [data]);
+
+	const currentTurn = useMemo(
+		() =>
+			[...hospitalTurns]
+				.filter((turn) =>
+					/^(EN_CONSULTA|LLAMADO|LLAMANDO|EN_ATENCION)$/i.test(turn.estado),
+				)
+				.sort((a, b) => b.numeroTurno - a.numeroTurno)[0],
+		[hospitalTurns],
+	);
+
+	const turnHistory = useMemo(
+		() =>
+			[...hospitalTurns]
+				.filter((turn) =>
+					/^(ATENDIDO|ATENDIDA|CANCELADO|CANCELADA)$/i.test(turn.estado),
+				)
+				.sort((a, b) => b.numeroTurno - a.numeroTurno)
+				.slice(0, 6),
+		[hospitalTurns],
+	);
+
+	const upcomingTurns = useMemo(
+		() =>
+			[...hospitalTurns]
+				.filter((turn) => /^(EN_ESPERA|PENDIENTE|EN_FILA)$/i.test(turn.estado))
+				.sort((a, b) => a.numeroTurno - b.numeroTurno),
+		[hospitalTurns],
+	);
+
+	const nextUpcomingTurn = useMemo(() => upcomingTurns[0], [upcomingTurns]);
 
 	const visibleBlocks = useMemo(
 		() => new Set(overviewBlocks ?? DEFAULT_OVERVIEW_BLOCKS),
@@ -448,15 +640,25 @@ export function AdminDashboardView({
 		switch (status) {
 			case 'PENDIENTE':
 				return m.dashboardStatusPending({}, { locale });
+			case 'EN_ESPERA':
+				return m.dashboardStatusWaiting({}, { locale });
 			case 'CONFIRMADA':
 				return m.dashboardStatusConfirmed({}, { locale });
+			case 'EN_CONSULTA':
+				return m.dashboardStatusInConsultation({}, { locale });
 			case 'CANCELADA':
+			case 'CANCELADO':
 				return m.dashboardStatusCancelled({}, { locale });
 			case 'ATENDIDA':
+			case 'ATENDIDO':
 				return m.dashboardStatusAttended({}, { locale });
 			default:
 				return status;
 		}
+	}
+
+	function isTurnClosed(status: string) {
+		return /^(ATENDIDO|ATENDIDA|CANCELADO|CANCELADA)$/i.test(status);
 	}
 
 	function flash(msg: string) {
@@ -471,10 +673,10 @@ export function AdminDashboardView({
 	}
 
 	async function handleRoleUpdate(
-		user: AdminGqlData['users'][number],
+		targetUser: AdminGqlData['users'][number],
 		payload: RoleUpdatePayload,
 	) {
-		setSavingUserId(user.id);
+		setSavingUserId(targetUser.id);
 		setError('');
 		try {
 			const isClinicalRole =
@@ -485,7 +687,7 @@ export function AdminDashboardView({
 			}
 
 			const input: Record<string, unknown> = {
-				id: user.id,
+				id: targetUser.id,
 				rol: payload.role,
 				...(selectedHospitalId ? { hospitalId: selectedHospitalId } : {}),
 			};
@@ -501,87 +703,59 @@ export function AdminDashboardView({
 				{ input },
 			);
 
-			const hasDoctorPayload = Boolean(payload.medicoData);
-			const hasNursePayload = Boolean(payload.enfermeroData);
-			if (hasDoctorPayload || hasNursePayload) {
-				const normalizedUserId = String(user.id);
-				const normalizedUserEmail = user.email.trim().toLowerCase();
-
-				const hasLinkedProfile = async () => {
-					const linkData = await gqlQuery<StaffProfileLinkData>(
-						STAFF_PROFILE_LINK_QUERY,
-					);
-
-					if (hasDoctorPayload) {
-						return linkData.doctors.some(
-							(doctor) =>
-								String(doctor.usuarioId) === normalizedUserId ||
-								doctor.email.trim().toLowerCase() === normalizedUserEmail,
-						);
-					}
-
-					return linkData.nurses.some(
-						(nurse) => String(nurse.usuarioId) === normalizedUserId,
-					);
-				};
-
-				let linked = await hasLinkedProfile();
-				if (!linked && hasDoctorPayload && payload.medicoData) {
-					await gqlMutation(CREATE_DOCTOR_MUTATION, {
+			if (payload.medicoData) {
+				const currentDoctorProfile = doctorProfileByUserId.get(targetUser.id);
+				if (currentDoctorProfile) {
+					await gqlMutation(UPDATE_DOCTOR_PROFILE_MUTATION, {
 						input: {
-							usuarioId: user.id,
-							especialidadId: payload.medicoData.especialidadId,
+							id: currentDoctorProfile.id,
 							numeroRegistro: payload.medicoData.numeroRegistro,
+							especialidadId: payload.medicoData.especialidadId,
 							consultorio: payload.medicoData.consultorio,
 						},
 					});
-					linked = await hasLinkedProfile();
-				}
-
-				if (!linked && hasNursePayload && payload.enfermeroData) {
-					await gqlMutation(CREATE_NURSE_MUTATION, {
+				} else {
+					await gqlMutation(CREATE_DOCTOR_PROFILE_MUTATION, {
 						input: {
-							usuarioId: user.id,
+							usuarioId: targetUser.id,
+							numeroRegistro: payload.medicoData.numeroRegistro,
+							especialidadId: payload.medicoData.especialidadId,
+							consultorio: payload.medicoData.consultorio,
+						},
+					});
+				}
+			}
+
+			if (payload.enfermeroData) {
+				const currentNurseProfile = nurseProfileByUserId.get(targetUser.id);
+				if (currentNurseProfile) {
+					await gqlMutation(UPDATE_NURSE_PROFILE_MUTATION, {
+						input: {
+							id: currentNurseProfile.id,
 							numeroRegistro: payload.enfermeroData.numeroRegistro,
 							nivelFormacion: payload.enfermeroData.nivelFormacion,
 							areaEspecializacion: payload.enfermeroData.areaEspecializacion,
 							certificacionTriage: payload.enfermeroData.certificacionTriage,
 						},
 					});
-					linked = await hasLinkedProfile();
-				}
-
-				if (!linked) {
-					await gqlMutation<UpdateUserRoleData>(UPDATE_USER_ROLE_MUTATION, {
-						input,
+				} else {
+					await gqlMutation(CREATE_NURSE_PROFILE_MUTATION, {
+						input: {
+							usuarioId: targetUser.id,
+							numeroRegistro: payload.enfermeroData.numeroRegistro,
+							nivelFormacion: payload.enfermeroData.nivelFormacion,
+							areaEspecializacion: payload.enfermeroData.areaEspecializacion,
+							certificacionTriage: payload.enfermeroData.certificacionTriage,
+						},
 					});
-					linked = await hasLinkedProfile();
-				}
-
-				if (!linked) {
-					throw new Error(
-						hasDoctorPayload
-							? m.dashboardDoctorMissingProfile({}, { locale })
-							: m.dashboardNurseMissingProfile({}, { locale }),
-					);
 				}
 			}
 
-			setData((prev) => {
-				if (!prev) return prev;
-				return {
-					...prev,
-					users: prev.users.map((user) =>
-						user.id === response.updateUser.id
-							? { ...user, rol: response.updateUser.rol }
-							: user,
-					),
-				};
-			});
+			await loadData();
 			setLastRoleChange({
-				userId: user.id,
-				userName: `${user.nombre} ${user.apellido}`,
-				fromRole: user.rol,
+				userId: targetUser.id,
+				userName: `${targetUser.nombre} ${targetUser.apellido}`,
+				fromRole: targetUser.rol,
 				toRole: response.updateUser.rol,
 				timestamp: new Date().toLocaleString(locale),
 			});
@@ -593,6 +767,150 @@ export function AdminDashboardView({
 			);
 		} finally {
 			setSavingUserId(null);
+		}
+	}
+
+	async function handleCallNextTurn() {
+		setSectionActionLoading('call-next');
+		setError('');
+		try {
+			const response = await gqlMutation<{
+				llamarSiguienteTurno: { id: string; numeroTurno: number };
+			}>(CALL_NEXT_TURN);
+			flash(
+				m.dashboardTurnCalled(
+					{ number: String(response.llamarSiguienteTurno.numeroTurno) },
+					{ locale },
+				),
+			);
+			await loadData();
+		} catch (err) {
+			setError(
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale }),
+			);
+		} finally {
+			setSectionActionLoading(null);
+		}
+	}
+
+	async function handleAttendTurn(id: string) {
+		setSectionActionLoading(`attend-${id}`);
+		setError('');
+		try {
+			await gqlMutation(ATTEND_TURN, { id });
+			flash(m.dashboardActionSuccess({}, { locale }));
+			await loadData();
+		} catch (err) {
+			setError(
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale }),
+			);
+		} finally {
+			setSectionActionLoading(null);
+		}
+	}
+
+	async function handleCancelTurn(id: string) {
+		setSectionActionLoading(`cancel-turn-${id}`);
+		setError('');
+		try {
+			await gqlMutation(CANCEL_TURN, { id });
+			flash(m.dashboardActionSuccess({}, { locale }));
+			await loadData();
+		} catch (err) {
+			setError(
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale }),
+			);
+		} finally {
+			setSectionActionLoading(null);
+		}
+	}
+
+	async function handleCancelAppointment(id: string) {
+		setSectionActionLoading(`cancel-appointment-${id}`);
+		setError('');
+		try {
+			await gqlMutation(CANCEL_APPOINTMENT, {
+				input: {
+					id,
+					canceladaPor: user.id,
+					motivoCancelacion: m.dashboardDoctorCancellationReason(
+						{},
+						{ locale },
+					),
+				},
+			});
+			flash(m.dashboardActionSuccess({}, { locale }));
+			await loadData();
+		} catch (err) {
+			setError(
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale }),
+			);
+		} finally {
+			setSectionActionLoading(null);
+		}
+	}
+
+	async function handleRemoveMedicine(id: number) {
+		setSectionActionLoading(`remove-medicine-${id}`);
+		setError('');
+		try {
+			await gqlMutation(REMOVE_MEDICINE, { id });
+			flash(m.dashboardActionSuccess({}, { locale }));
+			await loadData();
+		} catch (err) {
+			setError(
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale }),
+			);
+		} finally {
+			setSectionActionLoading(null);
+		}
+	}
+
+	async function handleCreateMedicine() {
+		if (!newMedicine.nombreComercial.trim()) {
+			setError(m.dashboardMedicinesNameRequired({}, { locale }));
+			return;
+		}
+
+		setSectionActionLoading('create-medicine');
+		setError('');
+		try {
+			await gqlMutation(CREATE_MEDICINE, {
+				input: {
+					nombreComercial: newMedicine.nombreComercial.trim(),
+					nombreGenerico: newMedicine.nombreGenerico.trim() || undefined,
+					presentacion: newMedicine.presentacion.trim() || undefined,
+					requiereReceta: newMedicine.requiereReceta,
+				},
+			});
+
+			setNewMedicine({
+				nombreComercial: '',
+				nombreGenerico: '',
+				presentacion: '',
+				requiereReceta: true,
+			});
+			setMedicineFormOpen(false);
+			flash(m.dashboardActionSuccess({}, { locale }));
+			await loadData();
+		} catch (err) {
+			setError(
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale }),
+			);
+		} finally {
+			setSectionActionLoading(null);
 		}
 	}
 
@@ -736,6 +1054,9 @@ export function AdminDashboardView({
 							key={user.id}
 							user={user}
 							locale={locale}
+							doctorProfile={doctorProfileByUserId.get(user.id)}
+							nurseProfile={nurseProfileByUserId.get(user.id)}
+							specialties={specialtyOptions}
 							saving={savingUserId === user.id}
 							lastUpdatedAt={
 								lastRoleChange?.userId === user.id
@@ -824,28 +1145,40 @@ export function AdminDashboardView({
 	function sectionContent() {
 		switch (section) {
 			case 'hospitals':
-				if (loading) return <Skeleton className="h-24 rounded-lg" />;
-				if (!hospitals.length) {
-					return (
-						<p className="text-sm text-muted-foreground">
-							{m.dashboardHospitalsEmpty({}, { locale })}
-						</p>
-					);
-				}
 				return (
-					<div className="space-y-2">
-						{hospitals
-							.slice(0, 12)
-							.map((hospital) =>
-								sectionListItem(
-									hospital.nombre,
-									`${hospital.ciudad} - ${hospital.departamento}`,
-									hospital.activo
-										? m.dashboardHospitalStatusActive({}, { locale })
-										: m.dashboardHospitalStatusInactive({}, { locale }),
-									`hospital-${hospital.id}`,
-								),
-							)}
+					<div className="space-y-3">
+						<div className="flex justify-end">
+							<Button
+								type="button"
+								onClick={() => setHospitalModalOpen(true)}
+								className="gap-2"
+							>
+								<PlusIcon className="h-4 w-4" />
+								{m.dashboardHospitalsCreate({}, { locale })}
+							</Button>
+						</div>
+						{loading ? (
+							<Skeleton className="h-24 rounded-lg" />
+						) : hospitals.length ? (
+							<div className="space-y-2">
+								{hospitals
+									.slice(0, 12)
+									.map((hospital) =>
+										sectionListItem(
+											hospital.nombre,
+											`${hospital.ciudad} - ${hospital.departamento}`,
+											hospital.activo
+												? m.dashboardHospitalStatusActive({}, { locale })
+												: m.dashboardHospitalStatusInactive({}, { locale }),
+											`hospital-${hospital.id}`,
+										),
+									)}
+							</div>
+						) : (
+							<p className="text-sm text-muted-foreground">
+								{m.dashboardHospitalsEmpty({}, { locale })}
+							</p>
+						)}
 					</div>
 				);
 			case 'patients':
@@ -882,64 +1215,396 @@ export function AdminDashboardView({
 				}
 				return (
 					<div className="space-y-2">
-						{data.appointments
-							.slice(0, 12)
-							.map((appointment) =>
-								sectionListItem(
-									new Date(appointment.fechaHora).toLocaleString(locale),
-									appointment.motivo || appointment.id,
-									getStatusLabel(appointment.estado),
-									`appointment-${appointment.id}`,
-								),
-							)}
+						{data.appointments.slice(0, 20).map((appointment) => {
+							const patient = patientById.get(appointment.pacienteId);
+							const doctor = doctorById.get(appointment.medicoId);
+							const isClosed =
+								appointment.estado === 'CANCELADA' ||
+								appointment.estado === 'ATENDIDA';
+							return (
+								<div
+									key={`appointment-${appointment.id}`}
+									className="rounded-lg border border-border/60 bg-muted/20 p-3"
+								>
+									<div className="flex flex-wrap items-start justify-between gap-2">
+										<div className="min-w-0">
+											<p className="truncate text-sm font-medium text-foreground">
+												{new Date(appointment.fechaHora).toLocaleString(locale)}
+											</p>
+											<p className="truncate text-xs text-muted-foreground">
+												{patient
+													? `${patient.nombre} ${patient.apellido}`
+													: appointment.pacienteId}
+												{' - '}
+												{doctor
+													? `${doctor.nombre} ${doctor.apellido}`
+													: appointment.medicoId}
+											</p>
+											<p className="truncate text-xs text-muted-foreground">
+												{appointment.motivo || appointment.id}
+											</p>
+										</div>
+										<div className="flex items-center gap-2">
+											<Badge variant="outline">
+												{getStatusLabel(appointment.estado)}
+											</Badge>
+											<Button
+												type="button"
+												variant="outline"
+												disabled={
+													isClosed ||
+													sectionActionLoading ===
+														`cancel-appointment-${appointment.id}`
+												}
+												onClick={() => handleCancelAppointment(appointment.id)}
+											>
+												{m.dashboardDoctorCancelAppointment({}, { locale })}
+											</Button>
+										</div>
+									</div>
+								</div>
+							);
+						})}
 					</div>
 				);
 			case 'queue':
 				if (loading) return <Skeleton className="h-24 rounded-lg" />;
-				if (!data?.turnosPorHospital.length) {
-					return (
-						<p className="text-sm text-muted-foreground">
-							{m.dashboardPatientsEmptyDescription({}, { locale })}
-						</p>
-					);
-				}
 				return (
-					<div className="space-y-2">
-						{data.turnosPorHospital
-							.slice(0, 12)
-							.map((turn) =>
-								sectionListItem(
-									`#${turn.numeroTurno}`,
-									turn.tipo,
-									getStatusLabel(turn.estado),
-									`turn-${turn.id}`,
-								),
-							)}
+					<div className="space-y-3">
+						<div className="flex justify-end">
+							<Button
+								type="button"
+								onClick={handleCallNextTurn}
+								disabled={sectionActionLoading === 'call-next'}
+								className="gap-2"
+							>
+								{sectionActionLoading === 'call-next'
+									? m.dashboardActionCreating({}, { locale })
+									: m.dashboardReceptionistCallNext({}, { locale })}
+							</Button>
+						</div>
+						{!hospitalTurns.length ? (
+							<p className="text-sm text-muted-foreground">
+								{m.dashboardPatientsEmptyDescription({}, { locale })}
+							</p>
+						) : (
+							<>
+								<Card className="border-border/70">
+									<CardHeader className="pb-2">
+										<CardTitle className="text-base">
+											{m.dashboardSidebarQueue({}, { locale })}
+										</CardTitle>
+									</CardHeader>
+									<CardContent className="space-y-3">
+										<div className="grid gap-3 sm:grid-cols-2">
+											<div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+												<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+													{m.dashboardPatientCalledTurnLabel({}, { locale })}
+												</p>
+												<p className="mt-1 text-2xl font-bold tabular-nums text-primary">
+													{currentTurn ? `#${currentTurn.numeroTurno}` : '--'}
+												</p>
+												<p className="mt-1 text-xs text-muted-foreground">
+													{currentTurn
+														? `${currentTurn.tipo} - ${getStatusLabel(currentTurn.estado)}`
+														: m.dashboardPatientNoCalledTurnInfo(
+																{},
+																{ locale },
+															)}
+												</p>
+											</div>
+
+											<div className="rounded-lg border border-border/70 bg-background/90 p-3">
+												<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+													{m.dashboardStatusWaiting({}, { locale })}
+												</p>
+												<p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+													{nextUpcomingTurn
+														? `#${nextUpcomingTurn.numeroTurno}`
+														: '--'}
+												</p>
+												<p className="mt-1 text-xs text-muted-foreground">
+													{nextUpcomingTurn
+														? `${nextUpcomingTurn.tipo} - ${getStatusLabel(nextUpcomingTurn.estado)}`
+														: m.dashboardPatientsEmptyDescription(
+																{},
+																{ locale },
+															)}
+												</p>
+											</div>
+										</div>
+
+										{turnHistory.length > 0 && (
+											<div className="space-y-2 border-t border-border/60 pt-3">
+												<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+													{m.dashboardSidebarHistorial({}, { locale })}
+												</p>
+												<ul className="space-y-1.5">
+													{turnHistory.map((turn) => (
+														<li
+															key={turn.id}
+															className="flex items-center justify-between rounded-md bg-background/80 px-2 py-1.5"
+														>
+															<span className="text-sm font-semibold tabular-nums text-foreground">
+																#{turn.numeroTurno}
+															</span>
+															<span className="text-xs text-muted-foreground">
+																{getStatusLabel(turn.estado)}
+															</span>
+														</li>
+													))}
+												</ul>
+											</div>
+										)}
+									</CardContent>
+								</Card>
+
+								<div className="space-y-2">
+									<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+										{m.dashboardStatusWaiting({}, { locale })}
+									</p>
+									{upcomingTurns.length === 0 ? (
+										<p className="text-sm text-muted-foreground">
+											{m.dashboardPatientsEmptyDescription({}, { locale })}
+										</p>
+									) : (
+										upcomingTurns.slice(0, 20).map((turn) => {
+											const patient = patientById.get(turn.pacienteId);
+											const canMutate = !isTurnClosed(turn.estado);
+											return (
+												<div
+													key={`turn-${turn.id}`}
+													className="rounded-lg border border-border/60 bg-muted/20 p-3"
+												>
+													<div className="flex flex-wrap items-start justify-between gap-2">
+														<div className="min-w-0">
+															<p className="truncate text-sm font-medium text-foreground">
+																#{turn.numeroTurno} - {turn.tipo}
+															</p>
+															<p className="truncate text-xs text-muted-foreground">
+																{patient
+																	? `${patient.nombre} ${patient.apellido}`
+																	: turn.pacienteId}
+															</p>
+														</div>
+														<div className="flex flex-wrap items-center gap-2">
+															<Badge variant="outline">
+																{getStatusLabel(turn.estado)}
+															</Badge>
+															<Button
+																type="button"
+																variant="outline"
+																disabled={
+																	!canMutate ||
+																	sectionActionLoading === `attend-${turn.id}`
+																}
+																onClick={() => handleAttendTurn(turn.id)}
+															>
+																{m.dashboardReceptionistAttendTurn(
+																	{},
+																	{ locale },
+																)}
+															</Button>
+															<Button
+																type="button"
+																variant="outline"
+																disabled={
+																	!canMutate ||
+																	sectionActionLoading ===
+																		`cancel-turn-${turn.id}`
+																}
+																onClick={() => handleCancelTurn(turn.id)}
+															>
+																{m.dashboardReceptionistCancelTurn(
+																	{},
+																	{ locale },
+																)}
+															</Button>
+														</div>
+													</div>
+												</div>
+											);
+										})
+									)}
+								</div>
+							</>
+						)}
 					</div>
 				);
 			case 'medicines':
 				if (loading) return <Skeleton className="h-24 rounded-lg" />;
-				if (!data?.medicines.length) {
-					return (
-						<p className="text-sm text-muted-foreground">
-							{m.dashboardPatientsEmptyDescription({}, { locale })}
-						</p>
-					);
-				}
 				return (
 					<div className="space-y-2">
-						{data.medicines
-							.slice(0, 12)
-							.map((medicine) =>
-								sectionListItem(
-									medicine.nombreComercial,
-									medicine.requiereReceta ? 'Rx' : 'OTC',
-									medicine.activo
-										? m.dashboardHospitalStatusActive({}, { locale })
-										: m.dashboardHospitalStatusInactive({}, { locale }),
-									`medicine-${medicine.id}`,
-								),
-							)}
+						<div className="flex justify-end">
+							<Button
+								type="button"
+								onClick={() => setMedicineFormOpen((prev) => !prev)}
+								className="gap-2"
+							>
+								<PlusIcon className="h-4 w-4" />
+								{m.dashboardMedicinesCreateButton({}, { locale })}
+							</Button>
+						</div>
+
+						{medicineFormOpen && (
+							<div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
+								<p className="text-sm font-medium text-foreground">
+									{m.dashboardMedicinesFormTitle({}, { locale })}
+								</p>
+								<div className="grid gap-2 sm:grid-cols-2">
+									<div className="space-y-1">
+										<label
+											htmlFor="admin-medicine-commercial-name"
+											className="text-xs font-medium text-muted-foreground"
+										>
+											{m.dashboardMedicinesFieldCommercialName({}, { locale })}
+										</label>
+										<Input
+											id="admin-medicine-commercial-name"
+											value={newMedicine.nombreComercial}
+											onChange={(event) =>
+												setNewMedicine((prev) => ({
+													...prev,
+													nombreComercial: event.target.value,
+												}))
+											}
+										/>
+									</div>
+									<div className="space-y-1">
+										<label
+											htmlFor="admin-medicine-generic-name"
+											className="text-xs font-medium text-muted-foreground"
+										>
+											{m.dashboardMedicinesFieldGenericName({}, { locale })}
+										</label>
+										<Input
+											id="admin-medicine-generic-name"
+											value={newMedicine.nombreGenerico}
+											onChange={(event) =>
+												setNewMedicine((prev) => ({
+													...prev,
+													nombreGenerico: event.target.value,
+												}))
+											}
+										/>
+									</div>
+									<div className="space-y-1">
+										<label
+											htmlFor="admin-medicine-presentation"
+											className="text-xs font-medium text-muted-foreground"
+										>
+											{m.dashboardMedicinesFieldPresentation({}, { locale })}
+										</label>
+										<Input
+											id="admin-medicine-presentation"
+											value={newMedicine.presentacion}
+											onChange={(event) =>
+												setNewMedicine((prev) => ({
+													...prev,
+													presentacion: event.target.value,
+												}))
+											}
+										/>
+									</div>
+									<div className="sm:col-span-2">
+										<div className="flex h-10 items-center justify-between rounded-md border border-input px-3">
+											<label
+												htmlFor="admin-medicine-requires-prescription"
+												className="text-xs font-medium text-muted-foreground"
+											>
+												{m.dashboardMedicinesFieldRequiresPrescription(
+													{},
+													{ locale },
+												)}
+											</label>
+											<Switch
+												id="admin-medicine-requires-prescription"
+												checked={newMedicine.requiereReceta}
+												onCheckedChange={(checked) =>
+													setNewMedicine((prev) => ({
+														...prev,
+														requiereReceta: Boolean(checked),
+													}))
+												}
+											/>
+										</div>
+									</div>
+								</div>
+								<div className="flex gap-2">
+									<Button
+										type="button"
+										onClick={handleCreateMedicine}
+										disabled={sectionActionLoading === 'create-medicine'}
+									>
+										{sectionActionLoading === 'create-medicine'
+											? m.dashboardActionCreating({}, { locale })
+											: m.dashboardMedicinesCreateSubmit({}, { locale })}
+									</Button>
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => setMedicineFormOpen(false)}
+									>
+										{m.dashboardMedicinesCreateCancel({}, { locale })}
+									</Button>
+								</div>
+							</div>
+						)}
+
+						{!data?.medicines.length && (
+							<p className="text-sm text-muted-foreground">
+								{m.dashboardPatientsEmptyDescription({}, { locale })}
+							</p>
+						)}
+
+						{(data?.medicines ?? []).slice(0, 20).map((medicine) => (
+							<div
+								key={`medicine-${medicine.id}`}
+								className="rounded-lg border border-border/60 bg-muted/20 p-3"
+							>
+								<div className="flex flex-wrap items-start justify-between gap-2">
+									<div className="min-w-0">
+										<p className="truncate text-sm font-medium text-foreground">
+											{medicine.nombreComercial}
+										</p>
+										<p className="truncate text-xs text-muted-foreground">
+											{medicine.nombreGenerico || String(medicine.id)}
+										</p>
+									</div>
+									<div className="flex items-center gap-2">
+										<Badge variant="outline">
+											{medicine.requiereReceta ? 'Rx' : 'OTC'}
+										</Badge>
+										<Badge variant="outline">
+											{medicine.activo
+												? m.dashboardHospitalStatusActive({}, { locale })
+												: m.dashboardHospitalStatusInactive({}, { locale })}
+										</Badge>
+										<Button
+											type="button"
+											variant="outline"
+											disabled={
+												!medicine.activo ||
+												sectionActionLoading ===
+													`remove-medicine-${medicine.id}`
+											}
+											onClick={() => handleRemoveMedicine(medicine.id)}
+											size="icon-sm"
+											aria-label={m.dashboardDoctorDisponibilidadDelete(
+												{},
+												{ locale },
+											)}
+											title={m.dashboardDoctorDisponibilidadDelete(
+												{},
+												{ locale },
+											)}
+										>
+											<TrashIcon className="h-4 w-4" />
+										</Button>
+									</div>
+								</div>
+							</div>
+						))}
 					</div>
 				);
 			case 'doctors':
@@ -959,7 +1624,9 @@ export function AdminDashboardView({
 								sectionListItem(
 									`${doctor.nombre} ${doctor.apellido}`,
 									doctor.email,
-									doctor.consultorio ?? String(doctor.especialidadId),
+									doctor.consultorio ??
+										specialtyById.get(doctor.especialidadId)?.nombre ??
+										String(doctor.especialidadId),
 									`doctor-${doctor.id}`,
 								),
 							)}
@@ -1119,6 +1786,16 @@ export function AdminDashboardView({
 					</div>
 				</>
 			)}
+
+			<CreateHospitalModal
+				open={hospitalModalOpen}
+				onClose={() => setHospitalModalOpen(false)}
+				onCreated={() => {
+					setHospitalModalOpen(false);
+					flash(m.dashboardActionSuccess({}, { locale }));
+					void loadData();
+				}}
+			/>
 		</RoleDashboardShell>
 	);
 }

@@ -1,5 +1,5 @@
 import { useForm } from '@tanstack/react-form';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -43,15 +43,39 @@ const ROLE_OPTIONS: UserRole[] = [
 	'ADMIN',
 ];
 
+interface SpecialtyOption {
+	id: number;
+	nombre: string;
+}
+
+interface DoctorProfileSummary {
+	numeroRegistro: string;
+	especialidadId: number;
+	consultorio?: string | null;
+}
+
+interface NurseProfileSummary {
+	numeroRegistro: string;
+	nivelFormacion: number;
+	areaEspecializacion: number;
+	certificacionTriage: boolean;
+}
+
 export function AdminRoleRowForm({
 	user,
 	locale,
+	doctorProfile,
+	nurseProfile,
+	specialties,
 	onSubmit,
 	saving,
 	lastUpdatedAt,
 }: {
 	user: DashboardUser;
 	locale: AppLocale;
+	doctorProfile?: DoctorProfileSummary;
+	nurseProfile?: NurseProfileSummary;
+	specialties: SpecialtyOption[];
 	onSubmit: (payload: RoleUpdatePayload) => Promise<void>;
 	saving: boolean;
 	lastUpdatedAt?: string;
@@ -62,13 +86,17 @@ export function AdminRoleRowForm({
 	const form = useForm({
 		defaultValues: {
 			role: user.rol,
-			doctorLicense: '',
-			doctorSpecialtyId: '',
-			doctorOffice: '',
-			nurseRegistration: '',
-			nurseTrainingLevel: '1',
-			nurseAreaId: '',
-			nurseTriage: false,
+			doctorLicense: doctorProfile?.numeroRegistro ?? '',
+			doctorSpecialtyId: doctorProfile
+				? String(doctorProfile.especialidadId)
+				: '',
+			doctorOffice: doctorProfile?.consultorio ?? '',
+			nurseRegistration: nurseProfile?.numeroRegistro ?? '',
+			nurseTrainingLevel: nurseProfile
+				? String(nurseProfile.nivelFormacion)
+				: '1',
+			nurseAreaId: nurseProfile ? String(nurseProfile.areaEspecializacion) : '',
+			nurseTriage: nurseProfile?.certificacionTriage ?? false,
 		},
 		onSubmit: async ({ value }) => {
 			if (value.role === 'MEDICO') {
@@ -138,8 +166,27 @@ export function AdminRoleRowForm({
 
 	useEffect(() => {
 		form.setFieldValue('role', user.rol);
+		form.setFieldValue('doctorLicense', doctorProfile?.numeroRegistro ?? '');
+		form.setFieldValue(
+			'doctorSpecialtyId',
+			doctorProfile ? String(doctorProfile.especialidadId) : '',
+		);
+		form.setFieldValue('doctorOffice', doctorProfile?.consultorio ?? '');
+		form.setFieldValue('nurseRegistration', nurseProfile?.numeroRegistro ?? '');
+		form.setFieldValue(
+			'nurseTrainingLevel',
+			nurseProfile ? String(nurseProfile.nivelFormacion) : '1',
+		);
+		form.setFieldValue(
+			'nurseAreaId',
+			nurseProfile ? String(nurseProfile.areaEspecializacion) : '',
+		);
+		form.setFieldValue(
+			'nurseTriage',
+			nurseProfile?.certificacionTriage ?? false,
+		);
 		setSelectedRole(user.rol);
-	}, [form, user.rol]);
+	}, [form, user.rol, doctorProfile, nurseProfile]);
 
 	const roleLabelMap: Record<UserRole, string> = {
 		ADMIN: getLocalizedRoleLabel('ADMIN', locale),
@@ -148,6 +195,21 @@ export function AdminRoleRowForm({
 		RECEPCIONISTA: getLocalizedRoleLabel('RECEPCIONISTA', locale),
 		PACIENTE: getLocalizedRoleLabel('PACIENTE', locale),
 	};
+
+	const specialtyById = useMemo(
+		() =>
+			new Map(specialties.map((specialty) => [specialty.id, specialty.nombre])),
+		[specialties],
+	);
+
+	const doctorProfileLocked =
+		selectedRole === 'MEDICO' &&
+		user.rol === 'MEDICO' &&
+		Boolean(doctorProfile);
+	const nurseProfileLocked =
+		selectedRole === 'ENFERMERO' &&
+		user.rol === 'ENFERMERO' &&
+		Boolean(nurseProfile);
 
 	return (
 		<div className="grid gap-3 rounded-xl border border-border/70 bg-muted/20 p-3 sm:grid-cols-[1fr_auto] sm:items-end">
@@ -204,135 +266,230 @@ export function AdminRoleRowForm({
 					)}
 				</form.Field>
 
-				{selectedRole === 'MEDICO' && (
-					<div className="grid gap-2 sm:grid-cols-2">
-						<form.Field name="doctorLicense">
-							{(field) => (
-								<Field>
-									<FieldLabel>
-										{m.authRegisterLabelNumeroRegistroMedico({}, { locale })}
-									</FieldLabel>
-									<Input
-										value={field.state.value}
-										onChange={(event) => field.handleChange(event.target.value)}
-										placeholder={m.authRegisterPlaceholderNumeroRegistroMedico(
-											{},
-											{ locale },
-										)}
-									/>
-								</Field>
+				{selectedRole === 'MEDICO' &&
+					(doctorProfileLocked ? (
+						<div className="space-y-2 rounded-lg border border-border/70 bg-background/60 p-3">
+							<p className="text-xs font-medium text-muted-foreground">
+								{m.authRegisterLabelNumeroRegistroMedico({}, { locale })}:{' '}
+								<span className="text-foreground">
+									{doctorProfile?.numeroRegistro}
+								</span>
+							</p>
+							<p className="text-xs font-medium text-muted-foreground">
+								{m.authRegisterLabelEspecialidadId({}, { locale })}:{' '}
+								<span className="text-foreground">
+									{specialtyById.get(doctorProfile?.especialidadId ?? 0) ??
+										String(doctorProfile?.especialidadId ?? '')}
+								</span>
+							</p>
+							{doctorProfile?.consultorio && (
+								<p className="text-xs font-medium text-muted-foreground">
+									{m.authRegisterLabelConsultorio({}, { locale })}:{' '}
+									<span className="text-foreground">
+										{doctorProfile.consultorio}
+									</span>
+								</p>
 							)}
-						</form.Field>
-						<form.Field name="doctorSpecialtyId">
-							{(field) => (
-								<Field>
-									<FieldLabel>
-										{m.authRegisterLabelEspecialidadId({}, { locale })}
-									</FieldLabel>
-									<Input
-										type="number"
-										min={1}
-										value={field.state.value}
-										onChange={(event) => field.handleChange(event.target.value)}
-										placeholder={m.authRegisterPlaceholderEspecialidadId(
-											{},
-											{ locale },
-										)}
-									/>
-								</Field>
-							)}
-						</form.Field>
-					</div>
-				)}
-
-				{selectedRole === 'ENFERMERO' && (
-					<div className="grid gap-2 sm:grid-cols-2">
-						<form.Field name="nurseRegistration">
-							{(field) => (
-								<Field>
-									<FieldLabel>
-										{m.authRegisterLabelNumeroRegistroEnfermero({}, { locale })}
-									</FieldLabel>
-									<Input
-										value={field.state.value}
-										onChange={(event) => field.handleChange(event.target.value)}
-										placeholder={m.authRegisterPlaceholderNumeroRegistroEnfermero(
-											{},
-											{ locale },
-										)}
-									/>
-								</Field>
-							)}
-						</form.Field>
-						<form.Field name="nurseTrainingLevel">
-							{(field) => (
-								<Field>
-									<FieldLabel>
-										{m.authRegisterLabelNivelFormacion({}, { locale })}
-									</FieldLabel>
-									<Select
-										value={field.state.value}
-										onValueChange={(value) => field.handleChange(value ?? '1')}
-									>
-										<SelectTrigger className="w-full">
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="1">
-												{m.authRegisterTrainingLevel1({}, { locale })}
-											</SelectItem>
-											<SelectItem value="2">
-												{m.authRegisterTrainingLevel2({}, { locale })}
-											</SelectItem>
-											<SelectItem value="3">
-												{m.authRegisterTrainingLevel3({}, { locale })}
-											</SelectItem>
-											<SelectItem value="4">
-												{m.authRegisterTrainingLevel4({}, { locale })}
-											</SelectItem>
-										</SelectContent>
-									</Select>
-								</Field>
-							)}
-						</form.Field>
-						<form.Field name="nurseAreaId">
-							{(field) => (
-								<Field>
-									<FieldLabel>
-										{m.authRegisterLabelAreaEspecializacion({}, { locale })}
-									</FieldLabel>
-									<Input
-										type="number"
-										min={1}
-										value={field.state.value}
-										onChange={(event) => field.handleChange(event.target.value)}
-										placeholder={m.authRegisterPlaceholderAreaEspecializacion(
-											{},
-											{ locale },
-										)}
-									/>
-								</Field>
-							)}
-						</form.Field>
-						<form.Field name="nurseTriage">
-							{(field) => (
-								<Field>
-									<div className="flex items-center justify-between rounded-lg border border-border/70 bg-background/60 px-3 py-2">
-										<FieldLabel className="mb-0">
-											{m.authRegisterLabelCertificacionTriage({}, { locale })}
+						</div>
+					) : (
+						<div className="grid gap-2 sm:grid-cols-2">
+							<form.Field name="doctorLicense">
+								{(field) => (
+									<Field>
+										<FieldLabel>
+											{m.authRegisterLabelNumeroRegistroMedico({}, { locale })}
 										</FieldLabel>
-										<Switch
-											checked={field.state.value}
-											onCheckedChange={(checked) =>
-												field.handleChange(Boolean(checked))
+										<Input
+											value={field.state.value}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
 											}
+											placeholder={m.authRegisterPlaceholderNumeroRegistroMedico(
+												{},
+												{ locale },
+											)}
 										/>
-									</div>
-								</Field>
-							)}
-						</form.Field>
-					</div>
-				)}
+									</Field>
+								)}
+							</form.Field>
+							<form.Field name="doctorSpecialtyId">
+								{(field) => (
+									<Field>
+										<FieldLabel>
+											{m.authRegisterLabelEspecialidadId({}, { locale })}
+										</FieldLabel>
+										<Select
+											value={field.state.value}
+											onValueChange={(value) => field.handleChange(value ?? '')}
+										>
+											<SelectTrigger className="w-full">
+												<SelectValue
+													placeholder={m.authRegisterPlaceholderEspecialidadId(
+														{},
+														{ locale },
+													)}
+												>
+													{specialtyById.get(Number(field.state.value))}
+												</SelectValue>
+											</SelectTrigger>
+											<SelectContent>
+												{specialties.map((specialty) => (
+													<SelectItem
+														key={specialty.id}
+														value={String(specialty.id)}
+														label={specialty.nombre}
+													>
+														{specialty.nombre}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</Field>
+								)}
+							</form.Field>
+						</div>
+					))}
+
+				{selectedRole === 'ENFERMERO' &&
+					(nurseProfileLocked ? (
+						<div className="space-y-2 rounded-lg border border-border/70 bg-background/60 p-3">
+							<p className="text-xs font-medium text-muted-foreground">
+								{m.authRegisterLabelNumeroRegistroEnfermero({}, { locale })}:{' '}
+								<span className="text-foreground">
+									{nurseProfile?.numeroRegistro}
+								</span>
+							</p>
+							<p className="text-xs font-medium text-muted-foreground">
+								{m.authRegisterLabelNivelFormacion({}, { locale })}:{' '}
+								<span className="text-foreground">
+									{nurseProfile?.nivelFormacion === 1
+										? m.authRegisterTrainingLevel1({}, { locale })
+										: nurseProfile?.nivelFormacion === 2
+											? m.authRegisterTrainingLevel2({}, { locale })
+											: nurseProfile?.nivelFormacion === 3
+												? m.authRegisterTrainingLevel3({}, { locale })
+												: m.authRegisterTrainingLevel4({}, { locale })}
+								</span>
+							</p>
+							<p className="text-xs font-medium text-muted-foreground">
+								{m.authRegisterLabelAreaEspecializacion({}, { locale })}:{' '}
+								<span className="text-foreground">
+									{specialtyById.get(nurseProfile?.areaEspecializacion ?? 0) ??
+										String(nurseProfile?.areaEspecializacion ?? '')}
+								</span>
+							</p>
+						</div>
+					) : (
+						<div className="grid gap-2 sm:grid-cols-2">
+							<form.Field name="nurseRegistration">
+								{(field) => (
+									<Field>
+										<FieldLabel>
+											{m.authRegisterLabelNumeroRegistroEnfermero(
+												{},
+												{ locale },
+											)}
+										</FieldLabel>
+										<Input
+											value={field.state.value}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											placeholder={m.authRegisterPlaceholderNumeroRegistroEnfermero(
+												{},
+												{ locale },
+											)}
+										/>
+									</Field>
+								)}
+							</form.Field>
+							<form.Field name="nurseTrainingLevel">
+								{(field) => (
+									<Field>
+										<FieldLabel>
+											{m.authRegisterLabelNivelFormacion({}, { locale })}
+										</FieldLabel>
+										<Select
+											value={field.state.value}
+											onValueChange={(value) =>
+												field.handleChange(value ?? '1')
+											}
+										>
+											<SelectTrigger className="w-full">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="1">
+													{m.authRegisterTrainingLevel1({}, { locale })}
+												</SelectItem>
+												<SelectItem value="2">
+													{m.authRegisterTrainingLevel2({}, { locale })}
+												</SelectItem>
+												<SelectItem value="3">
+													{m.authRegisterTrainingLevel3({}, { locale })}
+												</SelectItem>
+												<SelectItem value="4">
+													{m.authRegisterTrainingLevel4({}, { locale })}
+												</SelectItem>
+											</SelectContent>
+										</Select>
+									</Field>
+								)}
+							</form.Field>
+							<form.Field name="nurseAreaId">
+								{(field) => (
+									<Field>
+										<FieldLabel>
+											{m.authRegisterLabelAreaEspecializacion({}, { locale })}
+										</FieldLabel>
+										<Select
+											value={field.state.value}
+											onValueChange={(value) => field.handleChange(value ?? '')}
+										>
+											<SelectTrigger className="w-full">
+												<SelectValue
+													placeholder={m.authRegisterPlaceholderAreaEspecializacion(
+														{},
+														{ locale },
+													)}
+												>
+													{specialtyById.get(Number(field.state.value))}
+												</SelectValue>
+											</SelectTrigger>
+											<SelectContent>
+												{specialties.map((specialty) => (
+													<SelectItem
+														key={`nurse-${specialty.id}`}
+														value={String(specialty.id)}
+														label={specialty.nombre}
+													>
+														{specialty.nombre}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</Field>
+								)}
+							</form.Field>
+							<form.Field name="nurseTriage">
+								{(field) => (
+									<Field>
+										<div className="flex items-center justify-between rounded-lg border border-border/70 bg-background/60 px-3 py-2">
+											<FieldLabel className="mb-0">
+												{m.authRegisterLabelCertificacionTriage({}, { locale })}
+											</FieldLabel>
+											<Switch
+												checked={field.state.value}
+												onCheckedChange={(checked) =>
+													field.handleChange(Boolean(checked))
+												}
+											/>
+										</div>
+									</Field>
+								)}
+							</form.Field>
+						</div>
+					))}
 
 				{validationError && (
 					<p className="text-xs font-medium text-destructive">

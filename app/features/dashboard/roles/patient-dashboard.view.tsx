@@ -263,6 +263,24 @@ function statusLabel(estado: string, locale: AppLocale) {
 	}
 }
 
+function isUniqueConstraintError(raw: string) {
+	return /(valor\s+u?nico|valor\s+\u00fanico|unique|duplicate|already exists|registro con ese valor)/i.test(
+		raw,
+	);
+}
+
+function activeTurnConflictMessage(locale: AppLocale, turnNumber?: number) {
+	if (locale === 'es') {
+		return turnNumber
+			? `Ya tienes un turno activo (#${turnNumber}). Debes esperar a ser atendido o cancelarlo antes de pedir otro.`
+			: 'Ya tienes un turno activo. Debes esperar a ser atendido o cancelarlo antes de pedir otro.';
+	}
+
+	return turnNumber
+		? `You already have an active turn (#${turnNumber}). Wait to be attended or cancel it before requesting another one.`
+		: 'You already have an active turn. Wait to be attended or cancel it before requesting another one.';
+}
+
 function doctorDisplayName(doctor: Doctor, locale: AppLocale) {
 	const fullName = `${doctor.nombre ?? ''} ${doctor.apellido ?? ''}`.trim();
 	return fullName || m.dashboardPatientDoctorUnnamed({}, { locale });
@@ -661,9 +679,21 @@ export function PatientDashboardView({
 				),
 			);
 		} catch (err) {
-			setError(
-				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
-			);
+			const message =
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale });
+			if (isUniqueConstraintError(message)) {
+				const activeTurn = [...turns]
+					.filter(
+						(turn) =>
+							!CLOSED_TURN_STATES.includes(
+								turn.estado as (typeof CLOSED_TURN_STATES)[number],
+							),
+					)
+					.sort((a, b) => a.numeroTurno - b.numeroTurno)[0];
+				setError(activeTurnConflictMessage(locale, activeTurn?.numeroTurno));
+			} else {
+				setError(message);
+			}
 		} finally {
 			setActionLoading(null);
 		}
@@ -749,7 +779,8 @@ export function PatientDashboardView({
 		const selectedDoctor =
 			doctors.find((d) => d.id === booking.medicoId) ?? null;
 		const selectedDate = fromLocalDateValue(booking.fecha);
-		const selectedSlot = slots.find((s) => s.fechaHora === booking.slot) ?? null;
+		const selectedSlot =
+			slots.find((s) => s.fechaHora === booking.slot) ?? null;
 		const selectedSlotLabel = selectedSlot
 			? slotRangeLabel(selectedSlot, locale)
 			: booking.slot
@@ -894,7 +925,11 @@ export function PatientDashboardView({
 										selected={selectedDate ?? undefined}
 										onSelect={(date) => {
 											if (!date) {
-												setBooking((prev) => ({ ...prev, fecha: '', slot: '' }));
+												setBooking((prev) => ({
+													...prev,
+													fecha: '',
+													slot: '',
+												}));
 												return;
 											}
 											setBooking((prev) => ({
@@ -950,7 +985,10 @@ export function PatientDashboardView({
 									>
 										<SelectTrigger id={slotSelectId} className="w-full">
 											<SelectValue
-												placeholder={m.dashboardPatientSelectSlot({}, { locale })}
+												placeholder={m.dashboardPatientSelectSlot(
+													{},
+													{ locale },
+												)}
 											>
 												{selectedSlotLabel}
 											</SelectValue>
@@ -1242,10 +1280,9 @@ export function PatientDashboardView({
 										(a) => {
 											const canCancel =
 												a.estado === 'PENDIENTE' || a.estado === 'CONFIRMADA';
-											const doctor =
-												a.medicoId
-													? doctors.find((d) => d.id === a.medicoId)
-													: null;
+											const doctor = a.medicoId
+												? doctors.find((d) => d.id === a.medicoId)
+												: null;
 											const doctorLabel = doctor
 												? doctorDisplayLabel(doctor, locale)
 												: m.dashboardPatientDoctorUnnamed({}, { locale });

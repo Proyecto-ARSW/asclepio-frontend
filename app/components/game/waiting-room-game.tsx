@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input/input.component';
 import { currentLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { GAME_SERVER_URL } from '@/lib/env';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -25,7 +26,8 @@ const BASE_SPEED = 200;
 const SPEED_DECAY = 120;
 const LERP_K = 10;
 const SEND_INTERVAL_MS = 30;
-const LEADERBOARD_SIZE = 10;
+const DESKTOP_LEADERBOARD_SIZE = 10;
+const MOBILE_LEADERBOARD_SIZE = 5;
 const FOOD_RADIUS = 8;
 const FOOD_PICKUP_PADDING = 2;
 const LOCAL_FOOD_CHECK_MS = 65;
@@ -207,6 +209,7 @@ type GamePhase = 'idle' | 'connecting' | 'playing' | 'dead' | 'error';
 export function WaitingRoomGame() {
 	const { accessToken, user } = useAuthStore();
 	const locale = currentLocale();
+	const isMobile = useIsMobile();
 	const profileNickname =
 		user && `${user.nombre ?? ''} ${user.apellido ?? ''}`.trim().length > 0
 			? `${user.nombre ?? ''} ${user.apellido ?? ''}`.trim()
@@ -292,9 +295,21 @@ export function WaitingRoomGame() {
 	const pendingInitRef = useRef<InitMsg | null>(null);
 	const pendingStateRef = useRef<StateMsg | null>(null);
 	const pendingDiedRef = useRef<DiedMsg | null>(null);
+	const phaseRef = useRef<GamePhase>('idle');
+	const connectionErrorHandledRef = useRef(false);
 
 	// Theme colours (read once when game starts)
 	const themeRef = useRef(getThemeColors());
+
+	useEffect(() => {
+		phaseRef.current = phase;
+	}, [phase]);
+
+	const enterErrorState = useCallback((message: string) => {
+		connectionErrorHandledRef.current = true;
+		setErrorMsg(message);
+		setPhase('error');
+	}, []);
 
 	// ── Canvas resize ─────────────────────────────────────────────────────────
 	const resizeCanvas = useCallback(() => {
@@ -453,7 +468,7 @@ export function WaitingRoomGame() {
 
 			// Leaderboard (throttled server-side)
 			if (msg.leaderboard) {
-				setLeaderboard(msg.leaderboard.slice(0, LEADERBOARD_SIZE));
+				setLeaderboard(msg.leaderboard.slice(0, DESKTOP_LEADERBOARD_SIZE));
 			}
 
 			// Players
@@ -772,10 +787,11 @@ export function WaitingRoomGame() {
 	// ── Connect ───────────────────────────────────────────────────────────────
 	const connect = useCallback(() => {
 		if (!accessToken) {
-			setErrorMsg(m.gameWaitingRoomNoActiveSession({}, { locale }));
-			setPhase('error');
+			enterErrorState(m.gameWaitingRoomNoActiveSession({}, { locale }));
 			return;
 		}
+		connectionErrorHandledRef.current = false;
+		setErrorMsg('');
 		setPhase('connecting');
 		setDeathInfo(null);
 		setLiveScore(0);
@@ -790,8 +806,14 @@ export function WaitingRoomGame() {
 		lastLocalFoodCheckMsRef.current = 0;
 		themeRef.current = getThemeColors();
 
-		const url = buildWsUrl(accessToken, setupRef.current);
-		const ws = new WebSocket(url);
+		let ws: WebSocket;
+		try {
+			const url = buildWsUrl(accessToken, setupRef.current);
+			ws = new WebSocket(url);
+		} catch {
+			enterErrorState(m.gameWaitingRoomConnectionFailed({}, { locale }));
+			return;
+		}
 		wsRef.current = ws;
 
 		ws.onopen = () => {
@@ -803,8 +825,7 @@ export function WaitingRoomGame() {
 			try {
 				msg = JSON.parse(e.data as string) as ServerMsg;
 			} catch {
-				setErrorMsg(m.gameWaitingRoomServerErrorFallback({}, { locale }));
-				setPhase('error');
+				enterErrorState(m.gameWaitingRoomServerErrorFallback({}, { locale }));
 				return;
 			}
 			switch (msg.type) {
@@ -819,26 +840,37 @@ export function WaitingRoomGame() {
 					pendingDiedRef.current = msg;
 					break;
 				case 'error':
-					setErrorMsg(
+					enterErrorState(
 						msg.message ?? m.gameWaitingRoomServerErrorFallback({}, { locale }),
 					);
-					setPhase('error');
 					break;
 			}
 		};
 
 		ws.onerror = () => {
-			setErrorMsg(m.gameWaitingRoomConnectionFailed({}, { locale }));
-			setPhase('error');
+			enterErrorState(m.gameWaitingRoomConnectionFailed({}, { locale }));
 		};
 
-		ws.onclose = () => {
-			// Only flip to idle if we haven't already processed a death or error
-			setPhase((prev) =>
-				prev === 'playing' || prev === 'connecting' ? 'idle' : prev,
-			);
+		ws.onclose = (event: CloseEvent) => {
+			wsRef.current = null;
+			const wasActivePhase =
+				phaseRef.current === 'playing' || phaseRef.current === 'connecting';
+			if (!wasActivePhase || connectionErrorHandledRef.current) return;
+
+			if (event.code === 1000) {
+				setPhase('idle');
+				return;
+			}
+
+			const serverReason = event.reason.trim();
+			if (serverReason) {
+				enterErrorState(serverReason);
+				return;
+			}
+
+			enterErrorState(m.gameWaitingRoomConnectionFailed({}, { locale }));
 		};
-	}, [accessToken, locale]);
+	}, [accessToken, enterErrorState, locale]);
 
 	// ── Disconnect ────────────────────────────────────────────────────────────
 	const disconnect = useCallback(() => {
@@ -848,6 +880,7 @@ export function WaitingRoomGame() {
 			ws.close();
 			wsRef.current = null;
 		}
+		connectionErrorHandledRef.current = false;
 		stopLoop();
 		predReadyRef.current = false;
 		optimisticEatenFoodRef.current.clear();
@@ -952,7 +985,10 @@ export function WaitingRoomGame() {
 	const isPlaying = phase === 'playing';
 	const ownDisplayName = setupRef.current.nickname || initialNickname;
 	const ownDisplayColor = setupRef.current.color || initialColor;
-	const visibleLeaderboard = leaderboard.slice(0, LEADERBOARD_SIZE);
+	const leaderboardLimit = isMobile
+		? MOBILE_LEADERBOARD_SIZE
+		: DESKTOP_LEADERBOARD_SIZE;
+	const visibleLeaderboard = leaderboard.slice(0, leaderboardLimit);
 	const ownByIdLeaderboardIndex = visibleLeaderboard.findIndex(
 		(entry) =>
 			(entry.playerId && entry.playerId === myIdRef.current) ||
@@ -979,6 +1015,59 @@ export function WaitingRoomGame() {
 			: ownByChosenNameLeaderboardIndex >= 0
 				? ownByChosenNameLeaderboardIndex
 				: ownByProfileNameLeaderboardIndex;
+
+	const leaderboardPanel = (
+		<div
+			className={
+				isMobile
+					? 'rounded-xl border border-border/70 bg-background/80 p-2.5 shadow-sm'
+					: 'pointer-events-none absolute right-2 top-2 z-10 w-52 rounded-xl border border-border/70 bg-background/80 p-2.5 shadow-sm backdrop-blur-sm'
+			}
+		>
+			<p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+				<TrophyIcon className="h-3.5 w-3.5 text-primary" aria-hidden />
+				{m.gameWaitingRoomBiggestBlobs({}, { locale })}
+			</p>
+			{leaderboard.length === 0 ? (
+				<p className="mt-2 text-[11px] text-muted-foreground">
+					{m.gameWaitingRoomLoading({}, { locale })}
+				</p>
+			) : (
+				<ol className="mt-2 space-y-1">
+					{visibleLeaderboard.map((entry, index) => {
+						const isOwnEntry = index === ownLeaderboardIndex;
+						const displayName = isOwnEntry ? ownDisplayName : entry.name;
+						const displayColor = isOwnEntry ? ownDisplayColor : entry.color;
+
+						return (
+							<li
+								key={
+									entry.playerId ?? entry.id ?? `${entry.rank}-${entry.name}`
+								}
+								className={`flex items-center gap-2 rounded-md px-1.5 py-1 text-[11px] ${
+									isOwnEntry
+										? 'bg-primary/15 font-semibold text-primary'
+										: 'text-foreground'
+								}`}
+							>
+								<span className="w-4 shrink-0 text-right tabular-nums text-muted-foreground">
+									{entry.rank}
+								</span>
+								<span
+									className="h-2.5 w-2.5 shrink-0 rounded-full"
+									style={{ backgroundColor: displayColor }}
+								/>
+								<span className="flex-1 truncate">{displayName}</span>
+								<span className="tabular-nums text-muted-foreground">
+									{entry.score}
+								</span>
+							</li>
+						);
+					})}
+				</ol>
+			)}
+		</div>
+	);
 
 	return (
 		<div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -1035,52 +1124,7 @@ export function WaitingRoomGame() {
 					className={`block h-full w-full touch-none ${isPlaying ? 'cursor-none' : 'cursor-default'}`}
 				/>
 
-				<div className="pointer-events-none absolute right-2 top-2 z-10 w-52 rounded-xl border border-border/70 bg-background/80 p-2.5 shadow-sm backdrop-blur-sm">
-					<p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-						<TrophyIcon className="h-3.5 w-3.5 text-primary" aria-hidden />
-						{m.gameWaitingRoomBiggestBlobs({}, { locale })}
-					</p>
-					{leaderboard.length === 0 ? (
-						<p className="mt-2 text-[11px] text-muted-foreground">
-							{m.gameWaitingRoomLoading({}, { locale })}
-						</p>
-					) : (
-						<ol className="mt-2 space-y-1">
-							{visibleLeaderboard.map((entry, index) => {
-								const isOwnEntry = index === ownLeaderboardIndex;
-								const displayName = isOwnEntry ? ownDisplayName : entry.name;
-								const displayColor = isOwnEntry ? ownDisplayColor : entry.color;
-
-								return (
-									<li
-										key={
-											entry.playerId ??
-											entry.id ??
-											`${entry.rank}-${entry.name}`
-										}
-										className={`flex items-center gap-2 rounded-md px-1.5 py-1 text-[11px] ${
-											isOwnEntry
-												? 'bg-primary/15 font-semibold text-primary'
-												: 'text-foreground'
-										}`}
-									>
-										<span className="w-4 shrink-0 text-right tabular-nums text-muted-foreground">
-											{entry.rank}
-										</span>
-										<span
-											className="h-2.5 w-2.5 shrink-0 rounded-full"
-											style={{ backgroundColor: displayColor }}
-										/>
-										<span className="flex-1 truncate">{displayName}</span>
-										<span className="tabular-nums text-muted-foreground">
-											{entry.score}
-										</span>
-									</li>
-								);
-							})}
-						</ol>
-					)}
-				</div>
+				{!isMobile && leaderboardPanel}
 
 				{phase === 'idle' && (
 					<div className="absolute inset-0 flex items-center justify-center bg-background/85 p-4 backdrop-blur-sm sm:p-6">
@@ -1236,13 +1280,19 @@ export function WaitingRoomGame() {
 							</p>
 							<p className="mt-1 text-sm text-muted-foreground">{errorMsg}</p>
 						</div>
-						<Button
-							type="button"
-							onClick={() => setPhase('idle')}
-							variant="outline"
-						>
-							{m.gameWaitingRoomClose({}, { locale })}
-						</Button>
+						<div className="flex flex-wrap items-center justify-center gap-2">
+							<Button type="button" onClick={connect} className="gap-1.5">
+								<PlayIcon className="h-4 w-4" />
+								{m.gameWaitingRoomRetry({}, { locale })}
+							</Button>
+							<Button
+								type="button"
+								onClick={() => setPhase('idle')}
+								variant="outline"
+							>
+								{m.gameWaitingRoomClose({}, { locale })}
+							</Button>
+						</div>
 					</div>
 				)}
 
@@ -1252,6 +1302,8 @@ export function WaitingRoomGame() {
 					</p>
 				)}
 			</div>
+
+			{isMobile && leaderboardPanel}
 		</div>
 	);
 }

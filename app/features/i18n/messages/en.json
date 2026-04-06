@@ -517,7 +517,7 @@
 	"gameWaitingRoomBiggestBlobs": "Biggest blobs",
 	"dashboardPatientWaitingRoomGameTitle": "Waiting room game",
 	"dashboardPatientWaitingRoomGameDescription": "Play while you wait for your turn.",
-	"dashboardPatientCalledTurnLabel": "Called turn",
+	"dashboardPatientCalledTurnLabel": "Your turn",
 	"dashboardPatientNoCalledTurnInfo": "No called turn information yet.",
 	"dashboardPatientWaitingRoomTitle": "Waiting room",
 	"dashboardPatientWaitingRoomDescription": "Join to play while you wait for your turn.",

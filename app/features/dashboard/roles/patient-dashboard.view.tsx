@@ -335,9 +335,56 @@ export function PatientDashboardView({
 		}
 	}, [loadProfile, locale, section]);
 
+	const refreshQueueTurns = useCallback(async () => {
+		if (!patientId) return;
+		try {
+			const [patientTurns, hospitalTurnsData] = await Promise.all([
+				gqlQuery<{ turnosPorPaciente: Turno[] }>(PATIENT_TURNS_QUERY, {
+					pacienteId: patientId,
+				}),
+				gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_QUERY),
+			]);
+			setTurns(patientTurns.turnosPorPaciente);
+			setHospitalTurns(hospitalTurnsData.turnosPorHospital);
+		} catch (err) {
+			setError(
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale }),
+			);
+		}
+	}, [locale, patientId]);
+
 	useEffect(() => {
 		void loadData();
 	}, [loadData]);
+
+	useEffect(() => {
+		if (!(section === 'queue' || section === 'overview' || !section)) return;
+		if (!patientId) return;
+
+		let disposed = false;
+		const runRefresh = async () => {
+			if (disposed) return;
+			if (
+				typeof document !== 'undefined' &&
+				document.visibilityState === 'hidden'
+			) {
+				return;
+			}
+			await refreshQueueTurns();
+		};
+
+		void runRefresh();
+		const interval = window.setInterval(() => {
+			void runRefresh();
+		}, 4000);
+
+		return () => {
+			disposed = true;
+			window.clearInterval(interval);
+		};
+	}, [patientId, refreshQueueTurns, section]);
 
 	// Cerrar sala de espera al cambiar de sección
 	useEffect(() => {
@@ -667,7 +714,15 @@ export function PatientDashboardView({
 		);
 	}
 
-	function TurnStatusPanel({ showOwnTurn }: { showOwnTurn: boolean }) {
+	function TurnStatusPanel({
+		showOwnTurn,
+		splitOwnTurn,
+	}: {
+		showOwnTurn: boolean;
+		splitOwnTurn?: boolean;
+	}) {
+		const shouldSplitWithOwnTurn = Boolean(splitOwnTurn && myCurrentTurn);
+
 		return (
 			<div className="rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4">
 				<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -681,26 +736,45 @@ export function PatientDashboardView({
 						)}
 					</p>
 				)}
-				<p className="mt-3 text-center text-4xl font-bold tabular-nums text-secondary sm:text-5xl">
-					{currentCalledTurn ? `#${currentCalledTurn.numeroTurno}` : '--'}
-				</p>
-				<p className="mt-1 text-center text-xs text-muted-foreground">
-					{currentCalledTurn
-						? `${currentCalledTurn.tipo} - ${statusLabel(currentCalledTurn.estado, locale)}`
-						: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
-				</p>
-
-				<Button
-					type="button"
-					variant="outline"
-					onClick={loadData}
-					disabled={loading}
-					size="sm"
-					className="mt-3 w-full"
-				>
-					<ArrowPathIcon className="mr-2 h-4 w-4" />
-					{m.dashboardPatientsRefresh({}, { locale })}
-				</Button>
+				{shouldSplitWithOwnTurn ? (
+					<div className="mt-3 grid grid-cols-2 divide-x divide-border/60 overflow-hidden rounded-lg border border-border/60 bg-background/80">
+						<div className="p-3 text-center">
+							<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+								{m.dashboardSidebarQueue({}, { locale })}
+							</p>
+							<p className="mt-2 text-3xl font-bold tabular-nums text-secondary sm:text-4xl">
+								{currentCalledTurn ? `#${currentCalledTurn.numeroTurno}` : '--'}
+							</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								{currentCalledTurn
+									? `${currentCalledTurn.tipo} - ${statusLabel(currentCalledTurn.estado, locale)}`
+									: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
+							</p>
+						</div>
+						<div className="p-3 text-center">
+							<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+								{m.dashboardPatientCalledTurnLabel({}, { locale })}
+							</p>
+							<p className="mt-2 text-3xl font-bold tabular-nums text-primary sm:text-4xl">
+								#{myCurrentTurn.numeroTurno}
+							</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								{`${myCurrentTurn.tipo} - ${statusLabel(myCurrentTurn.estado, locale)}`}
+							</p>
+						</div>
+					</div>
+				) : (
+					<>
+						<p className="mt-3 text-center text-4xl font-bold tabular-nums text-secondary sm:text-5xl">
+							{currentCalledTurn ? `#${currentCalledTurn.numeroTurno}` : '--'}
+						</p>
+						<p className="mt-1 text-center text-xs text-muted-foreground">
+							{currentCalledTurn
+								? `${currentCalledTurn.tipo} - ${statusLabel(currentCalledTurn.estado, locale)}`
+								: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
+						</p>
+					</>
+				)}
 
 				{calledTurnsHistory.length > 0 && (
 					<div className="mt-4 space-y-2 border-t border-border/60 pt-3">
@@ -725,7 +799,7 @@ export function PatientDashboardView({
 					</div>
 				)}
 
-				{showOwnTurn && (
+				{showOwnTurn && !shouldSplitWithOwnTurn && (
 					<div className="mt-4 border-t border-border/60 pt-3">
 						<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
 							{m.dashboardPatientCalledTurnLabel({}, { locale })}
@@ -751,7 +825,7 @@ export function PatientDashboardView({
 			title={m.authRolePatient({}, { locale })}
 			subtitle={headerSubtitle}
 			headerAction={
-				!showGame && section !== 'ai' ? (
+				!showGame && section !== 'ai' && section !== 'queue' ? (
 					<Button
 						type="button"
 						variant="outline"
@@ -915,7 +989,7 @@ export function PatientDashboardView({
 								{m.dashboardSidebarQueue({}, { locale })}
 							</h3>
 
-							<TurnStatusPanel showOwnTurn={false} />
+							<TurnStatusPanel showOwnTurn={false} splitOwnTurn={isOverview} />
 
 							{/* Crear turno — paciente puede unirse a la cola directamente */}
 							{section === 'queue' && selectedHospitalId && (

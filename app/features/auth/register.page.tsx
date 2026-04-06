@@ -815,7 +815,13 @@ export default function RegisterPage() {
 																		/>
 																	</SelectTrigger>
 																	<SelectContent>
-																		<SelectItem value="__none__">
+																		<SelectItem
+																			value="__none__"
+																			label={
+																				content.register.placeholders
+																					.tipoSangreDefault
+																			}
+																		>
 																			{
 																				content.register.placeholders
 																					.tipoSangreDefault

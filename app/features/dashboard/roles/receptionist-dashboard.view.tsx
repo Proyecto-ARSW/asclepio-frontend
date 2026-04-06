@@ -399,6 +399,18 @@ export function ReceptionistDashboardView({
 				.slice(0, 6),
 		[turns],
 	);
+	const activeQueueTurns = useMemo(
+		() =>
+			[...turns]
+				.filter((t) => !isTurnClosed(t.estado))
+				.sort((a, b) => a.numeroTurno - b.numeroTurno)
+				.slice(0, 6),
+		[turns],
+	);
+	const nextWaitingTurn = useMemo(
+		() => activeQueueTurns.find((t) => isWaitingTurn(t.estado)),
+		[activeQueueTurns],
+	);
 	const selectedPatientLabel = useMemo(() => {
 		if (!newTurn.pacienteId) return '';
 		const patient = patients.find((p) => p.id === newTurn.pacienteId);
@@ -603,24 +615,86 @@ export function ReceptionistDashboardView({
 					</Button>
 				</div>
 
-				{/* Preview de turnos recientes */}
+				{/* Resumen operativo de turnos */}
 				<Card className="border-border/70">
 					<CardHeader className="pb-2">
-						<CardTitle className="text-base">
+						<CardTitle className="flex items-center gap-2 text-base">
+							<QueueListIcon className="h-4 w-4" />
 							{m.dashboardSidebarQueue({}, { locale })}
 						</CardTitle>
+						<CardDescription>
+							{m.dashboardReceptionistOverviewSubtitle({}, { locale })}
+						</CardDescription>
 					</CardHeader>
-					<CardContent className="space-y-2">
+					<CardContent className="space-y-3">
 						{loading ? (
-							<Skeleton className="h-20 rounded-lg" />
-						) : turns.slice(0, 6).length === 0 ? (
+							<>
+								<Skeleton className="h-24 rounded-lg" />
+								<Skeleton className="h-20 rounded-lg" />
+							</>
+						) : turns.length === 0 ? (
 							<p className="text-sm text-muted-foreground">
 								{m.dashboardPatientsEmptyDescription({}, { locale })}
 							</p>
 						) : (
-							turns
-								.slice(0, 6)
-								.map((t) => <TurnRow key={t.id} turn={t} compact />)
+							<>
+								<div className="grid gap-3 sm:grid-cols-2">
+									<div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+										<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+											{m.dashboardPatientCalledTurnLabel({}, { locale })}
+										</p>
+										<p className="mt-1 text-2xl font-bold tabular-nums text-primary">
+											{currentTurn ? `#${currentTurn.numeroTurno}` : '--'}
+										</p>
+										<p className="mt-1 text-xs text-muted-foreground">
+											{currentTurn
+												? `${currentTurn.tipo} - ${statusLabel(currentTurn.estado, locale)}`
+												: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
+										</p>
+									</div>
+
+									<div className="rounded-lg border border-border/70 bg-background/90 p-3">
+										<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+											{m.dashboardStatusWaiting({}, { locale })}
+										</p>
+										<p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+											{nextWaitingTurn ? `#${nextWaitingTurn.numeroTurno}` : '--'}
+										</p>
+										<p className="mt-1 text-xs text-muted-foreground">
+											{nextWaitingTurn
+												? `${nextWaitingTurn.tipo} - ${statusLabel(nextWaitingTurn.estado, locale)}`
+												: m.dashboardPatientsEmptyDescription({}, { locale })}
+										</p>
+									</div>
+								</div>
+
+								<div className="space-y-2 border-t border-border/60 pt-3">
+									<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+										{m.dashboardSidebarQueue({}, { locale })}
+									</p>
+									{activeQueueTurns.length === 0 ? (
+										<p className="text-sm text-muted-foreground">
+											{m.dashboardPatientsEmptyDescription({}, { locale })}
+										</p>
+									) : (
+										<ul className="space-y-1.5">
+											{activeQueueTurns.map((turn) => (
+												<li
+													key={turn.id}
+													className="flex items-center justify-between rounded-md bg-background/80 px-2 py-1.5"
+												>
+													<span className="text-sm font-semibold tabular-nums text-foreground">
+														#{turn.numeroTurno}
+													</span>
+													<span className="text-xs text-muted-foreground">
+														{turn.tipo} - {statusLabel(turn.estado, locale)}
+													</span>
+												</li>
+											))}
+										</ul>
+									)}
+								</div>
+							</>
 						)}
 					</CardContent>
 				</Card>

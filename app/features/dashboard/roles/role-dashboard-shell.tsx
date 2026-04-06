@@ -20,7 +20,7 @@ export function RoleDashboardShell({
 	showCardIdentity?: boolean;
 	children: ReactNode;
 }) {
-	const shouldShowCardHeader = showCardIdentity || Boolean(headerAction);
+	const shouldShowCardHeader = showCardIdentity;
 	// useId genera un id único y estable para vincular section → h1 con aria-labelledby.
 	// Esto permite que lectores de pantalla anuncien el título de la sección al entrar.
 	const headingId = useId();
@@ -43,23 +43,19 @@ export function RoleDashboardShell({
 			</header>
 			<Card className="border-border/80 bg-card/90 shadow-sm">
 				{shouldShowCardHeader && (
-					<CardHeader
-						className={`gap-3 pb-2 ${
-							showCardIdentity
-								? 'sm:flex-row sm:items-start sm:justify-between'
-								: 'sm:flex-row sm:items-center sm:justify-end'
-						}`}
-					>
+					<CardHeader className="gap-3 pb-2 sm:flex-row sm:items-start sm:justify-between">
 						{showCardIdentity && (
 							<div className="space-y-1">
 								<CardTitle className="text-base">{title}</CardTitle>
 								<CardDescription>{subtitle}</CardDescription>
 							</div>
 						)}
-						{headerAction && <div className="shrink-0">{headerAction}</div>}
 					</CardHeader>
 				)}
 				<CardContent className="space-y-4">{children}</CardContent>
+				{headerAction && (
+					<div className="flex justify-end px-4 pb-4">{headerAction}</div>
+				)}
 			</Card>
 		</section>
 	);

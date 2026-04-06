@@ -497,15 +497,6 @@ export function AdminDashboardView({
 								{ locale },
 							)}
 						</Badge>
-						<Button
-							type="button"
-							variant="outline"
-							onClick={loadData}
-							disabled={loading}
-						>
-							<ArrowPathIcon className="mr-2 h-4 w-4" />
-							{m.dashboardPatientsRefresh({}, { locale })}
-						</Button>
 					</div>
 				</div>
 				<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
@@ -570,6 +561,17 @@ export function AdminDashboardView({
 							</SelectItem>
 						</SelectContent>
 					</Select>
+				</div>
+				<div className="flex justify-end">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={loadData}
+						disabled={loading}
+					>
+						<ArrowPathIcon className="mr-2 h-4 w-4" />
+						{m.dashboardPatientsRefresh({}, { locale })}
+					</Button>
 				</div>
 			</div>
 
@@ -976,6 +978,7 @@ export function AdminDashboardView({
 
 			{section !== 'overview' && (
 				<>
+					{sectionContent()}
 					<div className="flex justify-end">
 						<Button
 							type="button"
@@ -987,7 +990,6 @@ export function AdminDashboardView({
 							{m.dashboardPatientsRefresh({}, { locale })}
 						</Button>
 					</div>
-					{sectionContent()}
 				</>
 			)}
 		</RoleDashboardShell>

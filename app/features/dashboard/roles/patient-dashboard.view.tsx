@@ -620,7 +620,6 @@ export function PatientDashboardView({
 		<RoleDashboardShell
 			title={m.authRolePatient({}, { locale })}
 			subtitle={headerSubtitle}
-			showCardIdentity={section !== 'queue'}
 			headerAction={
 				!showGame && section !== 'ai' ? (
 					<Button

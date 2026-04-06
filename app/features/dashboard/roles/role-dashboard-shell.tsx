@@ -11,7 +11,7 @@ export function RoleDashboardShell({
 	title,
 	subtitle,
 	headerAction,
-	showCardIdentity = true,
+	showCardIdentity = false,
 	children,
 }: {
 	title: string;
@@ -41,11 +41,7 @@ export function RoleDashboardShell({
 				</h1>
 				<p className="text-sm text-muted-foreground sm:text-base">{subtitle}</p>
 			</header>
-			<Card
-				className={`border-border/80 bg-card/90 shadow-sm ${
-					shouldShowCardHeader ? '' : 'pt-0'
-				}`}
-			>
+			<Card className="border-border/80 bg-card/90 shadow-sm">
 				{shouldShowCardHeader && (
 					<CardHeader
 						className={`gap-3 pb-2 ${

@@ -296,6 +296,12 @@ export function ReceptionistDashboardView({
 				.slice(0, 6),
 		[turns],
 	);
+	const selectedPatientLabel = useMemo(() => {
+		if (!newTurn.pacienteId) return '';
+		const patient = patients.find((p) => p.id === newTurn.pacienteId);
+		if (!patient) return '';
+		return `${patient.nombre} ${patient.apellido}`.trim();
+	}, [newTurn.pacienteId, patients]);
 
 	// ── Acción: crear turno ──
 	async function handleCreateTurn() {
@@ -612,11 +618,18 @@ export function ReceptionistDashboardView({
 												{},
 												{ locale },
 											)}
-										/>
+										>
+											{selectedPatientLabel || undefined}
+										</SelectValue>
 									</SelectTrigger>
 									<SelectContent>
 										{patients.map((p) => (
-											<SelectItem key={p.id} value={p.id}>
+											<SelectItem
+												key={p.id}
+												value={p.id}
+												label={`${p.nombre} ${p.apellido}`}
+												title={`${p.nombre} ${p.apellido}`}
+											>
 												{p.nombre} {p.apellido}
 											</SelectItem>
 										))}

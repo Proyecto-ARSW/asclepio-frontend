@@ -1105,7 +1105,12 @@ export function DoctorDashboardView({
 								</SelectTrigger>
 								<SelectContent>
 									{patientOptions.map((patient) => (
-										<SelectItem key={patient.id} value={patient.id}>
+										<SelectItem
+											key={patient.id}
+											value={patient.id}
+											label={patient.label}
+											title={patient.label}
+										>
 											{patient.label}
 										</SelectItem>
 									))}

@@ -68,6 +68,7 @@
 	"dashboardPatientCancelAction": "Termin stornieren",
 	"dashboardPatientCancelConfirm": "Stornierung bestätigen?",
 	"dashboardPatientSelectDoctor": "Arzt auswählen",
+	"dashboardPatientNoDoctorsAvailable": "Derzeit sind keine Ärzte für die Terminbuchung verfügbar.",
 	"dashboardPatientSelectSlot": "Zeitfenster auswählen",
 	"dashboardPatientMotivo": "Besuchsgrund",
 	"dashboardPatientMotivoPlaceholder": "Beschreiben Sie kurz den Grund Ihres Termins",

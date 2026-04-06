@@ -68,6 +68,7 @@
 	"dashboardPatientCancelAction": "Cancelar cita",
 	"dashboardPatientCancelConfirm": "¿Confirmar cancelación?",
 	"dashboardPatientSelectDoctor": "Seleccionar médico",
+	"dashboardPatientNoDoctorsAvailable": "No hay médicos disponibles para agendar en este momento.",
 	"dashboardPatientSelectSlot": "Seleccionar horario",
 	"dashboardPatientMotivo": "Motivo de consulta",
 	"dashboardPatientMotivoPlaceholder": "Describe brevemente el motivo de tu consulta",

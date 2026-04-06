@@ -68,6 +68,7 @@
 	"dashboardPatientCancelAction": "Annuler le rendez-vous",
 	"dashboardPatientCancelConfirm": "Confirmer l'annulation ?",
 	"dashboardPatientSelectDoctor": "Sélectionner un médecin",
+	"dashboardPatientNoDoctorsAvailable": "Aucun médecin n'est disponible pour la prise de rendez-vous en ce moment.",
 	"dashboardPatientSelectSlot": "Sélectionner un créneau",
 	"dashboardPatientMotivo": "Motif de la visite",
 	"dashboardPatientMotivoPlaceholder": "Décrivez brièvement le motif de votre rendez-vous",

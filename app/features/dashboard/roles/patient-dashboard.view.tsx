@@ -1,5 +1,6 @@
 import {
 	ArrowPathIcon,
+	CalendarDaysIcon,
 	ClockIcon,
 	PlusIcon,
 	XCircleIcon,
@@ -9,6 +10,7 @@ import { WaitingRoomGame } from '@/components/game/waiting-room-game';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Button } from '@/components/ui/button/button.component';
+import { Calendar } from '@/components/ui/calendar/calendar.component';
 import {
 	Card,
 	CardContent,
@@ -16,7 +18,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
-import { Input } from '@/components/ui/input/input.component';
 import {
 	Select,
 	SelectContent,
@@ -25,6 +26,7 @@ import {
 	SelectValue,
 } from '@/components/ui/select/select.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
+import { Textarea } from '@/components/ui/textarea/textarea.component';
 import type { AppLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import { gqlMutation, gqlQuery } from '@/lib/graphql-client';
@@ -69,6 +71,12 @@ interface Doctor {
 	apellido: string;
 	especialidadId: number;
 	consultorio: string | null;
+}
+
+interface DoctorAvailability {
+	id: number;
+	diaSemana: number;
+	activo: boolean;
 }
 
 interface SlotDisponible {
@@ -176,6 +184,16 @@ const AVAILABLE_SLOTS_QUERY = `
 	}
 `;
 
+const DOCTOR_AVAILABILITY_QUERY = `
+	query DoctorAvailabilityForBooking($medicoId: ID!) {
+		disponibilidadesByDoctor(medicoId: $medicoId) {
+			id
+			diaSemana
+			activo
+		}
+	}
+`;
+
 // Agendar una cita en un slot específico
 const CREATE_APPOINTMENT = `
 	mutation CreateAppointment($input: CreateAppoinmentInput!) {
@@ -243,6 +261,36 @@ function statusLabel(estado: string, locale: AppLocale) {
 	}
 }
 
+function doctorDisplayName(doctor: Doctor) {
+	const fullName = `${doctor.nombre ?? ''} ${doctor.apellido ?? ''}`.trim();
+	return fullName || doctor.id;
+}
+
+function doctorDisplayLabel(doctor: Doctor) {
+	const name = doctorDisplayName(doctor);
+	return doctor.consultorio ? `${name} - ${doctor.consultorio}` : name;
+}
+
+function toLocalDateValue(date: Date) {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
+
+function fromLocalDateValue(value: string) {
+	if (!value) return null;
+	const [year, month, day] = value.split('-').map(Number);
+	if (!year || !month || !day) return null;
+	return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
+
+function startOfToday() {
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	return today;
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function PatientDashboardView({
@@ -258,9 +306,16 @@ export function PatientDashboardView({
 	const [hospitalTurns, setHospitalTurns] = useState<Turno[]>([]);
 	const [historial, setHistorial] = useState<HistorialEntry[]>([]);
 	const [doctors, setDoctors] = useState<Doctor[]>([]);
+	const [doctorAvailabilityDays, setDoctorAvailabilityDays] = useState<
+		number[]
+	>([]);
 	const [slots, setSlots] = useState<SlotDisponible[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [doctorAvailabilityLoading, setDoctorAvailabilityLoading] =
+		useState(false);
 	const [slotsLoading, setSlotsLoading] = useState(false);
+	const [slotsLoadError, setSlotsLoadError] = useState('');
+	const [availabilityLoadError, setAvailabilityLoadError] = useState('');
 	const [error, setError] = useState('');
 	const [successMsg, setSuccessMsg] = useState('');
 	const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -401,18 +456,63 @@ export function PatientDashboardView({
 	useEffect(() => {
 		if (!booking.medicoId || !booking.fecha) {
 			setSlots([]);
+			setSlotsLoadError('');
 			return;
 		}
 		setSlotsLoading(true);
+		setSlotsLoadError('');
 		gqlQuery<{ availableSlots: SlotDisponible[] }>(AVAILABLE_SLOTS_QUERY, {
 			medicoId: booking.medicoId,
 			// Usar mediodía local para evitar que UTC midnight desplace el día en el servidor
 			fecha: new Date(`${booking.fecha}T12:00:00`).toISOString(),
 		})
 			.then((r) => setSlots(r.availableSlots))
-			.catch(() => setSlots([]))
+			.catch((err) => {
+				setSlots([]);
+				setSlotsLoadError(
+					err instanceof Error
+						? err.message
+						: m.rootErrorUnexpected({}, { locale }),
+				);
+			})
 			.finally(() => setSlotsLoading(false));
-	}, [booking.medicoId, booking.fecha]);
+	}, [booking.medicoId, booking.fecha, locale]);
+
+	useEffect(() => {
+		if (!booking.medicoId) {
+			setDoctorAvailabilityDays([]);
+			setAvailabilityLoadError('');
+			setDoctorAvailabilityLoading(false);
+			return;
+		}
+
+		setDoctorAvailabilityLoading(true);
+		setAvailabilityLoadError('');
+		gqlQuery<{ disponibilidadesByDoctor: DoctorAvailability[] }>(
+			DOCTOR_AVAILABILITY_QUERY,
+			{ medicoId: booking.medicoId },
+		)
+			.then((response) => {
+				const uniqueDays = [
+					...new Set(
+						response.disponibilidadesByDoctor
+							.filter((slot) => slot.activo)
+							.map((slot) => slot.diaSemana)
+							.filter((day) => day >= 0 && day <= 6),
+					),
+				].sort((a, b) => a - b);
+				setDoctorAvailabilityDays(uniqueDays);
+			})
+			.catch((err) => {
+				setDoctorAvailabilityDays([]);
+				setAvailabilityLoadError(
+					err instanceof Error
+						? err.message
+						: m.rootErrorUnexpected({}, { locale }),
+				);
+			})
+			.finally(() => setDoctorAvailabilityLoading(false));
+	}, [booking.medicoId, locale]);
 
 	// ── Acción: agendar cita ──
 	async function handleBook() {
@@ -550,9 +650,25 @@ export function PatientDashboardView({
 
 	function AppointmentBookingForm() {
 		const doctorSelectId = 'patient-booking-doctor';
-		const dateInputId = 'patient-booking-date';
+		const doctorHelpId = 'patient-booking-doctor-help';
+		const doctorEmptyStateId = 'patient-booking-doctor-empty';
+		const dateInputId = 'patient-booking-calendar';
 		const slotSelectId = 'patient-booking-slot';
 		const reasonInputId = 'patient-booking-reason';
+		const selectedDoctor =
+			doctors.find((d) => d.id === booking.medicoId) ?? null;
+		const selectedDate = fromLocalDateValue(booking.fecha);
+		const availableDaysSet = new Set(doctorAvailabilityDays);
+		const minDate = startOfToday();
+
+		const isDateDisabled = (date: Date) => {
+			const currentDate = new Date(date);
+			currentDate.setHours(0, 0, 0, 0);
+			if (currentDate < minDate) return true;
+			if (!booking.medicoId) return true;
+			if (availableDaysSet.size === 0) return true;
+			return !availableDaysSet.has(currentDate.getDay());
+		};
 
 		return (
 			<Card className="border-border/70">
@@ -566,7 +682,7 @@ export function PatientDashboardView({
 				</CardHeader>
 				<CardContent className="space-y-3">
 					{/* Paso 1: seleccionar médico */}
-					<div className="space-y-1">
+					<div className="space-y-2">
 						<label
 							htmlFor={doctorSelectId}
 							className="text-xs font-medium text-muted-foreground"
@@ -575,52 +691,136 @@ export function PatientDashboardView({
 						</label>
 						<Select
 							value={booking.medicoId}
+							disabled={loading || doctors.length === 0}
 							onValueChange={(v) =>
-								setBooking((prev) => ({ ...prev, medicoId: v ?? '', slot: '' }))
+								setBooking((prev) => ({
+									...prev,
+									medicoId: v ?? '',
+									fecha: '',
+									slot: '',
+								}))
 							}
 						>
-							<SelectTrigger id={doctorSelectId}>
+							<SelectTrigger
+								id={doctorSelectId}
+								className="h-auto min-h-10 w-full py-2"
+								aria-describedby={
+									selectedDoctor
+										? doctorHelpId
+										: !loading && doctors.length === 0
+											? doctorEmptyStateId
+											: undefined
+								}
+							>
 								<SelectValue
 									placeholder={m.dashboardPatientSelectDoctor({}, { locale })}
+									className="min-w-0"
 								/>
 							</SelectTrigger>
-							<SelectContent>
+							<SelectContent className="w-[min(94vw,36rem)]">
 								{doctors.map((d) => {
-									// Base UI necesita `label` explícito para que SelectValue
-									// muestre el nombre en el trigger en vez del UUID
-									const label = `${d.nombre ?? ''} ${d.apellido ?? ''}`.trim();
+									const label = doctorDisplayLabel(d);
 									return (
-										<SelectItem key={d.id} value={d.id} label={label}>
-											{label}
-											{d.consultorio ? ` — ${d.consultorio}` : ''}
+										<SelectItem
+											key={d.id}
+											value={d.id}
+											label={label}
+											title={label}
+											className="items-start py-2"
+										>
+											<div className="flex min-w-0 flex-col text-left">
+												<span className="truncate font-medium">
+													{doctorDisplayName(d)}
+												</span>
+												{d.consultorio && (
+													<span className="truncate text-xs text-muted-foreground">
+														{d.consultorio}
+													</span>
+												)}
+											</div>
 										</SelectItem>
 									);
 								})}
 							</SelectContent>
 						</Select>
+						{selectedDoctor && (
+							<p
+								id={doctorHelpId}
+								className="wrap-break-word text-xs text-muted-foreground"
+							>
+								{doctorDisplayLabel(selectedDoctor)}
+							</p>
+						)}
+						{!loading && doctors.length === 0 && (
+							<p
+								id={doctorEmptyStateId}
+								className="text-xs text-muted-foreground"
+							>
+								{m.dashboardPatientNoDoctorsAvailable({}, { locale })}
+							</p>
+						)}
 					</div>
 
 					{/* Paso 2: seleccionar fecha */}
-					<div className="space-y-1">
+					<div className="space-y-2">
 						<label
 							htmlFor={dateInputId}
 							className="text-xs font-medium text-muted-foreground"
 						>
 							{m.dashboardPatientDateLabel({}, { locale })}
 						</label>
-						<Input
-							id={dateInputId}
-							type="date"
-							value={booking.fecha}
-							min={new Date().toISOString().split('T')[0]}
-							onChange={(e) =>
-								setBooking((prev) => ({
-									...prev,
-									fecha: e.target.value,
-									slot: '',
-								}))
-							}
-						/>
+						{!booking.medicoId ? (
+							<p className="text-xs text-muted-foreground">
+								{m.dashboardPatientSelectDoctor({}, { locale })}
+							</p>
+						) : doctorAvailabilityLoading ? (
+							<Skeleton className="h-64 rounded-xl" />
+						) : doctorAvailabilityDays.length === 0 ? (
+							<p className="text-xs text-muted-foreground">
+								{m.dashboardPatientNoSlotsForDate({}, { locale })}
+							</p>
+						) : (
+							<div
+								id={dateInputId}
+								className="rounded-xl border border-border/70 bg-muted/20 p-2"
+							>
+								<Calendar
+									mode="single"
+									selected={selectedDate ?? undefined}
+									onSelect={(date) => {
+										if (!date) {
+											setBooking((prev) => ({ ...prev, fecha: '', slot: '' }));
+											return;
+										}
+										setBooking((prev) => ({
+											...prev,
+											fecha: toLocalDateValue(date),
+											slot: '',
+										}));
+									}}
+									disabled={isDateDisabled}
+									classNames={{ root: 'w-full' }}
+								/>
+							</div>
+						)}
+
+						{availabilityLoadError && (
+							<p className="text-xs text-destructive">
+								{availabilityLoadError}
+							</p>
+						)}
+
+						{selectedDate && (
+							<div className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2 py-1 text-xs text-foreground">
+								<CalendarDaysIcon className="h-3.5 w-3.5" />
+								{selectedDate.toLocaleDateString(locale, {
+									weekday: 'long',
+									year: 'numeric',
+									month: 'long',
+									day: 'numeric',
+								})}
+							</div>
+						)}
 					</div>
 
 					{/* Paso 3: seleccionar slot disponible — se carga automáticamente */}
@@ -634,6 +834,8 @@ export function PatientDashboardView({
 							</label>
 							{slotsLoading ? (
 								<Skeleton className="h-9 rounded-md" />
+							) : slotsLoadError ? (
+								<p className="text-xs text-destructive">{slotsLoadError}</p>
 							) : slots.length === 0 ? (
 								<p className="text-xs text-muted-foreground">
 									{m.dashboardPatientNoSlotsForDate({}, { locale })}
@@ -686,13 +888,14 @@ export function PatientDashboardView({
 						>
 							{m.dashboardPatientMotivo({}, { locale })}
 						</label>
-						<Input
+						<Textarea
 							id={reasonInputId}
 							value={booking.motivo}
 							onChange={(e) =>
 								setBooking((prev) => ({ ...prev, motivo: e.target.value }))
 							}
 							placeholder={m.dashboardPatientMotivoPlaceholder({}, { locale })}
+							className="min-h-20 resize-y"
 						/>
 					</div>
 
@@ -915,8 +1118,8 @@ export function PatientDashboardView({
 								{m.dashboardSidebarAppointments({}, { locale })}
 							</h3>
 
-							{/* Formulario de agendar cita — solo en sección appointments, no en overview */}
-							{section === 'appointments' && <AppointmentBookingForm />}
+							{/* Render como función para evitar remount del formulario interno y conservar el foco en campos de texto */}
+							{section === 'appointments' && AppointmentBookingForm()}
 
 							{loading ? (
 								<Skeleton className="h-16 rounded-lg" />

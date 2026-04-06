@@ -68,6 +68,7 @@
 	"dashboardPatientCancelAction": "Cancel appointment",
 	"dashboardPatientCancelConfirm": "Confirm cancellation?",
 	"dashboardPatientSelectDoctor": "Select doctor",
+	"dashboardPatientNoDoctorsAvailable": "No doctors are currently available for booking.",
 	"dashboardPatientSelectSlot": "Select time slot",
 	"dashboardPatientMotivo": "Reason for visit",
 	"dashboardPatientMotivoPlaceholder": "Briefly describe the reason for your appointment",

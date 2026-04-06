@@ -21,11 +21,6 @@ import {
 } from '@/components/ui/card/card.component';
 import { Input } from '@/components/ui/input/input.component';
 import {
-	InputOTP,
-	InputOTPGroup,
-	InputOTPSlot,
-} from '@/components/ui/input-otp/input-otp.component';
-import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -54,6 +49,7 @@ interface Appointment {
 	fechaHora: string;
 	estado: string;
 	motivo: string | null;
+	notasMedico?: string | null;
 	pacienteId: string;
 }
 
@@ -72,6 +68,12 @@ interface HistorialEntry {
 	tratamiento: string;
 	observaciones: string | null;
 	creadoEn: string;
+}
+
+interface PatientOption {
+	id: string;
+	nombre: string;
+	apellido: string;
 }
 
 // ─── Queries & Mutations ──────────────────────────────────────────────────────
@@ -95,6 +97,7 @@ const DOCTOR_APPOINTMENTS_QUERY = `
 			fechaHora
 			estado
 			motivo
+			notasMedico
 			pacienteId
 		}
 	}
@@ -121,6 +124,16 @@ const DOCTOR_HISTORIAL_QUERY = `
 			tratamiento
 			observaciones
 			creadoEn
+		}
+	}
+`;
+
+const DOCTOR_PATIENTS_QUERY = `
+	query DoctorPatients {
+		patients {
+			id
+			nombre
+			apellido
 		}
 	}
 `;
@@ -165,6 +178,15 @@ const UPDATE_DISPONIBILIDAD = `
 		updateDisponibilidad(input: $input) {
 			id
 			activo
+		}
+	}
+`;
+
+const UPDATE_DOCTOR_PROFILE = `
+	mutation UpdateDoctorProfile($input: UpdateDoctorInput!) {
+		updateDoctor(input: $input) {
+			id
+			consultorio
 		}
 	}
 `;
@@ -288,29 +310,6 @@ function buildTimeOptions(stepMinutes: number): string[] {
 
 const TIME_OPTIONS = buildTimeOptions(15);
 
-function timeToOtpValue(hhmm: string): string {
-	const [hours = '00', minutes = '00'] = hhmm.split(':');
-	return `${hours}${minutes}`.replace(/\D/g, '').slice(0, 4);
-}
-
-function otpValueToTime(value: string): string | null {
-	const digits = value.replace(/\D/g, '').slice(0, 4);
-	if (digits.length !== 4) return null;
-	const hours = Number(digits.slice(0, 2));
-	const minutes = Number(digits.slice(2, 4));
-	if (
-		Number.isNaN(hours) ||
-		Number.isNaN(minutes) ||
-		hours < 0 ||
-		hours > 23 ||
-		minutes < 0 ||
-		minutes > 59
-	) {
-		return null;
-	}
-	return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-}
-
 function suggestDuration(inicio: string, fin: string): number {
 	const [sh, sm] = inicio.split(':').map(Number);
 	const [eh, em] = fin.split(':').map(Number);
@@ -351,10 +350,12 @@ export function DoctorDashboardView({
 	const [appointments, setAppointments] = useState<Appointment[]>([]);
 	const [disponibilidad, setDisponibilidad] = useState<Disponibilidad[]>([]);
 	const [historial, setHistorial] = useState<HistorialEntry[]>([]);
+	const [patients, setPatients] = useState<PatientOption[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [actionLoading, setActionLoading] = useState<string | null>(null);
 	const [successMsg, setSuccessMsg] = useState('');
+	const [consultorioInput, setConsultorioInput] = useState('');
 
 	// ── Formulario de disponibilidad ──
 	const [newSlot, setNewSlot] = useState({
@@ -363,9 +364,6 @@ export function DoctorDashboardView({
 		horaFin: '17:00',
 		duracionCita: 30,
 	});
-	const [startTimeOtp, setStartTimeOtp] = useState(() =>
-		timeToOtpValue('08:00'),
-	);
 
 	// ── Formulario de historial ──
 	const [newHistorial, setNewHistorial] = useState({
@@ -395,6 +393,7 @@ export function DoctorDashboardView({
 			return null;
 		}
 		setDoctorId(mine.id);
+		setConsultorioInput(mine.consultorio ?? '');
 		return mine;
 	}, [user.email, user.id]);
 
@@ -404,6 +403,7 @@ export function DoctorDashboardView({
 			{ medicoId: id },
 		);
 		setAppointments(res.appoinmentsByDoctor);
+		return res.appoinmentsByDoctor;
 	}, []);
 
 	const loadDisponibilidad = useCallback(async (id: string) => {
@@ -421,6 +421,13 @@ export function DoctorDashboardView({
 		setHistorial(res.historialByMedico);
 	}, []);
 
+	const loadPatients = useCallback(async () => {
+		const res = await gqlQuery<{ patients: PatientOption[] }>(
+			DOCTOR_PATIENTS_QUERY,
+		);
+		setPatients(res.patients);
+	}, []);
+
 	const loadData = useCallback(async () => {
 		setLoading(true);
 		setError('');
@@ -430,13 +437,16 @@ export function DoctorDashboardView({
 			if (!profile) return;
 			// Carga paralela según sección — evita waterfall de requests
 			await Promise.all([
-				section === 'overview' || section === 'appointments'
+				section === 'overview' ||
+				section === 'appointments' ||
+				section === 'historial'
 					? loadAppointments(profile.id)
 					: Promise.resolve(),
 				section === 'overview' || section === 'disponibilidad'
 					? loadDisponibilidad(profile.id)
 					: Promise.resolve(),
 				section === 'historial' ? loadHistorial(profile.id) : Promise.resolve(),
+				section === 'historial' ? loadPatients() : Promise.resolve(),
 			]);
 		} catch (err) {
 			setError(
@@ -452,6 +462,7 @@ export function DoctorDashboardView({
 		loadAppointments,
 		loadDisponibilidad,
 		loadHistorial,
+		loadPatients,
 		locale,
 		section,
 	]);
@@ -475,18 +486,56 @@ export function DoctorDashboardView({
 
 	// ── Acción: confirmar cita ──
 	// UpdateAppoinmentInput solo acepta {id, notasMedico?, motivo?}.
-	// No existe un campo 'estado' en el DTO → enviarlo causaba 400 Bad Request.
-	// El estado CONFIRMADA lo gestiona el backend cuando el médico actualiza la cita.
-	async function handleConfirm(id: string) {
+	// Enviar solo id no genera cambios persistentes en backend.
+	async function handleConfirm(appointment: Appointment) {
+		const id = appointment.id;
 		setActionLoading(id);
 		setError('');
 		try {
-			await gqlMutation(CONFIRM_APPOINTMENT, {
-				input: { id },
+			const motivo = appointment.motivo?.trim();
+			const notasMedico = appointment.notasMedico?.trim();
+			const confirmationPayload: {
+				id: string;
+				notasMedico?: string;
+				motivo?: string;
+			} = { id };
+
+			if (notasMedico) {
+				confirmationPayload.notasMedico = notasMedico;
+			} else if (motivo) {
+				confirmationPayload.motivo = motivo;
+			} else {
+				confirmationPayload.notasMedico = m.dashboardStatusConfirmed(
+					{},
+					{ locale },
+				);
+			}
+
+			const response = await gqlMutation<{
+				updateAppoinment: { id: string; estado: string };
+			}>(CONFIRM_APPOINTMENT, {
+				input: confirmationPayload,
 			});
-			setAppointments((prev) =>
-				prev.map((a) => (a.id === id ? { ...a, estado: 'CONFIRMADA' } : a)),
-			);
+
+			let finalState = response.updateAppoinment.estado;
+			if (doctorId) {
+				const refreshed = await loadAppointments(doctorId);
+				finalState =
+					refreshed.find((item) => item.id === id)?.estado ?? finalState;
+			} else {
+				setAppointments((prev) =>
+					prev.map((a) =>
+						a.id === id
+							? { ...a, estado: response.updateAppoinment.estado }
+							: a,
+					),
+				);
+			}
+
+			if (finalState !== 'CONFIRMADA') {
+				setError(m.rootErrorUnexpected({}, { locale }));
+				return;
+			}
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
 			setError(
@@ -606,6 +655,31 @@ export function DoctorDashboardView({
 		}
 	}
 
+	async function handleSaveConsultorio() {
+		if (!doctorId) return;
+		setActionLoading('save-consultorio');
+		setError('');
+		try {
+			const trimmed = consultorioInput.trim();
+			const response = await gqlMutation<{
+				updateDoctor: { id: string; consultorio: string | null };
+			}>(UPDATE_DOCTOR_PROFILE, {
+				input: {
+					id: doctorId,
+					consultorio: trimmed.length > 0 ? trimmed : null,
+				},
+			});
+			setConsultorioInput(response.updateDoctor.consultorio ?? '');
+			flash(m.dashboardActionSuccess({}, { locale }));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setActionLoading(null);
+		}
+	}
+
 	// ── Acción: crear historial médico ──
 	async function handleCreateHistorial() {
 		if (!doctorId || !newHistorial.pacienteId || !newHistorial.diagnostico)
@@ -686,7 +760,7 @@ export function DoctorDashboardView({
 					<KpiCard
 						icon={<ClipboardDocumentListIcon className="h-5 w-5" />}
 						label={m.dashboardDoctorKpiConsultorio({}, { locale })}
-						value={'—'}
+						value={consultorioInput || '—'}
 					/>
 				</div>
 
@@ -726,7 +800,10 @@ export function DoctorDashboardView({
 							<Skeleton className="h-16 rounded-lg" />
 						) : disponibilidad.slice(0, 3).length === 0 ? (
 							<p className="text-sm text-muted-foreground">
-								{m.dashboardDoctorDisponibilidadEmptyDescription({}, { locale })}
+								{m.dashboardDoctorDisponibilidadEmptyDescription(
+									{},
+									{ locale },
+								)}
 							</p>
 						) : (
 							disponibilidad
@@ -760,12 +837,48 @@ export function DoctorDashboardView({
 	function DisponibilidadSection() {
 		const daySelectId = 'doctor-slot-day';
 		const startTimeId = 'doctor-slot-start-time';
-		const startTimeHintId = 'doctor-slot-start-time-hint';
 		const endTimeId = 'doctor-slot-end-time';
 		const durationSelectId = 'doctor-slot-duration';
+		const consultorioInputId = 'doctor-consultorio-input';
 
 		return (
 			<div className="space-y-4">
+				<Card className="border-border/70">
+					<CardHeader className="pb-2">
+						<CardTitle className="text-base">
+							{m.dashboardDoctorKpiConsultorio({}, { locale })}
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+							<div className="space-y-1">
+								<label
+									htmlFor={consultorioInputId}
+									className="text-xs font-medium text-muted-foreground"
+								>
+									{m.authRegisterLabelConsultorio({}, { locale })}
+								</label>
+								<Input
+									id={consultorioInputId}
+									value={consultorioInput}
+									onChange={(e) => setConsultorioInput(e.target.value)}
+									placeholder={m.authRegisterLabelConsultorio({}, { locale })}
+								/>
+							</div>
+							<Button
+								type="button"
+								onClick={handleSaveConsultorio}
+								disabled={actionLoading === 'save-consultorio'}
+								className="gap-2"
+							>
+								{actionLoading === 'save-consultorio'
+									? m.dashboardActionSaving({}, { locale })
+									: m.dashboardDoctorDisponibilidadSave({}, { locale })}
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
+
 				{/* Formulario para agregar nuevo bloque */}
 				<Card className="border-border/70">
 					<CardHeader className="pb-2">
@@ -795,8 +908,10 @@ export function DoctorDashboardView({
 										}))
 									}
 								>
-										<SelectTrigger id={daySelectId} className="w-full">
-											<SelectValue>{dayLabel(newSlot.diaSemana, locale)}</SelectValue>
+									<SelectTrigger id={daySelectId} className="w-full">
+										<SelectValue>
+											{dayLabel(newSlot.diaSemana, locale)}
+										</SelectValue>
 									</SelectTrigger>
 									<SelectContent>
 										{[0, 1, 2, 3, 4, 5, 6].map((d) => (
@@ -814,17 +929,9 @@ export function DoctorDashboardView({
 								>
 									{m.dashboardDoctorDisponibilidadHoraInicio({}, { locale })}
 								</label>
-								<InputOTP
-									id={startTimeId}
-									value={startTimeOtp}
-									maxLength={4}
-									inputMode="numeric"
-									aria-label={m.dashboardDoctorDisponibilidadHoraInicio({}, { locale })}
-									aria-describedby={startTimeHintId}
-									onChange={(value) => {
-										const nextValue = value.replace(/\D/g, '').slice(0, 4);
-										setStartTimeOtp(nextValue);
-										const horaInicio = otpValueToTime(nextValue);
+								<Select
+									value={newSlot.horaInicio}
+									onValueChange={(horaInicio) => {
 										if (!horaInicio) return;
 										setNewSlot((prev) => ({
 											...prev,
@@ -832,26 +939,18 @@ export function DoctorDashboardView({
 											duracionCita: suggestDuration(horaInicio, prev.horaFin),
 										}));
 									}}
-									onBlur={() => {
-										if (otpValueToTime(startTimeOtp)) return;
-										setStartTimeOtp(timeToOtpValue(newSlot.horaInicio));
-									}}
 								>
-									<InputOTPGroup>
-										<InputOTPSlot index={0} />
-										<InputOTPSlot index={1} />
-									</InputOTPGroup>
-									<span className="px-1 text-sm font-medium text-muted-foreground">
-										:
-									</span>
-									<InputOTPGroup>
-										<InputOTPSlot index={2} />
-										<InputOTPSlot index={3} />
-									</InputOTPGroup>
-								</InputOTP>
-								<p id={startTimeHintId} className="text-[11px] text-muted-foreground">
-									{m.dashboardDoctorDisponibilidadHoraInicioHint({}, { locale })}
-								</p>
+									<SelectTrigger id={startTimeId} className="w-full">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{TIME_OPTIONS.map((time) => (
+											<SelectItem key={`start-${time}`} value={time}>
+												{time}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</div>
 							<div className="space-y-1">
 								<label
@@ -953,11 +1052,17 @@ export function DoctorDashboardView({
 
 	// ── Sección de historial médico ──
 	function HistorialSection() {
-		// Construir lista de pacientes únicos desde las citas del médico
-		// para el selector del formulario de historial
 		const patientOptions = [
-			...new Map(appointments.map((a) => [a.pacienteId, a])).values(),
-		];
+			...new Set(appointments.map((a) => a.pacienteId)),
+		].map((pacienteId) => {
+			const patient = patients.find((item) => item.id === pacienteId);
+			const fullName =
+				`${patient?.nombre ?? ''} ${patient?.apellido ?? ''}`.trim();
+			return {
+				id: pacienteId,
+				label: fullName || pacienteId,
+			};
+		});
 		const patientSelectId = 'doctor-historial-patient';
 		const diagnosisInputId = 'doctor-historial-diagnosis';
 		const treatmentInputId = 'doctor-historial-treatment';
@@ -999,9 +1104,9 @@ export function DoctorDashboardView({
 									/>
 								</SelectTrigger>
 								<SelectContent>
-									{patientOptions.map((a) => (
-										<SelectItem key={a.pacienteId} value={a.pacienteId}>
-											{a.pacienteId}
+									{patientOptions.map((patient) => (
+										<SelectItem key={patient.id} value={patient.id}>
+											{patient.label}
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -1165,7 +1270,7 @@ export function DoctorDashboardView({
 									type="button"
 									size="sm"
 									variant="outline"
-									onClick={() => handleConfirm(a.id)}
+									onClick={() => handleConfirm(a)}
 									disabled={actionLoading === a.id}
 									className="gap-1 text-xs"
 								>

@@ -1,6 +1,5 @@
 import {
 	ArrowPathIcon,
-	CalendarDaysIcon,
 	ClockIcon,
 	PlusIcon,
 	XCircleIcon,
@@ -450,6 +449,24 @@ export function PatientDashboardView({
 		}
 	}, [locale, patientId]);
 
+	const refreshAppointments = useCallback(async () => {
+		if (!patientId) return;
+		try {
+			const patientAppointments = await gqlQuery<{
+				appoinmentsByPatient: Appointment[];
+			}>(PATIENT_APPOINTMENTS_QUERY, {
+				pacienteId: patientId,
+			});
+			setAppointments(patientAppointments.appoinmentsByPatient);
+		} catch (err) {
+			setError(
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale }),
+			);
+		}
+	}, [locale, patientId]);
+
 	useEffect(() => {
 		void loadData();
 	}, [loadData]);
@@ -480,6 +497,34 @@ export function PatientDashboardView({
 			window.clearInterval(interval);
 		};
 	}, [patientId, refreshQueueTurns, section]);
+
+	useEffect(() => {
+		if (!(section === 'appointments' || section === 'overview' || !section))
+			return;
+		if (!patientId) return;
+
+		let disposed = false;
+		const runRefresh = async () => {
+			if (disposed) return;
+			if (
+				typeof document !== 'undefined' &&
+				document.visibilityState === 'hidden'
+			) {
+				return;
+			}
+			await refreshAppointments();
+		};
+
+		void runRefresh();
+		const interval = window.setInterval(() => {
+			void runRefresh();
+		}, 10_000);
+
+		return () => {
+			disposed = true;
+			window.clearInterval(interval);
+		};
+	}, [patientId, refreshAppointments, section]);
 
 	// Cerrar sala de espera al cambiar de sección
 	useEffect(() => {

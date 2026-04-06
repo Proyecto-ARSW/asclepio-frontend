@@ -281,20 +281,20 @@ function suggestDuration(inicio: string, fin: string): number {
  * Traduce errores del backend a mensajes amigables en español para el usuario final.
  * Los mensajes técnicos de GraphQL/class-validator nunca deben mostrarse directamente.
  */
-function friendlyDisponibilidadError(raw: string): string {
+function friendlyDisponibilidadError(raw: string, locale: AppLocale): string {
 	if (/horaFin debe ser posterior/i.test(raw))
-		return 'La hora de fin debe ser posterior a la hora de inicio.';
+		return m.dashboardDoctorErrorEndTimeAfterStart({}, { locale });
 	if (/Ya existe un bloque/i.test(raw))
-		return 'Ya tienes un horario registrado para ese día y hora de inicio. Elige un horario diferente.';
+		return m.dashboardDoctorErrorSlotAlreadyExists({}, { locale });
 	if (/diaSemana/i.test(raw))
-		return 'El día de la semana seleccionado no es válido.';
+		return m.dashboardDoctorErrorInvalidWeekDay({}, { locale });
 	if (/duracionCita/i.test(raw))
-		return 'La duración de la cita debe ser mayor a cero.';
+		return m.dashboardDoctorErrorInvalidDuration({}, { locale });
 	if (/Bad Request|validation/i.test(raw))
-		return 'Los datos ingresados no son válidos. Revisa las horas y la duración e intenta de nuevo.';
+		return m.dashboardDoctorErrorInvalidInput({}, { locale });
 	if (/network|fetch|unavailable/i.test(raw))
-		return 'No se pudo conectar con el servidor. Verifica tu conexión e intenta de nuevo.';
-	return 'Ocurrió un error al guardar la disponibilidad. Por favor, intenta de nuevo.';
+		return m.dashboardDoctorErrorNetwork({}, { locale });
+	return m.dashboardDoctorErrorSaveAvailability({}, { locale });
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -388,7 +388,11 @@ export function DoctorDashboardView({
 				section === 'historial' ? loadHistorial(profile.id) : Promise.resolve(),
 			]);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error al cargar datos');
+			setError(
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale }),
+			);
 		} finally {
 			setLoading(false);
 		}
@@ -397,6 +401,7 @@ export function DoctorDashboardView({
 		loadAppointments,
 		loadDisponibilidad,
 		loadHistorial,
+		locale,
 		section,
 	]);
 
@@ -433,7 +438,9 @@ export function DoctorDashboardView({
 			);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -450,7 +457,10 @@ export function DoctorDashboardView({
 				input: {
 					id,
 					canceladaPor: user.id,
-					motivoCancelacion: 'Cancelado por el médico',
+					motivoCancelacion: m.dashboardDoctorCancellationReason(
+						{},
+						{ locale },
+					),
 				},
 			});
 			setAppointments((prev) =>
@@ -458,7 +468,9 @@ export function DoctorDashboardView({
 			);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -472,7 +484,7 @@ export function DoctorDashboardView({
 		const [sh, sm] = newSlot.horaInicio.split(':').map(Number);
 		const [eh, em] = newSlot.horaFin.split(':').map(Number);
 		if (eh * 60 + em <= sh * 60 + sm) {
-			setError('La hora de fin debe ser posterior a la hora de inicio.');
+			setError(m.dashboardDoctorErrorEndTimeAfterStart({}, { locale }));
 			return;
 		}
 
@@ -496,7 +508,10 @@ export function DoctorDashboardView({
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
 			setError(
-				friendlyDisponibilidadError(err instanceof Error ? err.message : ''),
+				friendlyDisponibilidadError(
+					err instanceof Error ? err.message : '',
+					locale,
+				),
 			);
 		} finally {
 			setActionLoading(null);
@@ -512,7 +527,9 @@ export function DoctorDashboardView({
 			setDisponibilidad((prev) => prev.filter((s) => s.id !== id));
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -530,7 +547,9 @@ export function DoctorDashboardView({
 				prev.map((s) => (s.id === slot.id ? { ...s, activo: !s.activo } : s)),
 			);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -566,7 +585,9 @@ export function DoctorDashboardView({
 			});
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -686,6 +707,11 @@ export function DoctorDashboardView({
 
 	// ── Sección de disponibilidad con CRUD ──
 	function DisponibilidadSection() {
+		const daySelectId = 'doctor-slot-day';
+		const startTimeId = 'doctor-slot-start-time';
+		const endTimeId = 'doctor-slot-end-time';
+		const durationSelectId = 'doctor-slot-duration';
+
 		return (
 			<div className="space-y-4">
 				{/* Formulario para agregar nuevo bloque */}
@@ -702,7 +728,10 @@ export function DoctorDashboardView({
 						{/* Grid responsivo para los campos del formulario */}
 						<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 							<div className="space-y-1">
-								<label className="text-xs font-medium text-muted-foreground">
+								<label
+									htmlFor={daySelectId}
+									className="text-xs font-medium text-muted-foreground"
+								>
 									{m.dashboardDoctorDisponibilidadDia({}, { locale })}
 								</label>
 								<Select
@@ -714,7 +743,7 @@ export function DoctorDashboardView({
 										}))
 									}
 								>
-									<SelectTrigger>
+									<SelectTrigger id={daySelectId}>
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
@@ -727,10 +756,14 @@ export function DoctorDashboardView({
 								</Select>
 							</div>
 							<div className="space-y-1">
-								<label className="text-xs font-medium text-muted-foreground">
+								<label
+									htmlFor={startTimeId}
+									className="text-xs font-medium text-muted-foreground"
+								>
 									{m.dashboardDoctorDisponibilidadHoraInicio({}, { locale })}
 								</label>
 								<Input
+									id={startTimeId}
 									type="time"
 									value={newSlot.horaInicio}
 									onChange={(e) => {
@@ -745,10 +778,14 @@ export function DoctorDashboardView({
 								/>
 							</div>
 							<div className="space-y-1">
-								<label className="text-xs font-medium text-muted-foreground">
+								<label
+									htmlFor={endTimeId}
+									className="text-xs font-medium text-muted-foreground"
+								>
 									{m.dashboardDoctorDisponibilidadHoraFin({}, { locale })}
 								</label>
 								<Input
+									id={endTimeId}
 									type="time"
 									value={newSlot.horaFin}
 									onChange={(e) => {
@@ -763,7 +800,10 @@ export function DoctorDashboardView({
 								/>
 							</div>
 							<div className="space-y-1">
-								<label className="text-xs font-medium text-muted-foreground">
+								<label
+									htmlFor={durationSelectId}
+									className="text-xs font-medium text-muted-foreground"
+								>
 									{m.dashboardDoctorDisponibilidadDuracion({}, { locale })}
 								</label>
 								{/* Select con presets comunes — elimina errores de entrada manual */}
@@ -773,7 +813,7 @@ export function DoctorDashboardView({
 										setNewSlot((prev) => ({ ...prev, duracionCita: Number(v) }))
 									}
 								>
-									<SelectTrigger>
+									<SelectTrigger id={durationSelectId}>
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
@@ -831,10 +871,13 @@ export function DoctorDashboardView({
 	function HistorialSection() {
 		// Construir lista de pacientes únicos desde las citas del médico
 		// para el selector del formulario de historial
-		const patientOptions = useMemo(
-			() => [...new Map(appointments.map((a) => [a.pacienteId, a])).values()],
-			[],
-		);
+		const patientOptions = [
+			...new Map(appointments.map((a) => [a.pacienteId, a])).values(),
+		];
+		const patientSelectId = 'doctor-historial-patient';
+		const diagnosisInputId = 'doctor-historial-diagnosis';
+		const treatmentInputId = 'doctor-historial-treatment';
+		const observationsInputId = 'doctor-historial-observations';
 
 		return (
 			<div className="space-y-4">
@@ -851,7 +894,10 @@ export function DoctorDashboardView({
 					<CardContent className="space-y-3">
 						{/* Seleccionar paciente (extraído de las citas del médico) */}
 						<div className="space-y-1">
-							<label className="text-xs font-medium text-muted-foreground">
+							<label
+								htmlFor={patientSelectId}
+								className="text-xs font-medium text-muted-foreground"
+							>
 								{m.dashboardPatientSelectDoctor({}, { locale })}
 							</label>
 							<Select
@@ -860,8 +906,13 @@ export function DoctorDashboardView({
 									setNewHistorial((prev) => ({ ...prev, pacienteId: v ?? '' }))
 								}
 							>
-								<SelectTrigger>
-									<SelectValue placeholder="Seleccionar paciente" />
+								<SelectTrigger id={patientSelectId}>
+									<SelectValue
+										placeholder={m.dashboardDoctorSelectPatientPlaceholder(
+											{},
+											{ locale },
+										)}
+									/>
 								</SelectTrigger>
 								<SelectContent>
 									{patientOptions.map((a) => (
@@ -873,10 +924,14 @@ export function DoctorDashboardView({
 							</Select>
 						</div>
 						<div className="space-y-1">
-							<label className="text-xs font-medium text-muted-foreground">
+							<label
+								htmlFor={diagnosisInputId}
+								className="text-xs font-medium text-muted-foreground"
+							>
 								{m.dashboardDoctorHistorialDiagnostico({}, { locale })}
 							</label>
 							<Input
+								id={diagnosisInputId}
 								value={newHistorial.diagnostico}
 								onChange={(e) =>
 									setNewHistorial((prev) => ({
@@ -891,10 +946,14 @@ export function DoctorDashboardView({
 							/>
 						</div>
 						<div className="space-y-1">
-							<label className="text-xs font-medium text-muted-foreground">
+							<label
+								htmlFor={treatmentInputId}
+								className="text-xs font-medium text-muted-foreground"
+							>
 								{m.dashboardDoctorHistorialTratamiento({}, { locale })}
 							</label>
 							<Input
+								id={treatmentInputId}
 								value={newHistorial.tratamiento}
 								onChange={(e) =>
 									setNewHistorial((prev) => ({
@@ -909,10 +968,14 @@ export function DoctorDashboardView({
 							/>
 						</div>
 						<div className="space-y-1">
-							<label className="text-xs font-medium text-muted-foreground">
+							<label
+								htmlFor={observationsInputId}
+								className="text-xs font-medium text-muted-foreground"
+							>
 								{m.dashboardDoctorHistorialObservaciones({}, { locale })}
 							</label>
 							<Input
+								id={observationsInputId}
 								value={newHistorial.observaciones}
 								onChange={(e) =>
 									setNewHistorial((prev) => ({
@@ -1073,7 +1136,10 @@ export function DoctorDashboardView({
 							- {formatTime(slot.horaFin)}
 						</p>
 						<p className="text-xs text-muted-foreground">
-							{slot.duracionCita} min / cita
+							{m.dashboardDoctorSlotDurationLabel(
+								{ minutes: String(slot.duracionCita) },
+								{ locale },
+							)}
 						</p>
 					</div>
 				</div>

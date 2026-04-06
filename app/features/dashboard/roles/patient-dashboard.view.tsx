@@ -206,9 +206,9 @@ function statusLabel(estado: string, locale: AppLocale) {
 		case 'COMPLETADA':
 			return m.dashboardStatusAttended({}, { locale });
 		case 'EN_ESPERA':
-			return locale === 'es' ? 'En espera' : 'Waiting';
+			return m.dashboardStatusWaiting({}, { locale });
 		case 'EN_CONSULTA':
-			return locale === 'es' ? 'En consulta' : 'In consultation';
+			return m.dashboardStatusInConsultation({}, { locale });
 		default:
 			return estado;
 	}
@@ -290,12 +290,15 @@ export function PatientDashboardView({
 					: Promise.resolve(),
 			]);
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : 'Error al cargar datos';
+			const msg =
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale });
 			setError(msg);
 		} finally {
 			setLoading(false);
 		}
-	}, [loadProfile, section]);
+	}, [loadProfile, locale, section]);
 
 	useEffect(() => {
 		void loadData();
@@ -351,7 +354,9 @@ export function PatientDashboardView({
 			setSlots([]);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -377,12 +382,15 @@ export function PatientDashboardView({
 			);
 			setTurns((prev) => [res.crearTurno, ...prev]);
 			flash(
-				locale === 'es'
-					? `Turno #${res.crearTurno.numeroTurno} creado`
-					: `Turn #${res.crearTurno.numeroTurno} created`,
+				m.dashboardTurnCreated(
+					{ number: String(res.crearTurno.numeroTurno) },
+					{ locale },
+				),
 			);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -398,7 +406,10 @@ export function PatientDashboardView({
 				input: {
 					id,
 					canceladaPor: user.id,
-					motivoCancelacion: 'Cancelado por el paciente',
+					motivoCancelacion: m.dashboardPatientCancellationReason(
+						{},
+						{ locale },
+					),
 				},
 			});
 			setAppointments((prev) =>
@@ -406,7 +417,9 @@ export function PatientDashboardView({
 			);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -436,6 +449,11 @@ export function PatientDashboardView({
 	// ─── Sección de citas con formulario de agendado ──────────────────────────
 
 	function AppointmentBookingForm() {
+		const doctorSelectId = 'patient-booking-doctor';
+		const dateInputId = 'patient-booking-date';
+		const slotSelectId = 'patient-booking-slot';
+		const reasonInputId = 'patient-booking-reason';
+
 		return (
 			<Card className="border-border/70">
 				<CardHeader className="pb-2">
@@ -449,7 +467,10 @@ export function PatientDashboardView({
 				<CardContent className="space-y-3">
 					{/* Paso 1: seleccionar médico */}
 					<div className="space-y-1">
-						<label className="text-xs font-medium text-muted-foreground">
+						<label
+							htmlFor={doctorSelectId}
+							className="text-xs font-medium text-muted-foreground"
+						>
 							{m.dashboardPatientSelectDoctor({}, { locale })}
 						</label>
 						<Select
@@ -458,11 +479,9 @@ export function PatientDashboardView({
 								setBooking((prev) => ({ ...prev, medicoId: v ?? '', slot: '' }))
 							}
 						>
-							<SelectTrigger>
+							<SelectTrigger id={doctorSelectId}>
 								<SelectValue
-									placeholder={
-										locale === 'es' ? 'Seleccionar médico' : 'Select doctor'
-									}
+									placeholder={m.dashboardPatientSelectDoctor({}, { locale })}
 								/>
 							</SelectTrigger>
 							<SelectContent>
@@ -483,10 +502,14 @@ export function PatientDashboardView({
 
 					{/* Paso 2: seleccionar fecha */}
 					<div className="space-y-1">
-						<label className="text-xs font-medium text-muted-foreground">
-							{locale === 'es' ? 'Fecha' : 'Date'}
+						<label
+							htmlFor={dateInputId}
+							className="text-xs font-medium text-muted-foreground"
+						>
+							{m.dashboardPatientDateLabel({}, { locale })}
 						</label>
 						<Input
+							id={dateInputId}
 							type="date"
 							value={booking.fecha}
 							min={new Date().toISOString().split('T')[0]}
@@ -503,16 +526,17 @@ export function PatientDashboardView({
 					{/* Paso 3: seleccionar slot disponible — se carga automáticamente */}
 					{booking.medicoId && booking.fecha && (
 						<div className="space-y-1">
-							<label className="text-xs font-medium text-muted-foreground">
+							<label
+								htmlFor={slotSelectId}
+								className="text-xs font-medium text-muted-foreground"
+							>
 								{m.dashboardPatientSelectSlot({}, { locale })}
 							</label>
 							{slotsLoading ? (
 								<Skeleton className="h-9 rounded-md" />
 							) : slots.length === 0 ? (
 								<p className="text-xs text-muted-foreground">
-									{locale === 'es'
-										? 'No hay horarios disponibles para esta fecha'
-										: 'No available slots for this date'}
+									{m.dashboardPatientNoSlotsForDate({}, { locale })}
 								</p>
 							) : (
 								<Select
@@ -521,13 +545,9 @@ export function PatientDashboardView({
 										setBooking((prev) => ({ ...prev, slot: v ?? '' }))
 									}
 								>
-									<SelectTrigger>
+									<SelectTrigger id={slotSelectId}>
 										<SelectValue
-											placeholder={
-												locale === 'es'
-													? 'Seleccionar horario'
-													: 'Select time slot'
-											}
+											placeholder={m.dashboardPatientSelectSlot({}, { locale })}
 										/>
 									</SelectTrigger>
 									<SelectContent>
@@ -560,10 +580,14 @@ export function PatientDashboardView({
 
 					{/* Motivo de la consulta */}
 					<div className="space-y-1">
-						<label className="text-xs font-medium text-muted-foreground">
+						<label
+							htmlFor={reasonInputId}
+							className="text-xs font-medium text-muted-foreground"
+						>
 							{m.dashboardPatientMotivo({}, { locale })}
 						</label>
 						<Input
+							id={reasonInputId}
 							value={booking.motivo}
 							onChange={(e) =>
 								setBooking((prev) => ({ ...prev, motivo: e.target.value }))
@@ -768,14 +792,10 @@ export function PatientDashboardView({
 									<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 										<div>
 											<h4 className="text-sm font-semibold text-foreground">
-												{locale === 'es'
-													? 'Unirse a la cola'
-													: 'Join the queue'}
+												{m.dashboardPatientJoinQueueTitle({}, { locale })}
 											</h4>
 											<p className="text-xs text-muted-foreground">
-												{locale === 'es'
-													? 'Solicita un turno de atención en el hospital'
-													: 'Request a service turn at the hospital'}
+												{m.dashboardPatientJoinQueueDescription({}, { locale })}
 											</p>
 										</div>
 										<Button
@@ -788,9 +808,7 @@ export function PatientDashboardView({
 											<PlusIcon className="h-4 w-4" />
 											{actionLoading === 'create-turn'
 												? m.dashboardActionSaving({}, { locale })
-												: locale === 'es'
-													? 'Pedir turno'
-													: 'Get turn'}
+												: m.dashboardPatientJoinQueueAction({}, { locale })}
 										</Button>
 									</div>
 								</div>
@@ -871,7 +889,7 @@ export function PatientDashboardView({
 							</p>
 							<p className="mt-1 text-xs text-muted-foreground">
 								{currentCalledTurn
-									? `${currentCalledTurn.tipo} - ${currentCalledTurn.estado}`
+									? `${currentCalledTurn.tipo} - ${statusLabel(currentCalledTurn.estado, locale)}`
 									: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
 							</p>
 							<Button

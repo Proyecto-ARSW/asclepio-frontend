@@ -13,14 +13,11 @@ import {
 	ClockIcon,
 	CpuChipIcon,
 	DocumentTextIcon,
-	HeartIcon,
-	LifebuoyIcon,
 	LinkIcon,
 	ListBulletIcon,
 	MoonIcon,
 	PlayCircleIcon,
 	PuzzlePieceIcon,
-	SparklesIcon,
 	SunIcon,
 	UserGroupIcon,
 	XMarkIcon,
@@ -32,7 +29,11 @@ import { Link, redirect, useLocation } from 'react-router';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { buttonVariants } from '@/components/ui/button/button.component';
 import { Card, CardContent } from '@/components/ui/card/card.component';
-import { currentLocale, localePath } from '@/features/i18n/locale-path';
+import {
+	type AppLocale,
+	currentLocale,
+	localePath,
+} from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import {
 	applyUiPreferences,
@@ -125,110 +126,57 @@ function RevealSection({
 
 // ── Platform slide data ──────────────────────────────────────────────────────
 
-// Contenido de los slides según idioma. Se define aquí y no en i18n porque
-// cada slide tiene múltiples sub-campos. Mover a i18n es trivial luego.
-function getSlideData(locale: string) {
-	const es = locale === 'es';
+function getSlideData(locale: AppLocale) {
 	return [
 		{
-			tag: es ? 'Citas' : 'Appointments',
-			title: es
-				? 'Gestión de citas sin fricciones'
-				: 'Frictionless appointment management',
-			description: es
-				? 'Pacientes agendan, confirman y cancelan citas desde la plataforma. El equipo médico gestiona disponibilidad y reasignaciones en tiempo real.'
-				: 'Patients schedule, confirm, and cancel appointments from the platform. Medical staff manage availability and reassignments in real time.',
-			features: es
-				? [
-						'Confirmación en un clic',
-						'Reasignación automática de horarios',
-						'Historial de citas por paciente',
-					]
-				: [
-						'One-click confirmation',
-						'Automatic schedule reassignment',
-						'Per-patient appointment history',
-					],
+			tag: m.homeLandingPlatformSlide1Tag({}, { locale }),
+			title: m.homeLandingPlatformSlide1Title({}, { locale }),
+			description: m.homeLandingPlatformSlide1Description({}, { locale }),
+			features: [
+				m.homeLandingPlatformSlide1Feature1({}, { locale }),
+				m.homeLandingPlatformSlide1Feature2({}, { locale }),
+				m.homeLandingPlatformSlide1Feature3({}, { locale }),
+			],
 		},
 		{
-			tag: es ? 'Turnos' : 'Queue',
-			title: es
-				? 'Cola de atención ordenada y priorizable'
-				: 'Prioritizable care queue',
-			description: es
-				? 'Recepcionistas crean turnos normales, prioritarios o urgentes. Enfermeros los llaman y atienden desde su panel en tiempo real.'
-				: 'Receptionists create normal, priority, or urgent turns. Nurses call and attend them from their real-time panel.',
-			features: es
-				? [
-						'Tipos: Normal, Prioritario y Urgente',
-						'Panel de llamado para enfermeros',
-						'Estado visible para el paciente',
-					]
-				: [
-						'Types: Normal, Priority, and Urgent',
-						'Nurse calling panel',
-						'Patient-visible status in real time',
-					],
+			tag: m.homeLandingPlatformSlide2Tag({}, { locale }),
+			title: m.homeLandingPlatformSlide2Title({}, { locale }),
+			description: m.homeLandingPlatformSlide2Description({}, { locale }),
+			features: [
+				m.homeLandingPlatformSlide2Feature1({}, { locale }),
+				m.homeLandingPlatformSlide2Feature2({}, { locale }),
+				m.homeLandingPlatformSlide2Feature3({}, { locale }),
+			],
 		},
 		{
-			tag: es ? 'IA · Diagnóstico' : 'AI · Diagnosis',
-			title: es
-				? 'Diagnóstico asistido por inteligencia artificial'
-				: 'AI-assisted diagnostic classification',
-			description: es
-				? 'Clasificador CNN de radiografías de tórax. Identifica 6 condiciones clínicas y genera mapas de calor GRAD-CAM que muestran las zonas relevantes del diagnóstico.'
-				: 'CNN chest X-ray classifier. Identifies 6 clinical conditions and generates GRAD-CAM heat maps showing diagnostically relevant regions.',
-			features: es
-				? [
-						'6 clases: COVID-19, Enfisema, Neumonía y más',
-						'Visualización GRAD-CAM sobre la imagen',
-						'CNN · 2.1M parámetros · entrada 224×224 px',
-					]
-				: [
-						'6 classes: COVID-19, Emphysema, Pneumonia and more',
-						'GRAD-CAM overlay visualization',
-						'CNN · 2.1M parameters · 224×224 px input',
-					],
+			tag: m.homeLandingPlatformSlide3Tag({}, { locale }),
+			title: m.homeLandingPlatformSlide3Title({}, { locale }),
+			description: m.homeLandingPlatformSlide3Description({}, { locale }),
+			features: [
+				m.homeLandingPlatformSlide3Feature1({}, { locale }),
+				m.homeLandingPlatformSlide3Feature2({}, { locale }),
+				m.homeLandingPlatformSlide3Feature3({}, { locale }),
+			],
 		},
 		{
-			tag: es ? 'Historial' : 'Records',
-			title: es
-				? 'Expediente médico centralizado'
-				: 'Centralized medical records',
-			description: es
-				? 'Los médicos registran diagnósticos, tratamientos y observaciones por paciente. El historial queda accesible para todo el equipo autorizado.'
-				: 'Doctors record diagnoses, treatments, and notes per patient. The full history is accessible to the authorized care team.',
-			features: es
-				? [
-						'Diagnóstico y tratamiento documentados',
-						'Acceso por rol y hospital',
-						'Registro con trazabilidad completa',
-					]
-				: [
-						'Documented diagnosis and treatment',
-						'Role and hospital-based access',
-						'Full audit trail',
-					],
+			tag: m.homeLandingPlatformSlide4Tag({}, { locale }),
+			title: m.homeLandingPlatformSlide4Title({}, { locale }),
+			description: m.homeLandingPlatformSlide4Description({}, { locale }),
+			features: [
+				m.homeLandingPlatformSlide4Feature1({}, { locale }),
+				m.homeLandingPlatformSlide4Feature2({}, { locale }),
+				m.homeLandingPlatformSlide4Feature3({}, { locale }),
+			],
 		},
 		{
-			tag: es ? 'Sala de espera' : 'Waiting room',
-			title: es
-				? 'Sala de espera que entretiene mientras cuida'
-				: 'A waiting room that entertains while it cares',
-			description: es
-				? 'Mientras el paciente espera su turno, juega un juego multijugador en tiempo real tipo agar.io. Al ser llamado, recibe notificación inmediata en pantalla.'
-				: 'While patients wait, they play a real-time multiplayer agar.io-style game. When their turn is called, an immediate on-screen notification appears.',
-			features: es
-				? [
-						'Juego multijugador en tiempo real',
-						'Clasificación en vivo',
-						'Notificación inmediata al llamar el turno',
-					]
-				: [
-						'Real-time multiplayer game',
-						'Live leaderboard',
-						'Immediate notification when turn is called',
-					],
+			tag: m.homeLandingPlatformSlide5Tag({}, { locale }),
+			title: m.homeLandingPlatformSlide5Title({}, { locale }),
+			description: m.homeLandingPlatformSlide5Description({}, { locale }),
+			features: [
+				m.homeLandingPlatformSlide5Feature1({}, { locale }),
+				m.homeLandingPlatformSlide5Feature2({}, { locale }),
+				m.homeLandingPlatformSlide5Feature3({}, { locale }),
+			],
 		},
 	];
 }
@@ -240,16 +188,37 @@ function getSlideData(locale: string) {
 
 function AppointmentVisual() {
 	const items = [
-		{ time: '10:00', label: 'Dr. Martín', color: 'text-emerald-500', Icon: CheckCircleIcon, bg: 'bg-emerald-500/10' },
-		{ time: '14:30', label: 'Dra. Laura', color: 'text-amber-500', Icon: ClockIcon, bg: 'bg-amber-500/10' },
-		{ time: '16:00', label: 'Dr. Pérez', color: 'text-rose-500', Icon: XCircleIcon, bg: 'bg-rose-500/10' },
+		{
+			time: '10:00',
+			label: 'Dr. Martín',
+			color: 'text-emerald-500',
+			Icon: CheckCircleIcon,
+			bg: 'bg-emerald-500/10',
+		},
+		{
+			time: '14:30',
+			label: 'Dra. Laura',
+			color: 'text-amber-500',
+			Icon: ClockIcon,
+			bg: 'bg-amber-500/10',
+		},
+		{
+			time: '16:00',
+			label: 'Dr. Pérez',
+			color: 'text-rose-500',
+			Icon: XCircleIcon,
+			bg: 'bg-rose-500/10',
+		},
 	];
 	return (
-		<div className="relative flex h-full min-h-56 flex-col items-center justify-center overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-primary/8 via-background to-secondary/20 p-5">
+		<div className="relative flex h-full min-h-56 flex-col items-center justify-center overflow-hidden rounded-[1.75rem] bg-linear-to-br from-primary/8 via-background to-secondary/20 p-5">
 			{/* Grid decorativo de fondo */}
 			<div
 				className="pointer-events-none absolute inset-0 opacity-[0.06]"
-				style={{ backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 28px,currentColor 28px,currentColor 29px),repeating-linear-gradient(90deg,transparent,transparent 28px,currentColor 28px,currentColor 29px)' }}
+				style={{
+					backgroundImage:
+						'repeating-linear-gradient(0deg,transparent,transparent 28px,currentColor 28px,currentColor 29px),repeating-linear-gradient(90deg,transparent,transparent 28px,currentColor 28px,currentColor 29px)',
+				}}
 			/>
 			<div className="relative w-full max-w-xs space-y-2.5">
 				{items.map((item, i) => (
@@ -259,14 +228,27 @@ function AppointmentVisual() {
 						className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/90 px-4 py-3 shadow-sm backdrop-blur"
 						initial={{ opacity: 0, x: 20 }}
 						animate={{ opacity: 1, x: 0 }}
-						transition={{ delay: 0.15 + i * 0.09, duration: 0.35, ease: 'easeOut' as const }}
+						transition={{
+							delay: 0.15 + i * 0.09,
+							duration: 0.35,
+							ease: 'easeOut' as const,
+						}}
 					>
-						<div className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-full', item.bg)}>
+						<div
+							className={cn(
+								'grid h-8 w-8 shrink-0 place-items-center rounded-full',
+								item.bg,
+							)}
+						>
 							<item.Icon className={cn('h-4 w-4', item.color)} />
 						</div>
 						<div className="min-w-0 flex-1">
-							<p className="text-xs font-semibold text-foreground">{item.time}</p>
-							<p className="truncate text-[10px] text-muted-foreground">{item.label}</p>
+							<p className="text-xs font-semibold text-foreground">
+								{item.time}
+							</p>
+							<p className="truncate text-[10px] text-muted-foreground">
+								{item.label}
+							</p>
 						</div>
 						<CalendarDaysIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
 					</motion.div>
@@ -276,14 +258,29 @@ function AppointmentVisual() {
 	);
 }
 
-function QueueVisual() {
+function QueueVisual({ locale }: { locale: AppLocale }) {
 	const turns = [
-		{ code: 'T-001', type: 'URGENTE', borderColor: 'border-l-rose-500', badgeColor: 'bg-rose-500/10 text-rose-500' },
-		{ code: 'T-002', type: 'PRIORITARIO', borderColor: 'border-l-amber-500', badgeColor: 'bg-amber-500/10 text-amber-500' },
-		{ code: 'T-003', type: 'NORMAL', borderColor: 'border-l-primary', badgeColor: 'bg-primary/10 text-primary' },
+		{
+			code: 'T-001',
+			type: m.dashboardReceptionistTipoUrgente({}, { locale }),
+			borderColor: 'border-l-rose-500',
+			badgeColor: 'bg-rose-500/10 text-rose-500',
+		},
+		{
+			code: 'T-002',
+			type: m.dashboardReceptionistTipoPrioritario({}, { locale }),
+			borderColor: 'border-l-amber-500',
+			badgeColor: 'bg-amber-500/10 text-amber-500',
+		},
+		{
+			code: 'T-003',
+			type: m.dashboardReceptionistTipoNormal({}, { locale }),
+			borderColor: 'border-l-primary',
+			badgeColor: 'bg-primary/10 text-primary',
+		},
 	];
 	return (
-		<div className="relative flex h-full min-h-56 flex-col items-center justify-center overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-secondary/15 via-background to-primary/8 p-5">
+		<div className="relative flex h-full min-h-56 flex-col items-center justify-center overflow-hidden rounded-[1.75rem] bg-linear-to-br from-secondary/15 via-background to-primary/8 p-5">
 			{/* Campana animada en esquina superior derecha */}
 			<motion.div
 				className="absolute right-5 top-5 grid h-10 w-10 place-items-center rounded-full border border-border bg-card/90 shadow-sm"
@@ -302,11 +299,22 @@ function QueueVisual() {
 						)}
 						initial={{ opacity: 0, x: -20 }}
 						animate={{ opacity: 1, x: 0 }}
-						transition={{ delay: 0.15 + i * 0.09, duration: 0.35, ease: 'easeOut' as const }}
+						transition={{
+							delay: 0.15 + i * 0.09,
+							duration: 0.35,
+							ease: 'easeOut' as const,
+						}}
 					>
 						<ListBulletIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-						<p className="flex-1 text-xs font-semibold text-foreground">{t.code}</p>
-						<span className={cn('rounded-full px-2 py-0.5 text-[10px] font-semibold', t.badgeColor)}>
+						<p className="flex-1 text-xs font-semibold text-foreground">
+							{t.code}
+						</p>
+						<span
+							className={cn(
+								'rounded-full px-2 py-0.5 text-[10px] font-semibold',
+								t.badgeColor,
+							)}
+						>
 							{t.type}
 						</span>
 					</motion.div>
@@ -316,12 +324,33 @@ function QueueVisual() {
 	);
 }
 
-function AIVisual() {
+function AIVisual({ locale }: { locale: AppLocale }) {
 	// Simula un visor de radiografía con mapa de calor GRAD-CAM
 	const hotspots = [
-		{ x: '38%', y: '30%', size: 'h-14 w-14', opacity: 'opacity-40', color: 'bg-amber-400' },
-		{ x: '55%', y: '45%', size: 'h-10 w-10', opacity: 'opacity-55', color: 'bg-rose-500' },
-		{ x: '25%', y: '55%', size: 'h-8 w-8', opacity: 'opacity-30', color: 'bg-amber-300' },
+		{
+			id: 'left-upper',
+			x: '38%',
+			y: '30%',
+			size: 'h-14 w-14',
+			opacity: 'opacity-40',
+			color: 'bg-amber-400',
+		},
+		{
+			id: 'center',
+			x: '55%',
+			y: '45%',
+			size: 'h-10 w-10',
+			opacity: 'opacity-55',
+			color: 'bg-rose-500',
+		},
+		{
+			id: 'left-lower',
+			x: '25%',
+			y: '55%',
+			size: 'h-8 w-8',
+			opacity: 'opacity-30',
+			color: 'bg-amber-300',
+		},
 	];
 	return (
 		<div className="relative flex h-full min-h-56 flex-col items-center justify-center overflow-hidden rounded-[1.75rem] bg-slate-900/90 p-5">
@@ -337,11 +366,23 @@ function AIVisual() {
 				{/* Hotspots GRAD-CAM */}
 				{hotspots.map((h, i) => (
 					<motion.div
-						key={i}
-						className={cn('absolute -translate-x-1/2 -translate-y-1/2 rounded-full blur-xl', h.size, h.opacity, h.color)}
+						key={h.id}
+						className={cn(
+							'absolute -translate-x-1/2 -translate-y-1/2 rounded-full blur-xl',
+							h.size,
+							h.opacity,
+							h.color,
+						)}
 						style={{ left: h.x, top: h.y }}
 						initial={{ opacity: 0 }}
-						animate={{ opacity: [0, Number.parseFloat(h.opacity.replace('opacity-', '')) / 100 * 0.9, Number.parseFloat(h.opacity.replace('opacity-', '')) / 100] }}
+						animate={{
+							opacity: [
+								0,
+								(Number.parseFloat(h.opacity.replace('opacity-', '')) / 100) *
+									0.9,
+								Number.parseFloat(h.opacity.replace('opacity-', '')) / 100,
+							],
+						}}
 						transition={{ delay: 0.3 + i * 0.12, duration: 0.6 }}
 					/>
 				))}
@@ -352,7 +393,7 @@ function AIVisual() {
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.55, duration: 0.3 }}
 				>
-					Normal · 96.4%
+					{m.homeLandingAiVisualPrediction({}, { locale })}
 				</motion.div>
 			</motion.div>
 			{/* Indicador CNN */}
@@ -363,20 +404,34 @@ function AIVisual() {
 				transition={{ delay: 0.65, duration: 0.3 }}
 			>
 				<CpuChipIcon className="h-3.5 w-3.5 text-primary" />
-				<span className="text-[10px] font-semibold text-slate-300">CNN · GRAD-CAM</span>
+				<span className="text-[10px] font-semibold text-slate-300">
+					{m.homeLandingAiVisualModelLabel({}, { locale })}
+				</span>
 			</motion.div>
 		</div>
 	);
 }
 
-function HistorialVisual() {
+function HistorialVisual({ locale }: { locale: AppLocale }) {
 	const entries = [
-		{ date: '2024-03', label: 'Diagnóstico: Bronquitis', icon: DocumentTextIcon },
-		{ date: '2024-06', label: 'Tratamiento: Amoxicilina', icon: ClipboardDocumentListIcon },
-		{ date: '2024-11', label: 'Seguimiento: Mejoría', icon: CheckCircleIcon },
+		{
+			date: '2024-03',
+			label: m.homeLandingTimelineEntry1({}, { locale }),
+			icon: DocumentTextIcon,
+		},
+		{
+			date: '2024-06',
+			label: m.homeLandingTimelineEntry2({}, { locale }),
+			icon: ClipboardDocumentListIcon,
+		},
+		{
+			date: '2024-11',
+			label: m.homeLandingTimelineEntry3({}, { locale }),
+			icon: CheckCircleIcon,
+		},
 	];
 	return (
-		<div className="relative flex h-full min-h-56 flex-col items-center justify-center overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-emerald-500/8 via-background to-primary/5 p-5">
+		<div className="relative flex h-full min-h-56 flex-col items-center justify-center overflow-hidden rounded-[1.75rem] bg-linear-to-br from-emerald-500/8 via-background to-primary/5 p-5">
 			<div className="relative w-full max-w-xs">
 				{entries.map((e, i) => (
 					<motion.div
@@ -384,7 +439,11 @@ function HistorialVisual() {
 						className="flex items-start gap-3 pb-4 last:pb-0"
 						initial={{ opacity: 0, y: 10 }}
 						animate={{ opacity: 1, y: 0 }}
-						transition={{ delay: 0.12 + i * 0.1, duration: 0.35, ease: 'easeOut' as const }}
+						transition={{
+							delay: 0.12 + i * 0.1,
+							duration: 0.35,
+							ease: 'easeOut' as const,
+						}}
 					>
 						{/* Línea de timeline + punto */}
 						<div className="relative flex flex-col items-center">
@@ -409,43 +468,93 @@ function HistorialVisual() {
 function GameVisual() {
 	// Blobs del juego agar.io style
 	const blobs = [
-		{ size: 'h-16 w-16', color: 'bg-primary/70', left: '15%', top: '30%', delay: 0 },
-		{ size: 'h-9 w-9', color: 'bg-secondary/80', left: '50%', top: '20%', delay: 0.4 },
-		{ size: 'h-6 w-6', color: 'bg-primary/40', left: '70%', top: '55%', delay: 0.2 },
-		{ size: 'h-5 w-5', color: 'bg-amber-400/70', left: '35%', top: '65%', delay: 0.6 },
-		{ size: 'h-3 w-3', color: 'bg-rose-400/60', left: '80%', top: '30%', delay: 0.8 },
-		{ size: 'h-3 w-3', color: 'bg-emerald-400/60', left: '25%', top: '45%', delay: 1 },
+		{
+			size: 'h-16 w-16',
+			color: 'bg-primary/70',
+			left: '15%',
+			top: '30%',
+			delay: 0,
+		},
+		{
+			size: 'h-9 w-9',
+			color: 'bg-secondary/80',
+			left: '50%',
+			top: '20%',
+			delay: 0.4,
+		},
+		{
+			size: 'h-6 w-6',
+			color: 'bg-primary/40',
+			left: '70%',
+			top: '55%',
+			delay: 0.2,
+		},
+		{
+			size: 'h-5 w-5',
+			color: 'bg-amber-400/70',
+			left: '35%',
+			top: '65%',
+			delay: 0.6,
+		},
+		{
+			size: 'h-3 w-3',
+			color: 'bg-rose-400/60',
+			left: '80%',
+			top: '30%',
+			delay: 0.8,
+		},
+		{
+			size: 'h-3 w-3',
+			color: 'bg-emerald-400/60',
+			left: '25%',
+			top: '45%',
+			delay: 1,
+		},
 	];
 	const leaderboard = [
 		{ pos: '1', name: 'TuNick', pts: '420' },
 		{ pos: '2', name: 'Jugador2', pts: '380' },
 		{ pos: '3', name: 'Maria_M', pts: '295' },
 	];
+	const foodDots = Array.from({ length: 12 }, (_, i) => ({
+		id: `dot-${(i * 37 + 10) % 90}-${(i * 23 + 15) % 80}`,
+		left: `${(i * 37 + 10) % 90}%`,
+		top: `${(i * 23 + 15) % 80}%`,
+	}));
 	return (
 		<div className="relative flex h-full min-h-56 items-center justify-center overflow-hidden rounded-[1.75rem] bg-slate-900/85 p-5">
 			{/* Puntos de "comida" en el fondo */}
-			{[...Array(12)].map((_, i) => (
+			{foodDots.map((dot) => (
 				<div
-					key={i}
+					key={dot.id}
 					className="absolute h-1.5 w-1.5 rounded-full bg-primary/30"
-					style={{ left: `${(i * 37 + 10) % 90}%`, top: `${(i * 23 + 15) % 80}%` }}
+					style={{ left: dot.left, top: dot.top }}
 				/>
 			))}
 			{/* Blobs — animados con float */}
 			{blobs.map((b, i) => (
 				<motion.div
-					key={i}
+					key={`${b.left}-${b.top}-${b.size}`}
 					className={cn('absolute rounded-full', b.size, b.color)}
 					style={{ left: b.left, top: b.top }}
 					animate={{ y: [0, -5, 0], scale: [1, 1.04, 1] }}
-					transition={{ duration: 2.8 + b.delay, repeat: Infinity, ease: 'easeInOut', delay: b.delay }}
+					transition={{
+						duration: 2.8 + b.delay,
+						repeat: Infinity,
+						ease: 'easeInOut',
+						delay: b.delay,
+					}}
 					initial={{ opacity: 0, scale: 0 }}
 				>
 					<motion.div
 						className="h-full w-full rounded-full"
 						initial={{ opacity: 0, scale: 0 }}
 						animate={{ opacity: 1, scale: 1 }}
-						transition={{ delay: 0.1 + i * 0.07, duration: 0.4, ease: 'backOut' as const }}
+						transition={{
+							delay: 0.1 + i * 0.07,
+							duration: 0.4,
+							ease: 'backOut' as const,
+						}}
 					/>
 				</motion.div>
 			))}
@@ -458,8 +567,12 @@ function GameVisual() {
 			>
 				{leaderboard.map((row) => (
 					<div key={row.pos} className="flex items-center gap-2 py-0.5">
-						<span className="w-3 text-center text-[9px] font-bold text-muted-foreground">{row.pos}</span>
-						<span className="flex-1 text-[10px] font-semibold text-slate-200">{row.name}</span>
+						<span className="w-3 text-center text-[9px] font-bold text-muted-foreground">
+							{row.pos}
+						</span>
+						<span className="flex-1 text-[10px] font-semibold text-slate-200">
+							{row.name}
+						</span>
 						<span className="text-[9px] text-primary">{row.pts}</span>
 					</div>
 				))}
@@ -468,21 +581,20 @@ function GameVisual() {
 	);
 }
 
-function SlideVisual({ index }: { index: number }) {
+function SlideVisual({ index, locale }: { index: number; locale: AppLocale }) {
 	if (index === 0) return <AppointmentVisual />;
-	if (index === 1) return <QueueVisual />;
-	if (index === 2) return <AIVisual />;
-	if (index === 3) return <HistorialVisual />;
+	if (index === 1) return <QueueVisual locale={locale} />;
+	if (index === 2) return <AIVisual locale={locale} />;
+	if (index === 3) return <HistorialVisual locale={locale} />;
 	return <GameVisual />;
 }
 
 // ── Platform Slider ──────────────────────────────────────────────────────────
 
-function PlatformSlider({ locale }: { locale: string }) {
+function PlatformSlider({ locale }: { locale: AppLocale }) {
 	const slides = getSlideData(locale);
 	const [currentIndex, setCurrentIndex] = useState(0);
 	const [direction, setDirection] = useState(1);
-	const isEs = locale === 'es';
 
 	const prev = useCallback(() => {
 		setDirection(-1);
@@ -512,7 +624,11 @@ function PlatformSlider({ locale }: { locale: string }) {
 	// Variantes de transición: la dirección determina si entra por izquierda o derecha
 	const slideVariants = {
 		enter: (d: number) => ({ x: d > 0 ? '55%' : '-55%', opacity: 0 }),
-		center: { x: 0, opacity: 1, transition: { duration: 0.45, ease: 'easeOut' as const } },
+		center: {
+			x: 0,
+			opacity: 1,
+			transition: { duration: 0.45, ease: 'easeOut' as const },
+		},
 		exit: (d: number) => ({
 			x: d > 0 ? '-55%' : '55%',
 			opacity: 0,
@@ -528,12 +644,10 @@ function PlatformSlider({ locale }: { locale: string }) {
 				{/* Encabezado de la sección */}
 				<RevealSection className="mx-auto mb-10 max-w-2xl text-center">
 					<p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
-						{isEs ? 'La plataforma' : 'The platform'}
+						{m.homeLandingPlatformEyebrow({}, { locale })}
 					</p>
 					<h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-						{isEs
-							? 'Todo lo que necesitas para operar con eficiencia'
-							: 'Everything you need to operate efficiently'}
+						{m.homeLandingPlatformTitle({}, { locale })}
 					</h2>
 				</RevealSection>
 
@@ -562,7 +676,10 @@ function PlatformSlider({ locale }: { locale: string }) {
 									</p>
 									<ul className="space-y-2">
 										{slide.features.map((feature) => (
-											<li key={feature} className="flex items-center gap-2 text-sm text-foreground">
+											<li
+												key={feature}
+												className="flex items-center gap-2 text-sm text-foreground"
+											>
 												{/* Checkmark verde — confirma que la feature es real */}
 												<span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/10">
 													<CheckCircleIcon className="h-3.5 w-3.5 text-primary" />
@@ -574,7 +691,7 @@ function PlatformSlider({ locale }: { locale: string }) {
 								</div>
 
 								{/* Columna derecha: arte visual */}
-								<SlideVisual index={currentIndex} />
+								<SlideVisual index={currentIndex} locale={locale} />
 							</div>
 						</motion.div>
 					</AnimatePresence>
@@ -586,7 +703,7 @@ function PlatformSlider({ locale }: { locale: string }) {
 					<motion.button
 						type="button"
 						onClick={prev}
-						aria-label={isEs ? 'Diapositiva anterior' : 'Previous slide'}
+						aria-label={m.homeLandingPlatformPrevSlideLabel({}, { locale })}
 						className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary"
 						whileHover={{ scale: 1.1 }}
 						whileTap={{ scale: 0.88 }}
@@ -595,18 +712,22 @@ function PlatformSlider({ locale }: { locale: string }) {
 					</motion.button>
 
 					{/* Indicadores de punto — el activo escala y cambia de color */}
-					{slides.map((_, i) => (
+					{slides.map((dotSlide, i) => (
 						<motion.button
-							key={i}
+							key={dotSlide.title}
 							type="button"
 							onClick={() => goTo(i)}
-							aria-label={`${isEs ? 'Ir a diapositiva' : 'Go to slide'} ${i + 1}`}
+							aria-label={m.homeLandingPlatformGoToSlide(
+								{ number: String(i + 1) },
+								{ locale },
+							)}
 							className="rounded-full"
 							animate={{
 								width: i === currentIndex ? 20 : 8,
-								backgroundColor: i === currentIndex
-									? 'hsl(var(--primary))'
-									: 'hsl(var(--border))',
+								backgroundColor:
+									i === currentIndex
+										? 'hsl(var(--primary))'
+										: 'hsl(var(--border))',
 							}}
 							style={{ height: 8 }}
 							transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -617,7 +738,7 @@ function PlatformSlider({ locale }: { locale: string }) {
 					<motion.button
 						type="button"
 						onClick={next}
-						aria-label={isEs ? 'Diapositiva siguiente' : 'Next slide'}
+						aria-label={m.homeLandingPlatformNextSlideLabel({}, { locale })}
 						className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary"
 						whileHover={{ scale: 1.1 }}
 						whileTap={{ scale: 0.88 }}
@@ -627,7 +748,10 @@ function PlatformSlider({ locale }: { locale: string }) {
 				</div>
 
 				{/* Contador de diapositivas — accesibilidad */}
-				<p className="mt-2 text-center text-xs text-muted-foreground" aria-live="polite">
+				<p
+					className="mt-2 text-center text-xs text-muted-foreground"
+					aria-live="polite"
+				>
 					{currentIndex + 1} / {slides.length}
 				</p>
 			</div>
@@ -639,16 +763,13 @@ function PlatformSlider({ locale }: { locale: string }) {
 
 // 6 servicios con capacidades reales de la plataforma.
 // Cada ítem incluye la clase de acento de color para animar.
-function getServicesData(locale: string) {
-	const es = locale === 'es';
+function getServicesData(locale: AppLocale) {
 	return [
 		{
 			icon: CalendarDaysIcon,
-			title: es ? 'Gestión de citas médicas' : 'Medical appointment management',
-			description: es
-				? 'Pacientes agendan citas con médicos disponibles. Confirmaciones, cancelaciones y posponer en un clic. Los médicos gestionan sus bloques horarios y consultorios.'
-				: 'Patients book with available doctors. Confirmations, cancellations, and rescheduling in one click. Doctors manage their availability slots and offices.',
-			badge: 'GraphQL + REST',
+			title: m.homeLandingServiceCard1Title({}, { locale }),
+			description: m.homeLandingServiceCard1Description({}, { locale }),
+			badge: m.homeLandingServiceCard1Badge({}, { locale }),
 			iconBg: 'bg-primary/10 group-hover:bg-primary/20',
 			iconText: 'text-primary',
 			iconHover: 'group-hover:rotate-12',
@@ -657,11 +778,9 @@ function getServicesData(locale: string) {
 		},
 		{
 			icon: ListBulletIcon,
-			title: es ? 'Cola de turnos con prioridades' : 'Priority-based turn queue',
-			description: es
-				? 'Recepcionistas crean turnos Normales, Prioritarios o Urgentes. Enfermeros los llaman y atienden desde su panel. El paciente ve su estado en tiempo real.'
-				: 'Receptionists create Normal, Priority, or Urgent turns. Nurses call and attend from their panel. Patients see their status in real time.',
-			badge: es ? '3 prioridades' : '3 priority levels',
+			title: m.homeLandingServiceCard2Title({}, { locale }),
+			description: m.homeLandingServiceCard2Description({}, { locale }),
+			badge: m.homeLandingServiceCard2Badge({}, { locale }),
 			iconBg: 'bg-amber-500/10 group-hover:bg-amber-500/20',
 			iconText: 'text-amber-500',
 			iconHover: 'group-hover:-rotate-12',
@@ -670,11 +789,9 @@ function getServicesData(locale: string) {
 		},
 		{
 			icon: CpuChipIcon,
-			title: es ? 'Diagnóstico IA por radiografía' : 'AI chest X-ray diagnosis',
-			description: es
-				? 'CNN clasifica radiografías de tórax en 6 patologías: COVID-19, Enfisema, Normal, Neumonía Bacteriana, Neumonía Viral y Tuberculosis. Genera mapas de calor GRAD-CAM.'
-				: 'CNN classifies chest X-rays into 6 conditions: COVID-19, Emphysema, Normal, Bacterial and Viral Pneumonia, and Tuberculosis. Generates GRAD-CAM heat maps.',
-			badge: es ? '6 patologías' : '6 conditions',
+			title: m.homeLandingServiceCard3Title({}, { locale }),
+			description: m.homeLandingServiceCard3Description({}, { locale }),
+			badge: m.homeLandingServiceCard3Badge({}, { locale }),
 			iconBg: 'bg-violet-500/10 group-hover:bg-violet-500/20',
 			iconText: 'text-violet-500',
 			iconHover: 'group-hover:rotate-[20deg] group-hover:scale-110',
@@ -683,11 +800,9 @@ function getServicesData(locale: string) {
 		},
 		{
 			icon: ClipboardDocumentListIcon,
-			title: es ? 'Expediente médico digital' : 'Digital medical records',
-			description: es
-				? 'Los médicos registran diagnósticos, tratamientos y observaciones por paciente. El historial queda centralizado y accesible para el equipo autorizado del hospital.'
-				: 'Doctors log diagnoses, treatments, and notes per patient. History is centralized and accessible to the authorized hospital team.',
-			badge: es ? 'Trazabilidad completa' : 'Full audit trail',
+			title: m.homeLandingServiceCard4Title({}, { locale }),
+			description: m.homeLandingServiceCard4Description({}, { locale }),
+			badge: m.homeLandingServiceCard4Badge({}, { locale }),
 			iconBg: 'bg-emerald-500/10 group-hover:bg-emerald-500/20',
 			iconText: 'text-emerald-500',
 			iconHover: 'group-hover:scale-110',
@@ -696,11 +811,9 @@ function getServicesData(locale: string) {
 		},
 		{
 			icon: PuzzlePieceIcon,
-			title: es ? 'Sala de espera interactiva' : 'Interactive waiting room',
-			description: es
-				? 'Mientras el paciente espera su turno, juega un juego multijugador en tiempo real tipo agar.io. Cuando lo llaman, recibe una notificación inmediata en pantalla.'
-				: 'While patients wait, they play a real-time multiplayer agar.io-style game. When called, an immediate on-screen notification appears.',
-			badge: es ? 'WebSocket · Go' : 'WebSocket · Go',
+			title: m.homeLandingServiceCard5Title({}, { locale }),
+			description: m.homeLandingServiceCard5Description({}, { locale }),
+			badge: m.homeLandingServiceCard5Badge({}, { locale }),
 			iconBg: 'bg-orange-500/10 group-hover:bg-orange-500/20',
 			iconText: 'text-orange-500',
 			iconHover: 'group-hover:-rotate-12 group-hover:scale-110',
@@ -709,11 +822,9 @@ function getServicesData(locale: string) {
 		},
 		{
 			icon: BuildingOffice2Icon,
-			title: es ? 'Panel multi-hospital y roles' : 'Multi-hospital & role panel',
-			description: es
-				? 'Soporte para múltiples hospitales con 5 roles coordinados: Admin, Médico, Enfermero, Recepcionista y Paciente. Métricas operativas con Prometheus y Grafana.'
-				: 'Support for multiple hospitals with 5 coordinated roles: Admin, Doctor, Nurse, Receptionist, and Patient. Operational metrics with Prometheus and Grafana.',
-			badge: es ? '5 roles' : '5 roles',
+			title: m.homeLandingServiceCard6Title({}, { locale }),
+			description: m.homeLandingServiceCard6Description({}, { locale }),
+			badge: m.homeLandingServiceCard6Badge({}, { locale }),
 			iconBg: 'bg-rose-500/10 group-hover:bg-rose-500/20',
 			iconText: 'text-rose-500',
 			iconHover: 'group-hover:scale-110 group-hover:rotate-6',
@@ -725,15 +836,17 @@ function getServicesData(locale: string) {
 
 // ── Capacidades (badges) — reemplaza canales WhatsApp/Telegram ───────────────
 
-function getCapabilities(locale: string) {
-	const es = locale === 'es';
+function getCapabilities(locale: AppLocale) {
 	return [
-		{ Icon: CalendarDaysIcon, label: es ? 'Citas en línea' : 'Online booking' },
-		{ Icon: ListBulletIcon, label: es ? 'Cola de turnos' : 'Turn queue' },
-		{ Icon: CpuChipIcon, label: es ? 'IA · Diagnóstico' : 'AI · Diagnosis' },
-		{ Icon: DocumentTextIcon, label: es ? 'Historial médico' : 'Medical records' },
-		{ Icon: PuzzlePieceIcon, label: es ? 'Sala de espera' : 'Waiting room' },
-		{ Icon: BuildingOffice2Icon, label: es ? 'Multi-hospital' : 'Multi-hospital' },
+		{ Icon: CalendarDaysIcon, label: m.homeLandingCapability1({}, { locale }) },
+		{ Icon: ListBulletIcon, label: m.homeLandingCapability2({}, { locale }) },
+		{ Icon: CpuChipIcon, label: m.homeLandingCapability3({}, { locale }) },
+		{ Icon: DocumentTextIcon, label: m.homeLandingCapability4({}, { locale }) },
+		{ Icon: PuzzlePieceIcon, label: m.homeLandingCapability5({}, { locale }) },
+		{
+			Icon: BuildingOffice2Icon,
+			label: m.homeLandingCapability6({}, { locale }),
+		},
 	];
 }
 
@@ -741,11 +854,12 @@ function getCapabilities(locale: string) {
 
 export default function HomePage() {
 	const location = useLocation();
-	const locale = currentLocale(location.pathname);
+	const locale = currentLocale(location.pathname) as AppLocale;
 	const [isDarkMode, setIsDarkMode] = useState(false);
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const localeCycle = ['es', 'en', 'pt', 'fr', 'de'] as const;
-	const nextLocale = localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
+	const nextLocale =
+		localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
 	const localeTogglePath = `${localePath(location.pathname, nextLocale)}${location.search}${location.hash}`;
 
 	const navItems = [
@@ -765,9 +879,15 @@ export default function HomePage() {
 
 	const integrations = [
 		{ icon: LinkIcon, label: m.homeLandingIntegrationFhir({}, { locale }) },
-		{ icon: ChartBarSquareIcon, label: m.homeLandingIntegrationAnalytics({}, { locale }) },
+		{
+			icon: ChartBarSquareIcon,
+			label: m.homeLandingIntegrationAnalytics({}, { locale }),
+		},
 		{ icon: UserGroupIcon, label: m.homeLandingIntegrationEhr({}, { locale }) },
-		{ icon: CheckBadgeIcon, label: m.homeLandingIntegrationClaims({}, { locale }) },
+		{
+			icon: CheckBadgeIcon,
+			label: m.homeLandingIntegrationClaims({}, { locale }),
+		},
 	];
 
 	const roles = [
@@ -782,7 +902,9 @@ export default function HomePage() {
 
 	const scrollToSection = (id: string) => {
 		if (typeof document === 'undefined') return;
-		document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		document
+			.getElementById(id)
+			?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 		setMobileMenuOpen(false);
 	};
 
@@ -835,23 +957,44 @@ export default function HomePage() {
 									type="button"
 									onClick={handleThemeToggle}
 									aria-label={m.homeLandingThemeToggle({}, { locale })}
-									className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'h-8 w-8 shrink-0 rounded-full px-0')}
+									className={cn(
+										buttonVariants({ variant: 'outline', size: 'sm' }),
+										'h-8 w-8 shrink-0 rounded-full px-0',
+									)}
 								>
-									{isDarkMode ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
+									{isDarkMode ? (
+										<SunIcon className="h-4 w-4" />
+									) : (
+										<MoonIcon className="h-4 w-4" />
+									)}
 								</button>
 								<Link
 									to={localeTogglePath}
-									className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'h-8 shrink-0 rounded-full px-3 text-xs font-semibold')}
+									className={cn(
+										buttonVariants({ variant: 'outline', size: 'sm' }),
+										'h-8 shrink-0 rounded-full px-3 text-xs font-semibold',
+									)}
 								>
 									{locale.toUpperCase()}
 								</Link>
 								<button
 									type="button"
 									onClick={() => setMobileMenuOpen((prev) => !prev)}
-									aria-label={mobileMenuOpen ? m.dashboardSidebarCloseMenu({}, { locale }) : m.dashboardSidebarOpenMenu({}, { locale })}
-									className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'h-8 w-8 shrink-0 rounded-full px-0')}
+									aria-label={
+										mobileMenuOpen
+											? m.dashboardSidebarCloseMenu({}, { locale })
+											: m.dashboardSidebarOpenMenu({}, { locale })
+									}
+									className={cn(
+										buttonVariants({ variant: 'outline', size: 'sm' }),
+										'h-8 w-8 shrink-0 rounded-full px-0',
+									)}
 								>
-									{mobileMenuOpen ? <XMarkIcon className="h-4 w-4" /> : <Bars3Icon className="h-4 w-4" />}
+									{mobileMenuOpen ? (
+										<XMarkIcon className="h-4 w-4" />
+									) : (
+										<Bars3Icon className="h-4 w-4" />
+									)}
 								</button>
 							</div>
 						</div>
@@ -875,25 +1018,41 @@ export default function HomePage() {
 								type="button"
 								onClick={handleThemeToggle}
 								aria-label={m.homeLandingThemeToggle({}, { locale })}
-								className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'h-8 w-8 shrink-0 rounded-full px-0')}
+								className={cn(
+									buttonVariants({ variant: 'outline', size: 'sm' }),
+									'h-8 w-8 shrink-0 rounded-full px-0',
+								)}
 							>
-								{isDarkMode ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
+								{isDarkMode ? (
+									<SunIcon className="h-4 w-4" />
+								) : (
+									<MoonIcon className="h-4 w-4" />
+								)}
 							</button>
 							<Link
 								to={localeTogglePath}
-								className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'h-8 shrink-0 rounded-full px-3 text-xs font-semibold')}
+								className={cn(
+									buttonVariants({ variant: 'outline', size: 'sm' }),
+									'h-8 shrink-0 rounded-full px-3 text-xs font-semibold',
+								)}
 							>
 								{locale.toUpperCase()}
 							</Link>
 							<Link
 								to={localePath('/register', locale)}
-								className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'h-8 shrink-0 rounded-full px-3')}
+								className={cn(
+									buttonVariants({ variant: 'ghost', size: 'sm' }),
+									'h-8 shrink-0 rounded-full px-3',
+								)}
 							>
 								{m.homeLandingGetStarted({}, { locale })}
 							</Link>
 							<Link
 								to={localePath('/login', locale)}
-								className={cn(buttonVariants({ size: 'sm' }), 'h-8 shrink-0 rounded-full px-3')}
+								className={cn(
+									buttonVariants({ size: 'sm' }),
+									'h-8 shrink-0 rounded-full px-3',
+								)}
 							>
 								{m.homeLandingContactUs({}, { locale })}
 								<ArrowRightIcon className="h-3.5 w-3.5" />
@@ -929,14 +1088,20 @@ export default function HomePage() {
 										<Link
 											to={localePath('/register', locale)}
 											onClick={() => setMobileMenuOpen(false)}
-											className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'justify-center rounded-full px-4')}
+											className={cn(
+												buttonVariants({ variant: 'ghost', size: 'sm' }),
+												'justify-center rounded-full px-4',
+											)}
 										>
 											{m.homeLandingGetStarted({}, { locale })}
 										</Link>
 										<Link
 											to={localePath('/login', locale)}
 											onClick={() => setMobileMenuOpen(false)}
-											className={cn(buttonVariants({ size: 'sm' }), 'justify-center rounded-full px-4')}
+											className={cn(
+												buttonVariants({ size: 'sm' }),
+												'justify-center rounded-full px-4',
+											)}
 										>
 											{m.homeLandingContactUs({}, { locale })}
 											<ArrowRightIcon className="h-3.5 w-3.5" />
@@ -958,7 +1123,10 @@ export default function HomePage() {
 				<div className="mx-auto grid max-w-7xl gap-8 rounded-[2rem] border border-border/60 bg-card/80 p-6 shadow-sm backdrop-blur-xl lg:grid-cols-[1.08fr_0.92fr] lg:p-8">
 					{/* Columna izquierda — desliza desde la izquierda */}
 					<RevealSection direction="left" className="space-y-6">
-						<Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
+						<Badge
+							variant="secondary"
+							className="rounded-full px-3 py-1 text-xs"
+						>
 							<span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
 							{m.homeLandingTrustedBadge({}, { locale })}
 						</Badge>
@@ -972,7 +1140,7 @@ export default function HomePage() {
 						{/* Capacidades reales de la plataforma — reemplaza WhatsApp/Telegram */}
 						<div className="space-y-3">
 							<p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-								{locale === 'es' ? 'Capacidades de la plataforma' : 'Platform capabilities'}
+								{m.homeLandingPlatformCapabilitiesTitle({}, { locale })}
 							</p>
 							<div className="flex flex-wrap gap-2">
 								{capabilities.map((cap, i) => (
@@ -984,7 +1152,10 @@ export default function HomePage() {
 										viewport={{ once: true }}
 										transition={{ duration: 0.25, delay: 0.08 + i * 0.06 }}
 									>
-										<Badge variant="outline" className="gap-1.5 rounded-full py-1">
+										<Badge
+											variant="outline"
+											className="gap-1.5 rounded-full py-1"
+										>
 											<cap.Icon className="h-3 w-3" />
 											{cap.label}
 										</Badge>
@@ -1017,7 +1188,10 @@ export default function HomePage() {
 
 						<Link
 							to={localePath('/register', locale)}
-							className={cn(buttonVariants({ size: 'lg' }), 'inline-flex rounded-full px-5 transition-all duration-300 hover:-translate-y-0.5')}
+							className={cn(
+								buttonVariants({ size: 'lg' }),
+								'inline-flex rounded-full px-5 transition-all duration-300 hover:-translate-y-0.5',
+							)}
 						>
 							{m.homeLandingHeroCta({}, { locale })}
 							<ArrowRightIcon className="h-4 w-4" />
@@ -1044,7 +1218,11 @@ export default function HomePage() {
 						<motion.div
 							className="absolute left-4 top-4 rounded-2xl border border-border bg-card/90 p-3 shadow-sm backdrop-blur md:left-6 md:top-6"
 							animate={{ y: [0, -6, 0] }}
-							transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+							transition={{
+								duration: 3.5,
+								repeat: Infinity,
+								ease: 'easeInOut',
+							}}
 						>
 							<div className="mb-2 flex items-center gap-2">
 								<BeakerIcon className="h-4 w-4 text-primary" />
@@ -1061,7 +1239,12 @@ export default function HomePage() {
 						<motion.div
 							className="absolute bottom-4 right-4 flex items-center gap-3 rounded-full border border-border bg-card/90 px-4 py-2 shadow-sm backdrop-blur md:bottom-6 md:right-6"
 							animate={{ y: [0, 6, 0] }}
-							transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }}
+							transition={{
+								duration: 3.5,
+								repeat: Infinity,
+								ease: 'easeInOut',
+								delay: 0.8,
+							}}
 						>
 							<PlayCircleIcon className="h-6 w-6 text-primary" />
 							<div>
@@ -1091,17 +1274,13 @@ export default function HomePage() {
 					{/* Encabezado con eyebrow + título + descripción — entra desde abajo */}
 					<RevealSection className="mx-auto max-w-2xl text-center">
 						<p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
-							{locale === 'es' ? 'Lo que construimos' : 'What we built'}
+							{m.homeLandingServicesBuiltEyebrow({}, { locale })}
 						</p>
 						<h2 className="mt-3 text-4xl font-bold tracking-tight text-foreground">
-							{locale === 'es'
-								? 'Capacidades reales de Asclepio'
-								: 'Real Asclepio capabilities'}
+							{m.homeLandingServicesBuiltTitle({}, { locale })}
 						</h2>
 						<p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-							{locale === 'es'
-								? 'Una plataforma hospitalaria completa: 5 roles coordinados, IA integrada, sala de espera interactiva y orquestación de recursos en tiempo real.'
-								: 'A complete hospital platform: 5 coordinated roles, integrated AI, an interactive waiting room, and real-time resource orchestration.'}
+							{m.homeLandingServicesBuiltDescription({}, { locale })}
 						</p>
 					</RevealSection>
 
@@ -1115,9 +1294,16 @@ export default function HomePage() {
 								initial={{ opacity: 0, y: 48, scale: 0.93 }}
 								whileInView={{ opacity: 1, y: 0, scale: 1 }}
 								viewport={{ once: true, margin: '-50px' }}
-								transition={{ duration: 0.55, ease: 'backOut', delay: i * 0.07 }}
+								transition={{
+									duration: 0.55,
+									ease: 'backOut',
+									delay: i * 0.07,
+								}}
 								// Levitación suave al hacer hover
-								whileHover={{ y: -10, transition: { duration: 0.22, ease: 'easeOut' as const } }}
+								whileHover={{
+									y: -10,
+									transition: { duration: 0.22, ease: 'easeOut' as const },
+								}}
 							>
 								<Card
 									className={cn(
@@ -1129,7 +1315,7 @@ export default function HomePage() {
 									{/* Línea de color en la parte superior — se ensancha al hacer hover */}
 									<div
 										className={cn(
-											'h-1 w-full bg-gradient-to-r transition-all duration-300 group-hover:h-[3px]',
+											'h-1 w-full bg-linear-to-r transition-all duration-300 group-hover:h-0.75',
 											service.topBar,
 										)}
 									/>
@@ -1159,7 +1345,11 @@ export default function HomePage() {
 												initial={{ opacity: 0, scale: 0.7 }}
 												whileInView={{ opacity: 1, scale: 1 }}
 												viewport={{ once: true }}
-												transition={{ duration: 0.3, ease: 'backOut', delay: 0.2 + i * 0.06 }}
+												transition={{
+													duration: 0.3,
+													ease: 'backOut',
+													delay: 0.2 + i * 0.06,
+												}}
 											>
 												{service.badge}
 											</motion.span>
@@ -1175,13 +1365,16 @@ export default function HomePage() {
 										{/* Flecha decorativa — entra desde la izquierda al hacer hover */}
 										<div className="mt-4 flex items-center gap-1 overflow-hidden">
 											<motion.span
-												className={cn('text-xs font-semibold', service.iconText)}
+												className={cn(
+													'text-xs font-semibold',
+													service.iconText,
+												)}
 												initial={{ x: -8, opacity: 0 }}
 												whileInView={{ x: 0, opacity: 1 }}
 												viewport={{ once: true }}
 												transition={{ duration: 0.3, delay: 0.3 + i * 0.06 }}
 											>
-												{locale === 'es' ? 'Incluido en la plataforma' : 'Included in the platform'}
+												{m.homeLandingServicesIncludedLabel({}, { locale })}
 											</motion.span>
 											<ArrowRightIcon
 												className={cn(
@@ -1201,11 +1394,17 @@ export default function HomePage() {
 										style={
 											{
 												'--glow-color': `color-mix(in oklch, ${
-													i === 0 ? 'hsl(var(--primary))' :
-													i === 1 ? '#f59e0b' :
-													i === 2 ? '#8b5cf6' :
-													i === 3 ? '#10b981' :
-													i === 4 ? '#f97316' : '#f43f5e'
+													i === 0
+														? 'hsl(var(--primary))'
+														: i === 1
+															? '#f59e0b'
+															: i === 2
+																? '#8b5cf6'
+																: i === 3
+																	? '#10b981'
+																	: i === 4
+																		? '#f97316'
+																		: '#f43f5e'
 												} 12%, transparent)`,
 											} as React.CSSProperties
 										}
@@ -1242,14 +1441,20 @@ export default function HomePage() {
 									initial={{ opacity: 0, scale: 0.85 }}
 									whileInView={{ opacity: 1, scale: 1 }}
 									viewport={{ once: true }}
-									transition={{ duration: 0.35, ease: 'backOut', delay: 0.05 + i * 0.08 }}
+									transition={{
+										duration: 0.35,
+										ease: 'backOut',
+										delay: 0.05 + i * 0.08,
+									}}
 									whileHover={{ scale: 1.05 }}
 								>
 									<div className="absolute -top-6 left-1/2 h-6 w-px -translate-x-1/2 bg-border" />
 									<div className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card">
 										<item.icon className="h-5 w-5 text-primary" />
 									</div>
-									<p className="text-xs font-semibold text-muted-foreground">{item.label}</p>
+									<p className="text-xs font-semibold text-muted-foreground">
+										{item.label}
+									</p>
 								</motion.div>
 							))}
 						</div>
@@ -1296,7 +1501,9 @@ export default function HomePage() {
 								<p className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
 									{stat.value}
 								</p>
-								<p className="mt-1 text-xs text-muted-foreground">{stat.label}</p>
+								<p className="mt-1 text-xs text-muted-foreground">
+									{stat.label}
+								</p>
 							</motion.div>
 						))}
 					</div>

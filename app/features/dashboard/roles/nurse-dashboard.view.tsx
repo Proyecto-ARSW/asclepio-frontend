@@ -171,9 +171,9 @@ function turnVariant(
 function turnLabel(estado: string, locale: AppLocale) {
 	switch (estado) {
 		case 'EN_ESPERA':
-			return locale === 'es' ? 'En espera' : 'Waiting';
+			return m.dashboardStatusWaiting({}, { locale });
 		case 'EN_CONSULTA':
-			return locale === 'es' ? 'En consulta' : 'In consultation';
+			return m.dashboardStatusInConsultation({}, { locale });
 		case 'ATENDIDO':
 			return m.dashboardStatusAttended({}, { locale });
 		case 'CANCELADO':
@@ -185,7 +185,11 @@ function turnLabel(estado: string, locale: AppLocale) {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function NurseDashboardView({ user, locale, section = 'overview' }: RoleViewProps) {
+export function NurseDashboardView({
+	user,
+	locale,
+	section = 'overview',
+}: RoleViewProps) {
 	const [nurseId, setNurseId] = useState<string | null>(null);
 	const [missingProfile, setMissingProfile] = useState(false);
 	const [availability, setAvailability] = useState<Disponibilidad[]>([]);
@@ -205,7 +209,10 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 	const loadProfile = useCallback(async () => {
 		const res = await gqlQuery<{ nurses: NurseProfile[] }>(NURSE_PROFILE_QUERY);
 		const mine = res.nurses.find((n) => n.usuarioId === user.id);
-		if (!mine) { setMissingProfile(true); return null; }
+		if (!mine) {
+			setMissingProfile(true);
+			return null;
+		}
 		setNurseId(mine.id);
 		return mine;
 	}, [user.id]);
@@ -220,25 +227,32 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 
 			// Cargar datos según la sección activa para evitar requests innecesarios
 			await Promise.all([
-				(section === 'overview' || section === 'disponibilidad')
+				section === 'overview' || section === 'disponibilidad'
 					? gqlQuery<{ disponibilidadesByNurse: Disponibilidad[] }>(
 							NURSE_AVAILABILITY_QUERY,
 							{ enfermeroId: profile.id },
 						).then((r) => setAvailability(r.disponibilidadesByNurse))
 					: Promise.resolve(),
-				(section === 'overview' || section === 'queue')
-					? gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_QUERY)
-							.then((r) => setTurns(r.turnosPorHospital))
+				section === 'overview' || section === 'queue'
+					? gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_QUERY).then(
+							(r) => setTurns(r.turnosPorHospital),
+						)
 					: Promise.resolve(),
 			]);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error al cargar datos');
+			setError(
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale }),
+			);
 		} finally {
 			setLoading(false);
 		}
-	}, [loadProfile, section]);
+	}, [loadProfile, locale, section]);
 
-	useEffect(() => { void loadData(); }, [loadData]);
+	useEffect(() => {
+		void loadData();
+	}, [loadData]);
 
 	function flash(msg: string) {
 		setSuccessMsg(msg);
@@ -251,14 +265,17 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 		setActionLoading('new-slot');
 		setError('');
 		try {
-			const res = await gqlMutation<{ createDisponibilidadEnfermero: Disponibilidad }>(
-				CREATE_DISPONIBILIDAD_ENFERMERO,
-				{ input: { enfermeroId: nurseId, ...newSlot } },
-			);
+			const res = await gqlMutation<{
+				createDisponibilidadEnfermero: Disponibilidad;
+			}>(CREATE_DISPONIBILIDAD_ENFERMERO, {
+				input: { enfermeroId: nurseId, ...newSlot },
+			});
 			setAvailability((prev) => [...prev, res.createDisponibilidadEnfermero]);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -273,7 +290,9 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 			setAvailability((prev) => prev.filter((s) => s.id !== id));
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -284,13 +303,23 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 		setActionLoading('call-next');
 		setError('');
 		try {
-			const res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(CALL_NEXT_TURN, {});
+			const res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(
+				CALL_NEXT_TURN,
+				{},
+			);
 			if (res.llamarSiguienteTurno) {
-				flash(`Turno #${res.llamarSiguienteTurno.numeroTurno} llamado`);
+				flash(
+					m.dashboardTurnCalled(
+						{ number: String(res.llamarSiguienteTurno.numeroTurno) },
+						{ locale },
+					),
+				);
 				void loadData();
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -307,7 +336,9 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 			);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -324,7 +355,9 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 			);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -350,7 +383,9 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 							{m.dashboardNurseKpiTurns({}, { locale })}
 						</p>
 						<p className="text-2xl font-semibold tabular-nums text-foreground">
-							{loading ? '—' : turns.filter((t) => t.estado === 'EN_ESPERA').length}
+							{loading
+								? '—'
+								: turns.filter((t) => t.estado === 'EN_ESPERA').length}
 						</p>
 					</div>
 				</div>
@@ -370,9 +405,9 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 								{m.dashboardPatientsEmptyDescription({}, { locale })}
 							</p>
 						) : (
-							turns.slice(0, 5).map((t) => (
-								<TurnRow key={t.id} turn={t} compact />
-							))
+							turns
+								.slice(0, 5)
+								.map((t) => <TurnRow key={t.id} turn={t} compact />)
 						)}
 					</CardContent>
 				</Card>
@@ -392,9 +427,9 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 								{m.dashboardPatientsEmptyDescription({}, { locale })}
 							</p>
 						) : (
-							availability.slice(0, 3).map((slot) => (
-								<SlotRow key={slot.id} slot={slot} compact />
-							))
+							availability
+								.slice(0, 3)
+								.map((slot) => <SlotRow key={slot.id} slot={slot} compact />)
 						)}
 					</CardContent>
 				</Card>
@@ -403,6 +438,10 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 	}
 
 	function DisponibilidadSection() {
+		const daySelectId = 'nurse-slot-day';
+		const startTimeId = 'nurse-slot-start-time';
+		const endTimeId = 'nurse-slot-end-time';
+
 		return (
 			<div className="space-y-4">
 				{/* Formulario para agregar disponibilidad */}
@@ -418,7 +457,10 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 					<CardContent className="space-y-3">
 						<div className="grid gap-3 sm:grid-cols-3">
 							<div className="space-y-1">
-								<label className="text-xs font-medium text-muted-foreground">
+								<label
+									htmlFor={daySelectId}
+									className="text-xs font-medium text-muted-foreground"
+								>
 									{m.dashboardDoctorDisponibilidadDia({}, { locale })}
 								</label>
 								<Select
@@ -427,7 +469,9 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 										setNewSlot((prev) => ({ ...prev, diaSemana: Number(v) }))
 									}
 								>
-									<SelectTrigger><SelectValue /></SelectTrigger>
+									<SelectTrigger id={daySelectId}>
+										<SelectValue />
+									</SelectTrigger>
 									<SelectContent>
 										{[0, 1, 2, 3, 4, 5, 6].map((d) => (
 											<SelectItem key={d} value={String(d)}>
@@ -438,22 +482,33 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 								</Select>
 							</div>
 							<div className="space-y-1">
-								<label className="text-xs font-medium text-muted-foreground">
+								<label
+									htmlFor={startTimeId}
+									className="text-xs font-medium text-muted-foreground"
+								>
 									{m.dashboardDoctorDisponibilidadHoraInicio({}, { locale })}
 								</label>
 								<Input
+									id={startTimeId}
 									type="time"
 									value={newSlot.horaInicio}
 									onChange={(e) =>
-										setNewSlot((prev) => ({ ...prev, horaInicio: e.target.value }))
+										setNewSlot((prev) => ({
+											...prev,
+											horaInicio: e.target.value,
+										}))
 									}
 								/>
 							</div>
 							<div className="space-y-1">
-								<label className="text-xs font-medium text-muted-foreground">
+								<label
+									htmlFor={endTimeId}
+									className="text-xs font-medium text-muted-foreground"
+								>
 									{m.dashboardDoctorDisponibilidadHoraFin({}, { locale })}
 								</label>
 								<Input
+									id={endTimeId}
 									type="time"
 									value={newSlot.horaFin}
 									onChange={(e) =>
@@ -478,7 +533,9 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 				{/* Lista de bloques */}
 				<div className="space-y-2">
 					{loading ? (
-						[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)
+						[1, 2, 3].map((i) => (
+							<Skeleton key={i} className="h-16 rounded-xl" />
+						))
 					) : availability.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
 							{missingProfile
@@ -529,7 +586,9 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 				{/* Lista de turnos con acciones */}
 				<div className="space-y-2">
 					{loading ? (
-						[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)
+						[1, 2, 3, 4].map((i) => (
+							<Skeleton key={i} className="h-20 rounded-xl" />
+						))
 					) : turns.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
 							{m.dashboardPatientsEmptyDescription({}, { locale })}
@@ -570,7 +629,8 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 					<ClockIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
 					<div>
 						<p className="text-sm font-medium text-foreground">
-							{dayLabel(slot.diaSemana, locale)} — {slot.horaInicio} - {slot.horaFin}
+							{dayLabel(slot.diaSemana, locale)} — {slot.horaInicio} -{' '}
+							{slot.horaFin}
 						</p>
 					</div>
 				</div>
@@ -589,7 +649,9 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 							disabled={deleting}
 							className="text-xs"
 						>
-							{deleting ? '...' : m.dashboardDoctorDisponibilidadDelete({}, { locale })}
+							{deleting
+								? '...'
+								: m.dashboardDoctorDisponibilidadDelete({}, { locale })}
 						</Button>
 					)}
 				</div>
@@ -636,9 +698,7 @@ export function NurseDashboardView({ user, locale, section = 'overview' }: RoleV
 								className="gap-1 text-xs"
 							>
 								<CheckCircleIcon className="h-3.5 w-3.5" />
-								{attending
-									? '...'
-									: m.dashboardNurseAttendTurn({}, { locale })}
+								{attending ? '...' : m.dashboardNurseAttendTurn({}, { locale })}
 							</Button>
 							<Button
 								type="button"

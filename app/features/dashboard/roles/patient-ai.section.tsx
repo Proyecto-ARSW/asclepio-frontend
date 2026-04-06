@@ -213,9 +213,7 @@ export function PatientAiSection({ locale }: { locale: AppLocale }) {
 							onChange={handleFileChange}
 						/>
 						{file && (
-							<p className="text-xs text-muted-foreground">
-								{file.name}
-							</p>
+							<p className="text-xs text-muted-foreground">{file.name}</p>
 						)}
 						<div className="flex flex-wrap gap-2">
 							<Button
@@ -321,7 +319,7 @@ export function PatientAiSection({ locale }: { locale: AppLocale }) {
 								className="h-auto w-full rounded-lg border border-border/60 object-cover"
 							/>
 						) : (
-							<div className="flex min-h-[160px] items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20 text-xs text-muted-foreground">
+							<div className="flex min-h-40 items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20 text-xs text-muted-foreground">
 								<PhotoIcon className="mr-2 h-4 w-4" />
 								{m.dashboardPatientAiNoResult({}, { locale })}
 							</div>
@@ -384,7 +382,7 @@ export function PatientAiSection({ locale }: { locale: AppLocale }) {
 								className="h-auto w-full rounded-lg border border-border/60 object-cover"
 							/>
 						) : (
-							<div className="flex min-h-[160px] items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20 text-xs text-muted-foreground">
+							<div className="flex min-h-40 items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20 text-xs text-muted-foreground">
 								<PhotoIcon className="mr-2 h-4 w-4" />
 								{m.dashboardPatientAiNoResult({}, { locale })}
 							</div>
@@ -409,12 +407,8 @@ export function PatientAiSection({ locale }: { locale: AppLocale }) {
 								<CardTitle className="text-sm">{card.title}</CardTitle>
 							</CardHeader>
 							<CardContent className="space-y-2">
-								<p className="text-xs text-muted-foreground">
-									{card.summary}
-								</p>
-								<p className="text-xs text-muted-foreground">
-									{card.signs}
-								</p>
+								<p className="text-xs text-muted-foreground">{card.summary}</p>
+								<p className="text-xs text-muted-foreground">{card.signs}</p>
 							</CardContent>
 						</Card>
 					))}

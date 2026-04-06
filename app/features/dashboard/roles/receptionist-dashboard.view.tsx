@@ -163,9 +163,9 @@ function statusLabel(estado: string, locale: AppLocale) {
 		case 'ATENDIDO':
 			return m.dashboardStatusAttended({}, { locale });
 		case 'EN_ESPERA':
-			return locale === 'es' ? 'En espera' : 'Waiting';
+			return m.dashboardStatusWaiting({}, { locale });
 		case 'EN_CONSULTA':
-			return locale === 'es' ? 'En consulta' : 'In consultation';
+			return m.dashboardStatusInConsultation({}, { locale });
 		default:
 			return estado;
 	}
@@ -209,11 +209,15 @@ export function ReceptionistDashboardView({
 			setAppointments(main.appointments);
 			setPatients(patientsRes.patients);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error al cargar datos');
+			setError(
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale }),
+			);
 		} finally {
 			setLoading(false);
 		}
-	}, [section]);
+	}, [locale, section]);
 
 	useEffect(() => {
 		void loadData();
@@ -251,9 +255,16 @@ export function ReceptionistDashboardView({
 			});
 			setTurns((prev) => [res.crearTurno, ...prev]);
 			setNewTurn({ pacienteId: '', tipo: 'NORMAL' });
-			flash(`Turno #${res.crearTurno.numeroTurno} creado`);
+			flash(
+				m.dashboardTurnCreated(
+					{ number: String(res.crearTurno.numeroTurno) },
+					{ locale },
+				),
+			);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -269,11 +280,18 @@ export function ReceptionistDashboardView({
 				{},
 			);
 			if (res.llamarSiguienteTurno) {
-				flash(`Turno #${res.llamarSiguienteTurno.numeroTurno} llamado`);
+				flash(
+					m.dashboardTurnCalled(
+						{ number: String(res.llamarSiguienteTurno.numeroTurno) },
+						{ locale },
+					),
+				);
 				void loadData();
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -290,7 +308,9 @@ export function ReceptionistDashboardView({
 			);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -307,7 +327,9 @@ export function ReceptionistDashboardView({
 			);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -330,7 +352,7 @@ export function ReceptionistDashboardView({
 					</div>
 					<div className="rounded-xl border border-border/70 bg-background/80 p-3">
 						<p className="text-xs text-muted-foreground">
-							{locale === 'es' ? 'En espera' : 'Waiting'}
+							{m.dashboardStatusWaiting({}, { locale })}
 						</p>
 						<p className="text-2xl font-semibold tabular-nums text-foreground">
 							{loading ? '—' : waitingTurns}
@@ -426,6 +448,9 @@ export function ReceptionistDashboardView({
 	}
 
 	function QueueSection() {
+		const patientSelectId = 'receptionist-turn-patient';
+		const turnTypeSelectId = 'receptionist-turn-type';
+
 		return (
 			<div className="space-y-4">
 				{/* Formulario para crear turno nuevo */}
@@ -442,8 +467,11 @@ export function ReceptionistDashboardView({
 						<div className="grid gap-3 sm:grid-cols-2">
 							{/* Selector de paciente — construido desde la lista real del backend */}
 							<div className="space-y-1">
-								<label className="text-xs font-medium text-muted-foreground">
-									{m.dashboardPatientSelectDoctor({}, { locale })}
+								<label
+									htmlFor={patientSelectId}
+									className="text-xs font-medium text-muted-foreground"
+								>
+									{m.dashboardReceptionistSelectPatient({}, { locale })}
 								</label>
 								<Select
 									value={newTurn.pacienteId}
@@ -451,13 +479,12 @@ export function ReceptionistDashboardView({
 										setNewTurn((prev) => ({ ...prev, pacienteId: v ?? '' }))
 									}
 								>
-									<SelectTrigger>
+									<SelectTrigger id={patientSelectId}>
 										<SelectValue
-											placeholder={
-												locale === 'es'
-													? 'Seleccionar paciente'
-													: 'Select patient'
-											}
+											placeholder={m.dashboardReceptionistSelectPatient(
+												{},
+												{ locale },
+											)}
 										/>
 									</SelectTrigger>
 									<SelectContent>
@@ -472,8 +499,11 @@ export function ReceptionistDashboardView({
 
 							{/* Tipo de turno: NORMAL, PRIORITARIO, URGENTE */}
 							<div className="space-y-1">
-								<label className="text-xs font-medium text-muted-foreground">
-									{locale === 'es' ? 'Tipo' : 'Type'}
+								<label
+									htmlFor={turnTypeSelectId}
+									className="text-xs font-medium text-muted-foreground"
+								>
+									{m.dashboardReceptionistTurnTypeLabel({}, { locale })}
 								</label>
 								<Select
 									value={newTurn.tipo}
@@ -484,7 +514,7 @@ export function ReceptionistDashboardView({
 										}))
 									}
 								>
-									<SelectTrigger>
+									<SelectTrigger id={turnTypeSelectId}>
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>

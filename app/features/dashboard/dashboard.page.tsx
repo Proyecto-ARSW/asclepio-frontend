@@ -315,11 +315,7 @@ export default function DashboardPage() {
 		// ya crean landmarks suficientes para que el lector de pantalla navegue por secciones.
 		<div className="min-h-screen bg-background">
 			<div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
-				{/* aria-label localizado → el lector de pantalla anuncia "Encabezado de página" / "Page header" */}
-				<header
-					aria-label={m.a11yLandmarkHeader({}, { locale })}
-					className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/90 p-3 shadow-sm backdrop-blur sm:p-4"
-				>
+				<header className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/90 p-3 shadow-sm backdrop-blur sm:p-4">
 					<div className="min-w-0">
 						<div className="flex items-center gap-2">
 							<Link

@@ -21,6 +21,11 @@ import {
 } from '@/components/ui/card/card.component';
 import { Input } from '@/components/ui/input/input.component';
 import {
+	InputOTP,
+	InputOTPGroup,
+	InputOTPSlot,
+} from '@/components/ui/input-otp/input-otp.component';
+import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -283,6 +288,29 @@ function buildTimeOptions(stepMinutes: number): string[] {
 
 const TIME_OPTIONS = buildTimeOptions(15);
 
+function timeToOtpValue(hhmm: string): string {
+	const [hours = '00', minutes = '00'] = hhmm.split(':');
+	return `${hours}${minutes}`.replace(/\D/g, '').slice(0, 4);
+}
+
+function otpValueToTime(value: string): string | null {
+	const digits = value.replace(/\D/g, '').slice(0, 4);
+	if (digits.length !== 4) return null;
+	const hours = Number(digits.slice(0, 2));
+	const minutes = Number(digits.slice(2, 4));
+	if (
+		Number.isNaN(hours) ||
+		Number.isNaN(minutes) ||
+		hours < 0 ||
+		hours > 23 ||
+		minutes < 0 ||
+		minutes > 59
+	) {
+		return null;
+	}
+	return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
 function suggestDuration(inicio: string, fin: string): number {
 	const [sh, sm] = inicio.split(':').map(Number);
 	const [eh, em] = fin.split(':').map(Number);
@@ -335,6 +363,9 @@ export function DoctorDashboardView({
 		horaFin: '17:00',
 		duracionCita: 30,
 	});
+	const [startTimeOtp, setStartTimeOtp] = useState(() =>
+		timeToOtpValue('08:00'),
+	);
 
 	// ── Formulario de historial ──
 	const [newHistorial, setNewHistorial] = useState({
@@ -729,6 +760,7 @@ export function DoctorDashboardView({
 	function DisponibilidadSection() {
 		const daySelectId = 'doctor-slot-day';
 		const startTimeId = 'doctor-slot-start-time';
+		const startTimeHintId = 'doctor-slot-start-time-hint';
 		const endTimeId = 'doctor-slot-end-time';
 		const durationSelectId = 'doctor-slot-duration';
 
@@ -782,9 +814,17 @@ export function DoctorDashboardView({
 								>
 									{m.dashboardDoctorDisponibilidadHoraInicio({}, { locale })}
 								</label>
-								<Select
-									value={newSlot.horaInicio}
-									onValueChange={(horaInicio) => {
+								<InputOTP
+									id={startTimeId}
+									value={startTimeOtp}
+									maxLength={4}
+									inputMode="numeric"
+									aria-label={m.dashboardDoctorDisponibilidadHoraInicio({}, { locale })}
+									aria-describedby={startTimeHintId}
+									onChange={(value) => {
+										const nextValue = value.replace(/\D/g, '').slice(0, 4);
+										setStartTimeOtp(nextValue);
+										const horaInicio = otpValueToTime(nextValue);
 										if (!horaInicio) return;
 										setNewSlot((prev) => ({
 											...prev,
@@ -792,18 +832,26 @@ export function DoctorDashboardView({
 											duracionCita: suggestDuration(horaInicio, prev.horaFin),
 										}));
 									}}
+									onBlur={() => {
+										if (otpValueToTime(startTimeOtp)) return;
+										setStartTimeOtp(timeToOtpValue(newSlot.horaInicio));
+									}}
 								>
-									<SelectTrigger id={startTimeId} className="w-full">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										{TIME_OPTIONS.map((time) => (
-											<SelectItem key={`start-${time}`} value={time}>
-												{time}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+									<InputOTPGroup>
+										<InputOTPSlot index={0} />
+										<InputOTPSlot index={1} />
+									</InputOTPGroup>
+									<span className="px-1 text-sm font-medium text-muted-foreground">
+										:
+									</span>
+									<InputOTPGroup>
+										<InputOTPSlot index={2} />
+										<InputOTPSlot index={3} />
+									</InputOTPGroup>
+								</InputOTP>
+								<p id={startTimeHintId} className="text-[11px] text-muted-foreground">
+									{m.dashboardDoctorDisponibilidadHoraInicioHint({}, { locale })}
+								</p>
 							</div>
 							<div className="space-y-1">
 								<label

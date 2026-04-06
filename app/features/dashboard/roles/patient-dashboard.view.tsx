@@ -261,13 +261,13 @@ function statusLabel(estado: string, locale: AppLocale) {
 	}
 }
 
-function doctorDisplayName(doctor: Doctor) {
+function doctorDisplayName(doctor: Doctor, locale: AppLocale) {
 	const fullName = `${doctor.nombre ?? ''} ${doctor.apellido ?? ''}`.trim();
-	return fullName || doctor.id;
+	return fullName || m.dashboardPatientDoctorUnnamed({}, { locale });
 }
 
-function doctorDisplayLabel(doctor: Doctor) {
-	const name = doctorDisplayName(doctor);
+function doctorDisplayLabel(doctor: Doctor, locale: AppLocale) {
+	const name = doctorDisplayName(doctor, locale);
 	return doctor.consultorio ? `${name} - ${doctor.consultorio}` : name;
 }
 
@@ -289,6 +289,40 @@ function startOfToday() {
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);
 	return today;
+}
+
+function slotRangeLabel(slot: SlotDisponible, locale: AppLocale) {
+	const inicio = new Date(slot.fechaHora);
+	const fin = new Date(inicio.getTime() + slot.duracionMinutos * 60_000);
+	const timeOpts: Intl.DateTimeFormatOptions = {
+		hour: '2-digit',
+		minute: '2-digit',
+	};
+	return `${inicio.toLocaleTimeString(locale, timeOpts)} — ${fin.toLocaleTimeString(locale, timeOpts)}`;
+}
+
+function slotHourLabelFromIso(iso: string, locale: AppLocale) {
+	const date = new Date(iso);
+	if (Number.isNaN(date.getTime())) return '';
+	return date.toLocaleTimeString(locale, {
+		hour: '2-digit',
+		minute: '2-digit',
+	});
+}
+
+function finalSlotDateTimeLabel(iso: string, locale: AppLocale) {
+	const date = new Date(iso);
+	if (Number.isNaN(date.getTime())) return '';
+	const datePart = date.toLocaleDateString(locale, {
+		weekday: 'long',
+		day: '2-digit',
+		month: 'long',
+	});
+	const timePart = date.toLocaleTimeString(locale, {
+		hour: '2-digit',
+		minute: '2-digit',
+	});
+	return `${datePart} ${timePart}`;
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -661,6 +695,15 @@ export function PatientDashboardView({
 		const selectedDoctor =
 			doctors.find((d) => d.id === booking.medicoId) ?? null;
 		const selectedDate = fromLocalDateValue(booking.fecha);
+		const selectedSlot = slots.find((s) => s.fechaHora === booking.slot) ?? null;
+		const selectedSlotLabel = selectedSlot
+			? slotRangeLabel(selectedSlot, locale)
+			: booking.slot
+				? slotHourLabelFromIso(booking.slot, locale)
+				: undefined;
+		const finalSelectionLabel = booking.slot
+			? finalSlotDateTimeLabel(booking.slot, locale)
+			: '';
 		const availableDaysSet = new Set(doctorAvailabilityDays);
 		const minDate = startOfToday();
 
@@ -718,11 +761,15 @@ export function PatientDashboardView({
 								<SelectValue
 									placeholder={m.dashboardPatientSelectDoctor({}, { locale })}
 									className="min-w-0"
-								/>
+								>
+									{selectedDoctor
+										? doctorDisplayLabel(selectedDoctor, locale)
+										: undefined}
+								</SelectValue>
 							</SelectTrigger>
 							<SelectContent className="w-[min(94vw,36rem)]">
 								{doctors.map((d) => {
-									const label = doctorDisplayLabel(d);
+									const label = doctorDisplayLabel(d, locale);
 									return (
 										<SelectItem
 											key={d.id}
@@ -733,7 +780,7 @@ export function PatientDashboardView({
 										>
 											<div className="flex min-w-0 flex-col text-left">
 												<span className="truncate font-medium">
-													{doctorDisplayName(d)}
+													{doctorDisplayName(d, locale)}
 												</span>
 												{d.consultorio && (
 													<span className="truncate text-xs text-muted-foreground">
@@ -751,7 +798,7 @@ export function PatientDashboardView({
 								id={doctorHelpId}
 								className="wrap-break-word text-xs text-muted-foreground"
 							>
-								{doctorDisplayLabel(selectedDoctor)}
+								{doctorDisplayLabel(selectedDoctor, locale)}
 							</p>
 						)}
 						{!loading && doctors.length === 0 && (
@@ -764,78 +811,74 @@ export function PatientDashboardView({
 						)}
 					</div>
 
-					{/* Paso 2: seleccionar fecha */}
-					<div className="space-y-2">
-						<label
-							htmlFor={dateInputId}
-							className="text-xs font-medium text-muted-foreground"
-						>
-							{m.dashboardPatientDateLabel({}, { locale })}
-						</label>
-						{!booking.medicoId ? (
-							<p className="text-xs text-muted-foreground">
-								{m.dashboardPatientSelectDoctor({}, { locale })}
-							</p>
-						) : doctorAvailabilityLoading ? (
-							<Skeleton className="h-64 rounded-xl" />
-						) : doctorAvailabilityDays.length === 0 ? (
-							<p className="text-xs text-muted-foreground">
-								{m.dashboardPatientNoSlotsForDate({}, { locale })}
-							</p>
-						) : (
-							<div
-								id={dateInputId}
-								className="rounded-xl border border-border/70 bg-muted/20 p-2"
+					{/* Paso 2 + Paso 3: fecha a la izquierda, horario a la derecha */}
+					<div className="grid gap-4 md:grid-cols-2 md:items-stretch">
+						<div className="space-y-2 md:mx-auto md:flex md:h-full md:w-full md:max-w-76 md:flex-col md:gap-2 md:space-y-0">
+							<label
+								htmlFor={dateInputId}
+								className="text-xs font-medium text-muted-foreground"
 							>
-								<Calendar
-									mode="single"
-									selected={selectedDate ?? undefined}
-									onSelect={(date) => {
-										if (!date) {
-											setBooking((prev) => ({ ...prev, fecha: '', slot: '' }));
-											return;
-										}
-										setBooking((prev) => ({
-											...prev,
-											fecha: toLocalDateValue(date),
-											slot: '',
-										}));
-									}}
-									disabled={isDateDisabled}
-									classNames={{ root: 'w-full' }}
-								/>
-							</div>
-						)}
+								{m.dashboardPatientDateLabel({}, { locale })}
+							</label>
+							{!booking.medicoId ? (
+								<p className="text-xs text-muted-foreground">
+									{m.dashboardPatientSelectDoctor({}, { locale })}
+								</p>
+							) : doctorAvailabilityLoading ? (
+								<Skeleton className="h-52 rounded-xl" />
+							) : doctorAvailabilityDays.length === 0 ? (
+								<p className="text-xs text-muted-foreground">
+									{m.dashboardPatientNoSlotsForDate({}, { locale })}
+								</p>
+							) : (
+								<div
+									id={dateInputId}
+									className="mx-auto w-fit max-w-full rounded-xl border border-border/70 bg-muted/20 p-1.5"
+								>
+									<Calendar
+										mode="single"
+										selected={selectedDate ?? undefined}
+										onSelect={(date) => {
+											if (!date) {
+												setBooking((prev) => ({ ...prev, fecha: '', slot: '' }));
+												return;
+											}
+											setBooking((prev) => ({
+												...prev,
+												fecha: toLocalDateValue(date),
+												slot: '',
+											}));
+										}}
+										disabled={isDateDisabled}
+										className="p-1 [--cell-size:1.95rem]"
+										classNames={{ root: 'mx-auto w-fit' }}
+									/>
+								</div>
+							)}
 
-						{availabilityLoadError && (
-							<p className="text-xs text-destructive">
-								{availabilityLoadError}
-							</p>
-						)}
+							{availabilityLoadError && (
+								<p className="text-xs text-destructive">
+									{availabilityLoadError}
+								</p>
+							)}
+						</div>
 
-						{selectedDate && (
-							<div className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-2 py-1 text-xs text-foreground">
-								<CalendarDaysIcon className="h-3.5 w-3.5" />
-								{selectedDate.toLocaleDateString(locale, {
-									weekday: 'long',
-									year: 'numeric',
-									month: 'long',
-									day: 'numeric',
-								})}
-							</div>
-						)}
-					</div>
-
-					{/* Paso 3: seleccionar slot disponible — se carga automáticamente */}
-					{booking.medicoId && booking.fecha && (
-						<div className="space-y-1">
+						<div className="space-y-2 md:mx-auto md:w-full md:max-w-76">
 							<label
 								htmlFor={slotSelectId}
 								className="text-xs font-medium text-muted-foreground"
 							>
 								{m.dashboardPatientSelectSlot({}, { locale })}
 							</label>
-							{slotsLoading ? (
+							{!booking.medicoId ? (
+								<p className="text-xs text-muted-foreground">
+									{m.dashboardPatientSelectDoctor({}, { locale })}
+								</p>
+							) : !booking.fecha ? (
+								<p className="text-xs text-muted-foreground">
+									{m.dashboardPatientDateLabel({}, { locale })}
+								</p>
+							) : slotsLoading ? (
 								<Skeleton className="h-9 rounded-md" />
 							) : slotsLoadError ? (
 								<p className="text-xs text-destructive">{slotsLoadError}</p>
@@ -844,44 +887,51 @@ export function PatientDashboardView({
 									{m.dashboardPatientNoSlotsForDate({}, { locale })}
 								</p>
 							) : (
-								<Select
-									value={booking.slot}
-									onValueChange={(v) =>
-										setBooking((prev) => ({ ...prev, slot: v ?? '' }))
-									}
-								>
-									<SelectTrigger id={slotSelectId}>
-										<SelectValue
-											placeholder={m.dashboardPatientSelectSlot({}, { locale })}
-										/>
-									</SelectTrigger>
-									<SelectContent>
-										{slots.map((s) => {
-											// fin se computa desde fechaHora + duracionMinutos
-											const inicio = new Date(s.fechaHora);
-											const fin = new Date(
-												inicio.getTime() + s.duracionMinutos * 60_000,
-											);
-											const timeOpts: Intl.DateTimeFormatOptions = {
-												hour: '2-digit',
-												minute: '2-digit',
-											};
-											const label = `${inicio.toLocaleTimeString(locale, timeOpts)} — ${fin.toLocaleTimeString(locale, timeOpts)}`;
-											return (
-												<SelectItem
-													key={s.fechaHora}
-													value={s.fechaHora}
-													label={label}
-												>
-													{label}
-												</SelectItem>
-											);
-										})}
-									</SelectContent>
-								</Select>
+								<div className="space-y-2 md:flex md:flex-1 md:flex-col md:space-y-0">
+									<Select
+										value={booking.slot}
+										onValueChange={(v) =>
+											setBooking((prev) => ({ ...prev, slot: v ?? '' }))
+										}
+									>
+										<SelectTrigger id={slotSelectId} className="w-full">
+											<SelectValue
+												placeholder={m.dashboardPatientSelectSlot({}, { locale })}
+											>
+												{selectedSlotLabel}
+											</SelectValue>
+										</SelectTrigger>
+										<SelectContent>
+											{slots.map((s) => {
+												const label = slotRangeLabel(s, locale);
+												return (
+													<SelectItem
+														key={s.fechaHora}
+														value={s.fechaHora}
+														label={label}
+													>
+														{label}
+													</SelectItem>
+												);
+											})}
+										</SelectContent>
+									</Select>
+									{finalSelectionLabel && (
+										<div className="md:flex md:flex-1 md:items-center pt-5">
+											<div className="w-full rounded-xl border border-secondary/70 bg-secondary/25 px-3 py-2 text-center">
+												<p className="text-[11px] font-semibold uppercase tracking-wide text-secondary-foreground">
+													{m.dashboardPatientDateLabel({}, { locale })}
+												</p>
+												<p className="mt-1 text-xl font-bold text-secondary-foreground sm:text-2xl">
+													{finalSelectionLabel}
+												</p>
+											</div>
+										</div>
+									)}
+								</div>
 							)}
 						</div>
-					)}
+					</div>
 
 					{/* Motivo de la consulta */}
 					<div className="space-y-1">
@@ -948,7 +998,7 @@ export function PatientDashboardView({
 							<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
 								{m.dashboardSidebarQueue({}, { locale })}
 							</p>
-							<p className="mt-2 text-3xl font-bold tabular-nums text-secondary sm:text-4xl">
+							<p className="mt-2 text-3xl font-bold tabular-nums text-secondary-foreground sm:text-4xl">
 								{currentCalledTurn ? `#${currentCalledTurn.numeroTurno}` : '--'}
 							</p>
 							<p className="mt-1 text-xs text-muted-foreground">
@@ -971,7 +1021,7 @@ export function PatientDashboardView({
 					</div>
 				) : (
 					<>
-						<p className="mt-3 text-center text-4xl font-bold tabular-nums text-secondary sm:text-5xl">
+						<p className="mt-3 text-center text-4xl font-bold tabular-nums text-secondary-foreground sm:text-5xl">
 							{currentCalledTurn ? `#${currentCalledTurn.numeroTurno}` : '--'}
 						</p>
 						<p className="mt-1 text-center text-xs text-muted-foreground">

@@ -729,13 +729,13 @@ export function DoctorDashboardView({
 	function renderSection(sec: DashboardSection) {
 		switch (sec) {
 			case 'overview':
-				return <OverviewSection />;
+				return OverviewSection();
 			case 'appointments':
-				return <AppointmentsSection />;
+				return AppointmentsSection();
 			case 'disponibilidad':
-				return <DisponibilidadSection />;
+				return DisponibilidadSection();
 			case 'historial':
-				return <HistorialSection />;
+				return HistorialSection();
 			default:
 				return null;
 		}

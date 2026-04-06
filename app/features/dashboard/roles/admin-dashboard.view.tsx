@@ -6,6 +6,7 @@ import {
 	ClipboardDocumentListIcon,
 	ClockIcon,
 	CubeIcon,
+	PaperAirplaneIcon,
 	ShieldCheckIcon,
 	UserGroupIcon,
 } from '@heroicons/react/24/outline';
@@ -182,7 +183,11 @@ export function AdminDashboardView({
 	const [savingUserId, setSavingUserId] = useState<string | null>(null);
 	const [currentPage, setCurrentPage] = useState(1);
 	const [userSearch, setUserSearch] = useState('');
+	const [userSearchInput, setUserSearchInput] = useState('');
 	const [roleFilter, setRoleFilter] = useState<'ALL' | UserRole>('ALL');
+	const [roleFilterInput, setRoleFilterInput] = useState<'ALL' | UserRole>(
+		'ALL',
+	);
 	const [lastRoleChange, setLastRoleChange] = useState<{
 		userId: string;
 		userName: string;
@@ -417,6 +422,12 @@ export function AdminDashboardView({
 		setTimeout(() => setSuccessMsg(''), 4000);
 	}
 
+	function applyUserFilters() {
+		setUserSearch(userSearchInput);
+		setRoleFilter(roleFilterInput);
+		setCurrentPage(1);
+	}
+
 	async function handleRoleUpdate(
 		user: AdminGqlData['users'][number],
 		payload: RoleUpdatePayload,
@@ -499,27 +510,29 @@ export function AdminDashboardView({
 						</Badge>
 					</div>
 				</div>
-				<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
+				<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px_auto]">
 					<Input
-						value={userSearch}
-						onChange={(event) => {
-							setUserSearch(event.target.value);
-							setCurrentPage(1);
+						value={userSearchInput}
+						onChange={(event) => setUserSearchInput(event.target.value)}
+						onKeyDown={(event) => {
+							if (event.key === 'Enter') {
+								event.preventDefault();
+								applyUserFilters();
+							}
 						}}
 						placeholder={m.dashboardAdminSearchPlaceholder({}, { locale })}
 					/>
 					<Select
-						value={roleFilter}
+						value={roleFilterInput}
 						onValueChange={(value) => {
-							setRoleFilter((value as 'ALL' | UserRole | null) ?? 'ALL');
-							setCurrentPage(1);
+							setRoleFilterInput((value as 'ALL' | UserRole | null) ?? 'ALL');
 						}}
 					>
-						<SelectTrigger>
+						<SelectTrigger className="w-full min-w-55">
 							<SelectValue>
-								{roleFilter === 'ALL'
+								{roleFilterInput === 'ALL'
 									? m.dashboardAdminFilterAllRoles({}, { locale })
-									: getLocalizedRoleLabel(roleFilter, locale)}
+									: getLocalizedRoleLabel(roleFilterInput, locale)}
 							</SelectValue>
 						</SelectTrigger>
 						<SelectContent>
@@ -561,16 +574,14 @@ export function AdminDashboardView({
 							</SelectItem>
 						</SelectContent>
 					</Select>
-				</div>
-				<div className="flex justify-end">
 					<Button
 						type="button"
-						variant="outline"
-						onClick={loadData}
-						disabled={loading}
+						onClick={applyUserFilters}
+						size="icon-sm"
+						aria-label={m.dashboardAdminSearchPlaceholder({}, { locale })}
+						title={m.dashboardAdminSearchPlaceholder({}, { locale })}
 					>
-						<ArrowPathIcon className="mr-2 h-4 w-4" />
-						{m.dashboardPatientsRefresh({}, { locale })}
+						<PaperAirplaneIcon className="h-4 w-4" />
 					</Button>
 				</div>
 			</div>

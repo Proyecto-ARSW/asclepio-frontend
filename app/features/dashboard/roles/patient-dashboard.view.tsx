@@ -48,6 +48,7 @@ interface Appointment {
 	fechaHora: string;
 	estado: string;
 	motivo: string | null;
+	medicoId?: string | null;
 }
 
 interface Turno {
@@ -101,6 +102,7 @@ const PATIENT_APPOINTMENTS_QUERY = `
 	query PatientAppointments($pacienteId: ID!) {
 		appoinmentsByPatient(pacienteId: $pacienteId) {
 			id
+			medicoId
 			fechaHora
 			estado
 			motivo
@@ -199,6 +201,7 @@ const CREATE_APPOINTMENT = `
 	mutation CreateAppointment($input: CreateAppoinmentInput!) {
 		createAppoinment(input: $input) {
 			id
+			medicoId
 			fechaHora
 			estado
 			motivo
@@ -410,7 +413,7 @@ export function PatientDashboardView({
 						).then((r) => setHistorial(r.historialByPaciente))
 					: Promise.resolve(),
 				// Cargar médicos al llegar a la sección de citas (para el formulario)
-				section === 'appointments'
+				section === 'overview' || section === 'appointments' || !section
 					? gqlQuery<{ doctors: Doctor[] }>(DOCTORS_QUERY).then((r) =>
 							setDoctors(r.doctors),
 						)
@@ -568,7 +571,13 @@ export function PatientDashboardView({
 					},
 				},
 			);
-			setAppointments((prev) => [res.createAppoinment, ...prev]);
+			setAppointments((prev) => [
+				{
+					...res.createAppoinment,
+					medicoId: res.createAppoinment.medicoId ?? booking.medicoId,
+				},
+				...prev,
+			]);
 			setBooking({ medicoId: '', fecha: '', slot: '', motivo: '' });
 			setSlots([]);
 			flash(m.dashboardActionSuccess({}, { locale }));
@@ -1188,13 +1197,20 @@ export function PatientDashboardView({
 										(a) => {
 											const canCancel =
 												a.estado === 'PENDIENTE' || a.estado === 'CONFIRMADA';
+											const doctor =
+												a.medicoId
+													? doctors.find((d) => d.id === a.medicoId)
+													: null;
+											const doctorLabel = doctor
+												? doctorDisplayLabel(doctor, locale)
+												: m.dashboardPatientDoctorUnnamed({}, { locale });
 											return (
 												<li key={a.id} className="rounded-lg bg-muted/30 p-2">
 													<div className="flex items-start justify-between gap-2">
 														<div className="min-w-0">
 															<div className="flex items-center gap-2">
-																<span className="text-xs text-muted-foreground truncate">
-																	{a.id}
+																<span className="text-xs font-medium text-foreground truncate">
+																	{doctorLabel}
 																</span>
 																<Badge variant={statusVariant(a.estado)}>
 																	{statusLabel(a.estado, locale)}

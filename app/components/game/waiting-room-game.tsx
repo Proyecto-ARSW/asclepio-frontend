@@ -1296,11 +1296,6 @@ export function WaitingRoomGame() {
 					</div>
 				)}
 
-				{isPlaying && (
-					<p className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-background/60 px-3 py-1 text-center text-xs text-muted-foreground backdrop-blur-sm select-none">
-						{m.gameWaitingRoomHint({}, { locale })}
-					</p>
-				)}
 			</div>
 
 			{isMobile && leaderboardPanel}

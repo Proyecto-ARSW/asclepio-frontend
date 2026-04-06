@@ -61,6 +61,21 @@ interface NurseProfileSummary {
 	certificacionTriage: boolean;
 }
 
+function trainingLevelLabel(level: number | string, locale: AppLocale) {
+	switch (Number(level)) {
+		case 1:
+			return m.authRegisterTrainingLevel1({}, { locale });
+		case 2:
+			return m.authRegisterTrainingLevel2({}, { locale });
+		case 3:
+			return m.authRegisterTrainingLevel3({}, { locale });
+		case 4:
+			return m.authRegisterTrainingLevel4({}, { locale });
+		default:
+			return String(level || '');
+	}
+}
+
 export function AdminRoleRowForm({
 	user,
 	locale,
@@ -200,6 +215,15 @@ export function AdminRoleRowForm({
 		() =>
 			new Map(specialties.map((specialty) => [specialty.id, specialty.nombre])),
 		[specialties],
+	);
+
+	const trainingOptions = useMemo(
+		() =>
+			(['1', '2', '3', '4'] as const).map((level) => ({
+				value: level,
+				label: trainingLevelLabel(level, locale),
+			})),
+		[locale],
 	);
 
 	const doctorProfileLocked =
@@ -362,13 +386,10 @@ export function AdminRoleRowForm({
 							<p className="text-xs font-medium text-muted-foreground">
 								{m.authRegisterLabelNivelFormacion({}, { locale })}:{' '}
 								<span className="text-foreground">
-									{nurseProfile?.nivelFormacion === 1
-										? m.authRegisterTrainingLevel1({}, { locale })
-										: nurseProfile?.nivelFormacion === 2
-											? m.authRegisterTrainingLevel2({}, { locale })
-											: nurseProfile?.nivelFormacion === 3
-												? m.authRegisterTrainingLevel3({}, { locale })
-												: m.authRegisterTrainingLevel4({}, { locale })}
+									{trainingLevelLabel(
+										nurseProfile?.nivelFormacion ?? '',
+										locale,
+									)}
 								</span>
 							</p>
 							<p className="text-xs font-medium text-muted-foreground">
@@ -416,21 +437,20 @@ export function AdminRoleRowForm({
 											}
 										>
 											<SelectTrigger className="w-full">
-												<SelectValue />
+												<SelectValue>
+													{trainingLevelLabel(field.state.value, locale)}
+												</SelectValue>
 											</SelectTrigger>
 											<SelectContent>
-												<SelectItem value="1">
-													{m.authRegisterTrainingLevel1({}, { locale })}
-												</SelectItem>
-												<SelectItem value="2">
-													{m.authRegisterTrainingLevel2({}, { locale })}
-												</SelectItem>
-												<SelectItem value="3">
-													{m.authRegisterTrainingLevel3({}, { locale })}
-												</SelectItem>
-												<SelectItem value="4">
-													{m.authRegisterTrainingLevel4({}, { locale })}
-												</SelectItem>
+												{trainingOptions.map((option) => (
+													<SelectItem
+														key={`training-${option.value}`}
+														value={option.value}
+														label={option.label}
+													>
+														{option.label}
+													</SelectItem>
+												))}
 											</SelectContent>
 										</Select>
 									</Field>
@@ -473,7 +493,7 @@ export function AdminRoleRowForm({
 							</form.Field>
 							<form.Field name="nurseTriage">
 								{(field) => (
-									<Field>
+									<Field className="sm:pt-6">
 										<div className="flex items-center justify-between rounded-lg border border-border/70 bg-background/60 px-3 py-2">
 											<FieldLabel className="mb-0">
 												{m.authRegisterLabelCertificacionTriage({}, { locale })}

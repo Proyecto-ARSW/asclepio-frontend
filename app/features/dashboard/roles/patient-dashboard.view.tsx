@@ -4,7 +4,7 @@ import {
 	PlusIcon,
 	XCircleIcon,
 } from '@heroicons/react/24/outline';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { WaitingRoomGame } from '@/components/game/waiting-room-game';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
@@ -220,6 +220,15 @@ const CREATE_PATIENT_TURN = `
 	}
 `;
 
+const CANCEL_TURN = `
+	mutation CancelPatientTurn($id: ID!) {
+		cancelarTurno(id: $id) {
+			id
+			estado
+		}
+	}
+`;
+
 // Cancelar cita del paciente
 const CANCEL_APPOINTMENT = `
 	mutation CancelPatientAppointment($input: CancelAppoinmentInput!) {
@@ -271,6 +280,14 @@ function isTurnNumberConflictError(raw: string) {
 	return /(idx_turnos_unique|p2002|numero_turno|unique|duplicate|valor\s+u?nico|valor\s+\u00fanico)/i.test(
 		raw,
 	);
+}
+
+function isWaitingTurn(estado: string) {
+	return /^(EN_ESPERA|PENDIENTE|EN_FILA)$/i.test(estado);
+}
+
+function isActiveAppointment(estado: string) {
+	return /^(PENDIENTE|CONFIRMADA)$/i.test(estado);
 }
 
 function activeTurnConflictMessage(locale: AppLocale, turnNumber?: number) {
@@ -411,7 +428,10 @@ export function PatientDashboardView({
 
 			// Carga paralela por sección para evitar waterfalls
 			await Promise.all([
-				section === 'overview' || section === 'appointments' || !section
+				section === 'overview' ||
+				section === 'appointments' ||
+				section === 'queue' ||
+				!section
 					? gqlQuery<{ appoinmentsByPatient: Appointment[] }>(
 							PATIENT_APPOINTMENTS_QUERY,
 							{ pacienteId: profile.id },
@@ -433,8 +453,11 @@ export function PatientDashboardView({
 							{ pacienteId: profile.id },
 						).then((r) => setHistorial(r.historialByPaciente))
 					: Promise.resolve(),
-				// Cargar médicos al llegar a la sección de citas (para el formulario)
-				section === 'overview' || section === 'appointments' || !section
+				// Cargar médicos también en cola para mostrar médico de referencia
+				section === 'overview' ||
+				section === 'appointments' ||
+				section === 'queue' ||
+				!section
 					? gqlQuery<{ doctors: Doctor[] }>(DOCTORS_QUERY).then((r) =>
 							setDoctors(r.doctors),
 						)
@@ -521,7 +544,14 @@ export function PatientDashboardView({
 	}, [patientId, refreshQueueTurns, section]);
 
 	useEffect(() => {
-		if (!(section === 'appointments' || section === 'overview' || !section))
+		if (
+			!(
+				section === 'appointments' ||
+				section === 'overview' ||
+				section === 'queue' ||
+				!section
+			)
+		)
 			return;
 		if (!patientId) return;
 
@@ -733,6 +763,23 @@ export function PatientDashboardView({
 		}
 	}
 
+	// ── Acción: cancelar mi turno en espera ──
+	async function handleCancelMyTurn(turnId: string) {
+		setActionLoading('cancel-my-turn');
+		setError('');
+		try {
+			await gqlMutation(CANCEL_TURN, { id: turnId });
+			await refreshQueueTurns();
+			flash(m.dashboardActionSuccess({}, { locale }));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setActionLoading(null);
+		}
+	}
+
 	// ── Acción: cancelar cita ──
 	async function handleCancelAppointment(id: string) {
 		setActionLoading(`cancel-${id}`);
@@ -788,6 +835,34 @@ export function PatientDashboardView({
 				),
 		)
 		.sort((a, b) => a.numeroTurno - b.numeroTurno)[0];
+
+	const activeAppointments = useMemo(
+		() =>
+			[...appointments]
+				.filter((appointment) => isActiveAppointment(appointment.estado))
+				.sort(
+					(a, b) =>
+						new Date(a.fechaHora).getTime() - new Date(b.fechaHora).getTime(),
+				),
+		[appointments],
+	);
+
+	const assignedAppointment = useMemo(() => {
+		const now = Date.now();
+		const upcoming = activeAppointments.find(
+			(appointment) => new Date(appointment.fechaHora).getTime() >= now,
+		);
+		return upcoming ?? activeAppointments[0] ?? null;
+	}, [activeAppointments]);
+
+	const assignedDoctorLabel = useMemo(() => {
+		if (!assignedAppointment?.medicoId) return '';
+		const doctor = doctors.find(
+			(item) => item.id === assignedAppointment.medicoId,
+		);
+		if (!doctor) return '';
+		return doctorDisplayLabel(doctor, locale);
+	}, [assignedAppointment, doctors, locale]);
 
 	const isOverview = !section || section === 'overview';
 	const showAppointments = isOverview || section === 'appointments';
@@ -1181,6 +1256,28 @@ export function PatientDashboardView({
 					</div>
 				)}
 
+				{myCurrentTurn && (
+					<div className="mt-4 border-t border-border/60 pt-3">
+						<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+							{locale === 'es' ? 'Flujo de atencion' : 'Care flow'}
+						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							{locale === 'es'
+								? 'El cambio a Atendido lo realiza recepcion o enfermeria desde la gestion de cola.'
+								: 'The transition to Attended is done by reception or nursing from queue management.'}
+						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							{assignedDoctorLabel
+								? locale === 'es'
+									? `Medico de referencia por cita: ${assignedDoctorLabel}`
+									: `Assigned doctor from appointment: ${assignedDoctorLabel}`
+								: locale === 'es'
+									? 'Aun no hay un medico asignado por cita para este flujo.'
+									: 'There is no doctor assigned by appointment for this flow yet.'}
+						</p>
+					</div>
+				)}
+
 				{showOwnTurn && !shouldSplitWithOwnTurn && (
 					<div className="mt-4 border-t border-border/60 pt-3">
 						<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1409,6 +1506,40 @@ export function PatientDashboardView({
 									</div>
 								</div>
 							)}
+
+							{section === 'queue' &&
+								myCurrentTurn &&
+								isWaitingTurn(myCurrentTurn.estado) && (
+									<div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+										<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+											<div>
+												<h4 className="text-sm font-semibold text-foreground">
+													{locale === 'es'
+														? 'Cancelar turno en espera'
+														: 'Cancel waiting turn'}
+												</h4>
+												<p className="text-xs text-muted-foreground">
+													{locale === 'es'
+														? `Tienes el turno #${myCurrentTurn.numeroTurno} en espera. Puedes cancelarlo si ya no lo necesitas.`
+														: `You have turn #${myCurrentTurn.numeroTurno} waiting. You can cancel it if you no longer need it.`}
+												</p>
+											</div>
+											<Button
+												type="button"
+												variant="destructive"
+												onClick={() => handleCancelMyTurn(myCurrentTurn.id)}
+												disabled={actionLoading === 'cancel-my-turn'}
+												size="sm"
+												className="shrink-0 gap-2"
+											>
+												<XCircleIcon className="h-4 w-4" />
+												{actionLoading === 'cancel-my-turn'
+													? m.dashboardActionCancelling({}, { locale })
+													: m.dashboardNurseCancelTurn({}, { locale })}
+											</Button>
+										</div>
+									</div>
+								)}
 
 							{/* Botón de sala de espera con juego interactivo */}
 							{section === 'queue' && (

@@ -59,14 +59,30 @@ interface Patient {
 
 // ─── Queries & Mutations ──────────────────────────────────────────────────────
 
-const RECEPTIONIST_QUERY = `
-	query ReceptionistDashboard {
+const HOSPITAL_TURNS_QUERY = `
+	query ReceptionistHospitalTurns {
 		turnosPorHospital {
 			id
 			numeroTurno
 			tipo
 			estado
 		}
+	}
+`;
+
+const HOSPITAL_TURNS_BY_HOSPITAL_QUERY = `
+	query ReceptionistHospitalTurnsByHospital($hospitalId: ID!) {
+		turnosPorHospital(hospitalId: $hospitalId) {
+			id
+			numeroTurno
+			tipo
+			estado
+		}
+	}
+`;
+
+const RECEPTIONIST_APPOINTMENTS_QUERY = `
+	query ReceptionistAppointments {
 		appointments: appoinments {
 			id
 			fechaHora
@@ -89,6 +105,17 @@ const PATIENTS_QUERY = `
 	}
 `;
 
+const PATIENT_TURNS_QUERY = `
+	query ReceptionistPatientTurns($pacienteId: ID!) {
+		turnosPorPaciente(pacienteId: $pacienteId) {
+			id
+			numeroTurno
+			tipo
+			estado
+		}
+	}
+`;
+
 // Crear turno nuevo en la cola del hospital
 const CREATE_TURN = `
 	mutation CreateTurn($input: CreateTurnInput!) {
@@ -105,6 +132,12 @@ const CREATE_TURN = `
 const CALL_NEXT = `
 	mutation CallNext {
 		llamarSiguienteTurno { id numeroTurno estado }
+	}
+`;
+
+const CALL_NEXT_BY_HOSPITAL = `
+	mutation CallNextByHospital($hospitalId: ID!) {
+		llamarSiguienteTurno(hospitalId: $hospitalId) { id numeroTurno estado }
 	}
 `;
 
@@ -174,6 +207,38 @@ function statusLabel(estado: string, locale: AppLocale) {
 	}
 }
 
+function isUniqueConstraintError(raw: string) {
+	return /(valor\s+u?nico|valor\s+\u00fanico|unique|duplicate|already exists|registro con ese valor)/i.test(
+		raw,
+	);
+}
+
+function isTurnClosed(estado: string) {
+	return /^(ATENDIDO|ATENDIDA|CANCELADO|CANCELADA)$/i.test(estado);
+}
+
+function isWaitingTurn(estado: string) {
+	return /^(EN_ESPERA|PENDIENTE|EN_FILA)$/i.test(estado);
+}
+
+function isCalledTurn(estado: string) {
+	return /^(EN_CONSULTA|LLAMADO|LLAMANDO|EN_ATENCION)$/i.test(estado);
+}
+
+function activeTurnConflictMessage(
+	locale: AppLocale,
+	turnNumber?: number,
+) {
+	if (locale === 'es') {
+		return turnNumber
+			? `El paciente ya tiene un turno activo (#${turnNumber}). Debes atenderlo o cancelarlo antes de crear otro.`
+			: 'El paciente ya tiene un turno activo. Debes atenderlo o cancelarlo antes de crear otro.';
+	}
+	return turnNumber
+		? `This patient already has an active turn (#${turnNumber}). Attend or cancel it before creating another one.`
+		: 'This patient already has an active turn. Attend or cancel it before creating another one.';
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function ReceptionistDashboardView({
@@ -196,13 +261,38 @@ export function ReceptionistDashboardView({
 	});
 
 	const loadMainData = useCallback(async () => {
-		const main = await gqlQuery<{
-			turnosPorHospital: Turno[];
-			appointments: Appointment[];
-		}>(RECEPTIONIST_QUERY);
-		setTurns(main.turnosPorHospital);
-		setAppointments(main.appointments);
-		return main;
+		let turnosPorHospital: Turno[] = [];
+
+		if (selectedHospitalId) {
+			try {
+				const scoped = await gqlQuery<{ turnosPorHospital: Turno[] }>(
+					HOSPITAL_TURNS_BY_HOSPITAL_QUERY,
+					{ hospitalId: selectedHospitalId },
+				);
+				turnosPorHospital = scoped.turnosPorHospital ?? [];
+			} catch {
+				// Fallback al contrato sin argumentos si el backend no soporta hospitalId.
+				const fallback = await gqlQuery<{ turnosPorHospital: Turno[] }>(
+					HOSPITAL_TURNS_QUERY,
+				);
+				turnosPorHospital = fallback.turnosPorHospital ?? [];
+			}
+		} else {
+			const fallback = await gqlQuery<{ turnosPorHospital: Turno[] }>(
+				HOSPITAL_TURNS_QUERY,
+			);
+			turnosPorHospital = fallback.turnosPorHospital ?? [];
+		}
+
+		setTurns(turnosPorHospital);
+		return turnosPorHospital;
+	}, [selectedHospitalId]);
+
+	const loadAppointmentsData = useCallback(async () => {
+		const data = await gqlQuery<{ appointments: Appointment[] }>(
+			RECEPTIONIST_APPOINTMENTS_QUERY,
+		);
+		setAppointments(data.appointments ?? []);
 	}, []);
 
 	const loadData = useCallback(async () => {
@@ -217,6 +307,19 @@ export function ReceptionistDashboardView({
 					: Promise.resolve({ patients: [] as Patient[] }),
 			]);
 			setPatients(patientsRes.patients);
+
+			if (section === 'overview' || section === 'appointments') {
+				try {
+					await loadAppointmentsData();
+				} catch (err) {
+					setAppointments([]);
+					setError(
+						err instanceof Error
+							? err.message
+							: m.rootErrorUnexpected({}, { locale }),
+					);
+				}
+			}
 		} catch (err) {
 			setError(
 				err instanceof Error
@@ -226,7 +329,7 @@ export function ReceptionistDashboardView({
 		} finally {
 			setLoading(false);
 		}
-	}, [loadMainData, locale, section]);
+	}, [loadAppointmentsData, loadMainData, locale, section]);
 
 	useEffect(() => {
 		void loadData();
@@ -278,13 +381,13 @@ export function ReceptionistDashboardView({
 		[appointments],
 	);
 	const waitingTurns = useMemo(
-		() => turns.filter((t) => t.estado === 'EN_ESPERA').length,
+		() => turns.filter((t) => isWaitingTurn(t.estado)).length,
 		[turns],
 	);
 	const currentTurn = useMemo(
 		() =>
 			[...turns]
-				.filter((t) => t.estado === 'EN_CONSULTA')
+				.filter((t) => isCalledTurn(t.estado))
 				.sort((a, b) => b.numeroTurno - a.numeroTurno)[0],
 		[turns],
 	);
@@ -309,6 +412,18 @@ export function ReceptionistDashboardView({
 		setActionLoading('create-turn');
 		setError('');
 		try {
+			const patientTurns = await gqlQuery<{ turnosPorPaciente: Turno[] }>(
+				PATIENT_TURNS_QUERY,
+				{ pacienteId: newTurn.pacienteId },
+			);
+			const activeTurn = (patientTurns.turnosPorPaciente ?? [])
+				.filter((turn) => !isTurnClosed(turn.estado))
+				.sort((a, b) => b.numeroTurno - a.numeroTurno)[0];
+			if (activeTurn) {
+				setError(activeTurnConflictMessage(locale, activeTurn.numeroTurno));
+				return;
+			}
+
 			// hospitalId es obligatorio en CreateTurnInput — sin él el backend devuelve 400
 			const res = await gqlMutation<{ crearTurno: Turno }>(CREATE_TURN, {
 				input: {
@@ -317,7 +432,7 @@ export function ReceptionistDashboardView({
 					hospitalId: selectedHospitalId,
 				},
 			});
-			setTurns((prev) => [res.crearTurno, ...prev]);
+			await loadMainData();
 			setNewTurn({ pacienteId: '', tipo: 'NORMAL' });
 			flash(
 				m.dashboardTurnCreated(
@@ -326,9 +441,27 @@ export function ReceptionistDashboardView({
 				),
 			);
 		} catch (err) {
-			setError(
-				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
-			);
+			const message =
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale });
+			if (isUniqueConstraintError(message)) {
+				try {
+					const patientTurns = await gqlQuery<{ turnosPorPaciente: Turno[] }>(
+						PATIENT_TURNS_QUERY,
+						{ pacienteId: newTurn.pacienteId },
+					);
+					const activeTurn = (patientTurns.turnosPorPaciente ?? [])
+						.filter((turn) => !isTurnClosed(turn.estado))
+						.sort((a, b) => b.numeroTurno - a.numeroTurno)[0];
+					setError(
+						activeTurnConflictMessage(locale, activeTurn?.numeroTurno),
+					);
+				} catch {
+					setError(activeTurnConflictMessage(locale));
+				}
+				await loadMainData();
+			} else {
+				setError(message);
+			}
 		} finally {
 			setActionLoading(null);
 		}
@@ -339,10 +472,19 @@ export function ReceptionistDashboardView({
 		setActionLoading('call-next');
 		setError('');
 		try {
-			const res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(
-				CALL_NEXT,
-				{},
-			);
+			let res: { llamarSiguienteTurno: Turno };
+			if (selectedHospitalId) {
+				try {
+					res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(
+						CALL_NEXT_BY_HOSPITAL,
+						{ hospitalId: selectedHospitalId },
+					);
+				} catch {
+					res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(CALL_NEXT, {});
+				}
+			} else {
+				res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(CALL_NEXT, {});
+			}
 			if (res.llamarSiguienteTurno) {
 				flash(
 					m.dashboardTurnCalled(
@@ -350,7 +492,14 @@ export function ReceptionistDashboardView({
 						{ locale },
 					),
 				);
-				void loadData();
+				await loadMainData();
+			} else {
+				await loadMainData();
+				setError(
+					locale === 'es'
+						? 'No se pudo llamar el siguiente turno. Verifica que haya turnos en espera en la cola del hospital.'
+						: 'Could not call the next turn. Verify there are waiting turns in the hospital queue.',
+				);
 			}
 		} catch (err) {
 			setError(
@@ -444,7 +593,7 @@ export function ReceptionistDashboardView({
 					<Button
 						type="button"
 						onClick={handleCallNext}
-						disabled={actionLoading === 'call-next' || waitingTurns === 0}
+						disabled={actionLoading === 'call-next'}
 						className="gap-2 shrink-0"
 					>
 						<QueueListIcon className="h-4 w-4" />
@@ -680,7 +829,9 @@ export function ReceptionistDashboardView({
 								type="button"
 								onClick={handleCreateTurn}
 								disabled={
-									actionLoading === 'create-turn' || !newTurn.pacienteId
+									actionLoading === 'create-turn' ||
+									!newTurn.pacienteId ||
+									!selectedHospitalId
 								}
 								className="gap-2"
 							>
@@ -694,7 +845,7 @@ export function ReceptionistDashboardView({
 								type="button"
 								variant="outline"
 								onClick={handleCallNext}
-								disabled={actionLoading === 'call-next' || waitingTurns === 0}
+									disabled={actionLoading === 'call-next'}
 								className="gap-2"
 							>
 								<QueueListIcon className="h-4 w-4" />
@@ -751,7 +902,7 @@ export function ReceptionistDashboardView({
 		cancelling?: boolean;
 	}) {
 		// Solo mostrar acciones para turnos activos (en espera o en consulta)
-		const isActive = t.estado === 'EN_ESPERA' || t.estado === 'EN_CONSULTA';
+		const isActive = !isTurnClosed(t.estado);
 
 		return (
 			<div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/90 p-3">

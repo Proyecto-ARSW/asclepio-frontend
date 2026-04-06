@@ -207,8 +207,12 @@ function statusLabel(estado: string, locale: AppLocale) {
 	}
 }
 
-function isUniqueConstraintError(raw: string) {
-	return /(valor\s+u?nico|valor\s+\u00fanico|unique|duplicate|already exists|registro con ese valor)/i.test(
+function isActiveTurnConflictError(raw: string) {
+	return /(turno\s+activo|active\s+turn)/i.test(raw);
+}
+
+function isTurnNumberConflictError(raw: string) {
+	return /(idx_turnos_unique|p2002|numero_turno|unique|duplicate|valor\s+u?nico|valor\s+\u00fanico)/i.test(
 		raw,
 	);
 }
@@ -448,7 +452,7 @@ export function ReceptionistDashboardView({
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale });
-			if (isUniqueConstraintError(message)) {
+			if (isActiveTurnConflictError(message)) {
 				try {
 					const patientTurns = await gqlQuery<{ turnosPorPaciente: Turno[] }>(
 						PATIENT_TURNS_QUERY,
@@ -461,6 +465,9 @@ export function ReceptionistDashboardView({
 				} catch {
 					setError(activeTurnConflictMessage(locale));
 				}
+				await loadMainData();
+			} else if (isTurnNumberConflictError(message)) {
+				setError(message);
 				await loadMainData();
 			} else {
 				setError(message);

@@ -263,8 +263,12 @@ function statusLabel(estado: string, locale: AppLocale) {
 	}
 }
 
-function isUniqueConstraintError(raw: string) {
-	return /(valor\s+u?nico|valor\s+\u00fanico|unique|duplicate|already exists|registro con ese valor)/i.test(
+function isActiveTurnConflictError(raw: string) {
+	return /(turno\s+activo|active\s+turn)/i.test(raw);
+}
+
+function isTurnNumberConflictError(raw: string) {
+	return /(idx_turnos_unique|p2002|numero_turno|unique|duplicate|valor\s+u?nico|valor\s+\u00fanico)/i.test(
 		raw,
 	);
 }
@@ -661,6 +665,23 @@ export function PatientDashboardView({
 		setActionLoading('create-turn');
 		setError('');
 		try {
+			const patientTurns = await gqlQuery<{ turnosPorPaciente: Turno[] }>(
+				PATIENT_TURNS_QUERY,
+				{ pacienteId: patientId },
+			);
+			const activeTurn = [...(patientTurns.turnosPorPaciente ?? [])]
+				.filter(
+					(turn) =>
+						!CLOSED_TURN_STATES.includes(
+							turn.estado as (typeof CLOSED_TURN_STATES)[number],
+						),
+				)
+				.sort((a, b) => a.numeroTurno - b.numeroTurno)[0];
+			if (activeTurn) {
+				setError(activeTurnConflictMessage(locale, activeTurn.numeroTurno));
+				return;
+			}
+
 			const res = await gqlMutation<{ crearTurno: Turno }>(
 				CREATE_PATIENT_TURN,
 				{
@@ -672,6 +693,7 @@ export function PatientDashboardView({
 				},
 			);
 			setTurns((prev) => [res.crearTurno, ...prev]);
+			await refreshQueueTurns();
 			flash(
 				m.dashboardTurnCreated(
 					{ number: String(res.crearTurno.numeroTurno) },
@@ -681,16 +703,28 @@ export function PatientDashboardView({
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale });
-			if (isUniqueConstraintError(message)) {
-				const activeTurn = [...turns]
-					.filter(
-						(turn) =>
-							!CLOSED_TURN_STATES.includes(
-								turn.estado as (typeof CLOSED_TURN_STATES)[number],
-							),
-					)
-					.sort((a, b) => a.numeroTurno - b.numeroTurno)[0];
-				setError(activeTurnConflictMessage(locale, activeTurn?.numeroTurno));
+			if (isActiveTurnConflictError(message)) {
+				try {
+					const patientTurns = await gqlQuery<{ turnosPorPaciente: Turno[] }>(
+						PATIENT_TURNS_QUERY,
+						{ pacienteId: patientId },
+					);
+					const activeTurn = [...(patientTurns.turnosPorPaciente ?? [])]
+						.filter(
+							(turn) =>
+								!CLOSED_TURN_STATES.includes(
+									turn.estado as (typeof CLOSED_TURN_STATES)[number],
+								),
+						)
+						.sort((a, b) => a.numeroTurno - b.numeroTurno)[0];
+					setError(activeTurnConflictMessage(locale, activeTurn?.numeroTurno));
+				} catch {
+					setError(activeTurnConflictMessage(locale));
+				}
+				await refreshQueueTurns();
+			} else if (isTurnNumberConflictError(message)) {
+				setError(message);
+				await refreshQueueTurns();
 			} else {
 				setError(message);
 			}
@@ -1343,7 +1377,10 @@ export function PatientDashboardView({
 								{m.dashboardSidebarQueue({}, { locale })}
 							</h3>
 
-							<TurnStatusPanel showOwnTurn={false} splitOwnTurn={isOverview} />
+							<TurnStatusPanel
+								showOwnTurn={false}
+								splitOwnTurn={isOverview || section === 'queue'}
+							/>
 
 							{/* Crear turno — paciente puede unirse a la cola directamente */}
 							{section === 'queue' && selectedHospitalId && (

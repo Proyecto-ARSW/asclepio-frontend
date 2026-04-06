@@ -1,6 +1,6 @@
-import { GRAPHQL_URL } from '@/lib/env';
 import { currentLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
+import { GRAPHQL_URL } from '@/lib/env';
 
 function getNetworkErrorMessage() {
 	const locale = currentLocale();

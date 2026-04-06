@@ -1,9 +1,19 @@
-import { REST_API_URL } from '@/lib/env';
 import { currentLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
+import { REST_API_URL } from '@/lib/env';
 
 // Alias local — toda la lógica de resolución vive en env.ts
 const API_URL = REST_API_URL;
+
+export class ApiError extends Error {
+	status: number;
+
+	constructor(message: string, status: number) {
+		super(message);
+		this.name = 'ApiError';
+		this.status = status;
+	}
+}
 
 function getNetworkErrorMessage() {
 	const locale = currentLocale();
@@ -30,10 +40,17 @@ async function handleResponse<T>(res: Response): Promise<T> {
 	if (!res.ok) {
 		let message = 'Error en la solicitud';
 		try {
-			const body = await res.json();
-			message = body.message ?? message;
+			const body = (await res.json()) as {
+				message?: unknown;
+				error?: unknown;
+			};
+			if (typeof body.message === 'string' && body.message.trim()) {
+				message = body.message.trim();
+			} else if (typeof body.error === 'string' && body.error.trim()) {
+				message = body.error.trim();
+			}
 		} catch {}
-		throw new Error(message);
+		throw new ApiError(message, res.status);
 	}
 	return res.json() as Promise<T>;
 }

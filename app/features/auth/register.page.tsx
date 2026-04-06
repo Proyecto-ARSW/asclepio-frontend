@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/select/select.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import { getAuthContent } from '@/features/auth/auth-content';
+import { LanguageSwitcher } from '@/features/i18n/language-switcher';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import {
@@ -153,11 +154,17 @@ function StepIndicator({
 			<motion.div
 				animate={{
 					scale: active ? 1 : 0.9,
-					backgroundColor: active ? 'var(--color-primary)' : 'var(--color-muted)',
+					backgroundColor: active
+						? 'var(--color-primary)'
+						: 'var(--color-muted)',
 				}}
 				transition={{ duration: 0.25, ease: 'easeOut' }}
 				className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold"
-				style={{ color: active ? 'var(--color-primary-foreground)' : 'var(--color-muted-foreground)' }}
+				style={{
+					color: active
+						? 'var(--color-primary-foreground)'
+						: 'var(--color-muted-foreground)',
+				}}
 			>
 				{completed ? <CheckCircleIcon className="h-4 w-4" /> : index}
 			</motion.div>
@@ -208,8 +215,6 @@ export default function RegisterPage() {
 	const [hasAttemptedHospitalsLoad, setHasAttemptedHospitalsLoad] =
 		useState(false);
 	const [isDarkMode, setIsDarkMode] = useState(false);
-	const localeCycle = ['es', 'en', 'pt', 'fr', 'de'] as const;
-	const nextLocale = localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
 
 	const form = useForm({
 		defaultValues: {
@@ -416,15 +421,10 @@ export default function RegisterPage() {
 						<MoonIcon className="h-4 w-4" />
 					)}
 				</button>
-				<Link
-					to={localePath('/register', nextLocale)}
-					className={cn(
-						buttonVariants({ variant: 'outline', size: 'sm' }),
-						'rounded-full bg-card/90 px-3 text-xs font-semibold backdrop-blur',
-					)}
-				>
-					{locale.toUpperCase()}
-				</Link>
+				<LanguageSwitcher
+					locale={locale}
+					triggerClassName="rounded-full bg-card/90 px-2.5 text-xs font-semibold backdrop-blur"
+				/>
 			</motion.div>
 
 			<img
@@ -517,7 +517,9 @@ export default function RegisterPage() {
 																		onChange={(event) =>
 																			field.handleChange(event.target.value)
 																		}
-																		placeholder={content.register.placeholders.nombre}
+																		placeholder={
+																			content.register.placeholders.nombre
+																		}
 																		className="pl-9"
 																		required
 																	/>
@@ -571,7 +573,9 @@ export default function RegisterPage() {
 																	onChange={(event) =>
 																		field.handleChange(event.target.value)
 																	}
-																	placeholder={content.register.placeholders.email}
+																	placeholder={
+																		content.register.placeholders.email
+																	}
 																	className="pl-9"
 																	required
 																/>
@@ -597,7 +601,9 @@ export default function RegisterPage() {
 																	onChange={(event) =>
 																		field.handleChange(event.target.value)
 																	}
-																	placeholder={content.register.placeholders.password}
+																	placeholder={
+																		content.register.placeholders.password
+																	}
 																	className="pl-9"
 																	required
 																/>
@@ -626,7 +632,9 @@ export default function RegisterPage() {
 																	onChange={(event) =>
 																		field.handleChange(event.target.value)
 																	}
-																	placeholder={content.register.placeholders.telefono}
+																	placeholder={
+																		content.register.placeholders.telefono
+																	}
 																	className="pl-9"
 																/>
 															</div>
@@ -645,7 +653,10 @@ export default function RegisterPage() {
 													{loadingHospitals ? (
 														<div className="space-y-2">
 															{[1, 2, 3].map((item) => (
-																<Skeleton key={item} className="h-14 rounded-xl" />
+																<Skeleton
+																	key={item}
+																	className="h-14 rounded-xl"
+																/>
 															))}
 														</div>
 													) : (
@@ -683,7 +694,8 @@ export default function RegisterPage() {
 																						{hospital.nombre}
 																					</p>
 																					<p className="text-xs text-muted-foreground">
-																						{hospital.ciudad}, {hospital.departamento}
+																						{hospital.ciudad},{' '}
+																						{hospital.departamento}
 																					</p>
 																				</div>
 																				<AnimatePresence>
@@ -693,7 +705,10 @@ export default function RegisterPage() {
 																							initial={{ scale: 0, opacity: 0 }}
 																							animate={{ scale: 1, opacity: 1 }}
 																							exit={{ scale: 0, opacity: 0 }}
-																							transition={{ duration: 0.18, ease: 'backOut' }}
+																							transition={{
+																								duration: 0.18,
+																								ease: 'backOut',
+																							}}
 																						>
 																							<CheckCircleIcon className="h-4 w-4 shrink-0 text-primary" />
 																						</motion.span>
@@ -771,7 +786,8 @@ export default function RegisterPage() {
 																		field.handleChange(event.target.value)
 																	}
 																	placeholder={
-																		content.register.placeholders.numeroDocumento
+																		content.register.placeholders
+																			.numeroDocumento
 																	}
 																/>
 															</Field>
@@ -789,7 +805,9 @@ export default function RegisterPage() {
 																	value={field.state.value || '__none__'}
 																	onValueChange={(value) =>
 																		field.handleChange(
-																			!value || value === '__none__' ? '' : value,
+																			!value || value === '__none__'
+																				? ''
+																				: value,
 																		)
 																	}
 																>
@@ -808,11 +826,16 @@ export default function RegisterPage() {
 																					.tipoSangreDefault
 																			}
 																		</SelectItem>
-																		{content.register.bloodTypes.map((bloodType) => (
-																			<SelectItem key={bloodType} value={bloodType}>
-																				{bloodType}
-																			</SelectItem>
-																		))}
+																		{content.register.bloodTypes.map(
+																			(bloodType) => (
+																				<SelectItem
+																					key={bloodType}
+																					value={bloodType}
+																				>
+																					{bloodType}
+																				</SelectItem>
+																			),
+																		)}
 																	</SelectContent>
 																</Select>
 															</Field>
@@ -831,7 +854,9 @@ export default function RegisterPage() {
 																	onChange={(event) =>
 																		field.handleChange(event.target.value)
 																	}
-																	placeholder={content.register.placeholders.eps}
+																	placeholder={
+																		content.register.placeholders.eps
+																	}
 																/>
 															</Field>
 														)}
@@ -850,7 +875,9 @@ export default function RegisterPage() {
 																onChange={(event) =>
 																	field.handleChange(event.target.value)
 																}
-																placeholder={content.register.placeholders.alergias}
+																placeholder={
+																	content.register.placeholders.alergias
+																}
 															/>
 														</Field>
 													)}
@@ -872,7 +899,9 @@ export default function RegisterPage() {
 													transition={{ duration: 0.2 }}
 												>
 													<Alert variant="destructive">
-														<AlertDescription>{field.state.value}</AlertDescription>
+														<AlertDescription>
+															{field.state.value}
+														</AlertDescription>
 													</Alert>
 												</motion.div>
 											) : null

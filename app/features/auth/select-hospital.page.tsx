@@ -252,7 +252,10 @@ export default function SelectHospitalPage() {
 																	initial={{ scale: 0, opacity: 0 }}
 																	animate={{ scale: 1, opacity: 1 }}
 																	exit={{ scale: 0, opacity: 0 }}
-																	transition={{ duration: 0.2, ease: 'backOut' }}
+																	transition={{
+																		duration: 0.2,
+																		ease: 'backOut',
+																	}}
 																>
 																	<CheckCircleIcon className="h-5 w-5 shrink-0 text-primary" />
 																</motion.span>
@@ -277,7 +280,9 @@ export default function SelectHospitalPage() {
 													transition={{ duration: 0.2 }}
 												>
 													<Alert variant="destructive">
-														<AlertDescription>{field.state.value}</AlertDescription>
+														<AlertDescription>
+															{field.state.value}
+														</AlertDescription>
 													</Alert>
 												</motion.div>
 											) : null}

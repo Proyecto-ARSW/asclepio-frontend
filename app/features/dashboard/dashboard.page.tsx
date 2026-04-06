@@ -1,6 +1,5 @@
 import {
 	ArrowRightStartOnRectangleIcon,
-	LanguageIcon,
 	MoonIcon,
 	SunIcon,
 } from '@heroicons/react/24/outline';
@@ -38,6 +37,7 @@ import { DoctorDashboardView } from '@/features/dashboard/roles/doctor-dashboard
 import { NurseDashboardView } from '@/features/dashboard/roles/nurse-dashboard.view';
 import { PatientDashboardView } from '@/features/dashboard/roles/patient-dashboard.view';
 import { ReceptionistDashboardView } from '@/features/dashboard/roles/receptionist-dashboard.view';
+import { LanguageSwitcher } from '@/features/i18n/language-switcher';
 import type { AppLocale } from '@/features/i18n/locale-path';
 import {
 	currentLocale,
@@ -174,9 +174,6 @@ export default function DashboardPage() {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const locale = localeFromPathname(location.pathname);
-	const localeCycle: AppLocale[] = ['es', 'en', 'pt', 'fr', 'de'];
-	const nextLocale =
-		localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
 	const { user, selectedHospital, logout } = useAuthStore();
 	const [uiPreferences, setUiPreferences] = useState<UiPreferences>(() =>
 		readUiPreferences(),
@@ -353,16 +350,7 @@ export default function DashboardPage() {
 								<MoonIcon className="h-4 w-4" />
 							)}
 						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={() => handleLanguageChange(nextLocale)}
-							className="gap-1"
-						>
-							<LanguageIcon className="h-4 w-4" />
-							{locale.toUpperCase()}
-						</Button>
+						<LanguageSwitcher locale={locale} triggerClassName="h-8 px-2.5" />
 						{!hasSidebarNavigation && (
 							<Button
 								type="button"

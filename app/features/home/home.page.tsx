@@ -29,6 +29,7 @@ import { Link, redirect, useLocation } from 'react-router';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { buttonVariants } from '@/components/ui/button/button.component';
 import { Card, CardContent } from '@/components/ui/card/card.component';
+import { LanguageSwitcher } from '@/features/i18n/language-switcher';
 import {
 	type AppLocale,
 	currentLocale,
@@ -259,6 +260,7 @@ function AppointmentVisual() {
 }
 
 function QueueVisual({ locale }: { locale: AppLocale }) {
+	const prefersReducedMotion = useReducedMotion();
 	const turns = [
 		{
 			code: 'T-001',
@@ -284,8 +286,16 @@ function QueueVisual({ locale }: { locale: AppLocale }) {
 			{/* Campana animada en esquina superior derecha */}
 			<motion.div
 				className="absolute right-5 top-5 grid h-10 w-10 place-items-center rounded-full border border-border bg-card/90 shadow-sm"
-				animate={{ rotate: [0, 12, -12, 8, -8, 0] }}
-				transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 2.5 }}
+				animate={
+					prefersReducedMotion
+						? { rotate: 0 }
+						: { rotate: [0, 12, -12, 8, -8, 0] }
+				}
+				transition={
+					prefersReducedMotion
+						? { duration: 0.2 }
+						: { duration: 0.6, repeat: Infinity, repeatDelay: 2.5 }
+				}
 			>
 				<BellAlertIcon className="h-5 w-5 text-primary" />
 			</motion.div>
@@ -466,6 +476,7 @@ function HistorialVisual({ locale }: { locale: AppLocale }) {
 }
 
 function GameVisual() {
+	const prefersReducedMotion = useReducedMotion();
 	// Blobs del juego agar.io style
 	const blobs = [
 		{
@@ -537,13 +548,21 @@ function GameVisual() {
 					key={`${b.left}-${b.top}-${b.size}`}
 					className={cn('absolute rounded-full', b.size, b.color)}
 					style={{ left: b.left, top: b.top }}
-					animate={{ y: [0, -5, 0], scale: [1, 1.04, 1] }}
-					transition={{
-						duration: 2.8 + b.delay,
-						repeat: Infinity,
-						ease: 'easeInOut',
-						delay: b.delay,
-					}}
+					animate={
+						prefersReducedMotion
+							? { y: 0, scale: 1 }
+							: { y: [0, -5, 0], scale: [1, 1.04, 1] }
+					}
+					transition={
+						prefersReducedMotion
+							? { duration: 0.2 }
+							: {
+									duration: 2.8 + b.delay,
+									repeat: Infinity,
+									ease: 'easeInOut',
+									delay: b.delay,
+								}
+					}
 					initial={{ opacity: 0, scale: 0 }}
 				>
 					<motion.div
@@ -595,6 +614,7 @@ function PlatformSlider({ locale }: { locale: AppLocale }) {
 	const slides = getSlideData(locale);
 	const [currentIndex, setCurrentIndex] = useState(0);
 	const [direction, setDirection] = useState(1);
+	const prefersReducedMotion = useReducedMotion();
 
 	const prev = useCallback(() => {
 		setDirection(-1);
@@ -623,16 +643,25 @@ function PlatformSlider({ locale }: { locale: AppLocale }) {
 
 	// Variantes de transición: la dirección determina si entra por izquierda o derecha
 	const slideVariants = {
-		enter: (d: number) => ({ x: d > 0 ? '55%' : '-55%', opacity: 0 }),
+		enter: (d: number) => ({
+			x: prefersReducedMotion ? 0 : d > 0 ? '35%' : '-35%',
+			opacity: 0,
+		}),
 		center: {
 			x: 0,
 			opacity: 1,
-			transition: { duration: 0.45, ease: 'easeOut' as const },
+			transition: {
+				duration: prefersReducedMotion ? 0.2 : 0.35,
+				ease: 'easeOut' as const,
+			},
 		},
 		exit: (d: number) => ({
-			x: d > 0 ? '-55%' : '55%',
+			x: prefersReducedMotion ? 0 : d > 0 ? '-35%' : '35%',
 			opacity: 0,
-			transition: { duration: 0.3, ease: 'easeIn' as const },
+			transition: {
+				duration: prefersReducedMotion ? 0.16 : 0.24,
+				ease: 'easeIn' as const,
+			},
 		}),
 	};
 
@@ -652,7 +681,7 @@ function PlatformSlider({ locale }: { locale: AppLocale }) {
 				</RevealSection>
 
 				{/* Área del slider — overflow-hidden evita que los slides salientes sean visibles */}
-				<div className="relative overflow-hidden">
+				<div className="relative h-136 overflow-hidden sm:h-124 lg:h-112">
 					<AnimatePresence custom={direction} mode="wait">
 						<motion.div
 							key={currentIndex}
@@ -662,7 +691,7 @@ function PlatformSlider({ locale }: { locale: AppLocale }) {
 							animate="center"
 							exit="exit"
 						>
-							<div className="grid items-center gap-8 lg:grid-cols-[1fr_1fr]">
+							<div className="grid h-full items-center gap-8 lg:grid-cols-[1fr_1fr]">
 								{/* Columna izquierda: texto */}
 								<div className="space-y-5">
 									<Badge variant="secondary" className="rounded-full px-3 py-1">
@@ -698,15 +727,15 @@ function PlatformSlider({ locale }: { locale: AppLocale }) {
 				</div>
 
 				{/* Controles de navegación */}
-				<div className="mt-8 flex items-center justify-center gap-3">
+				<div className="relative z-20 -mt-50 flex items-center justify-center gap-3 sm:-mt-40 lg:-mt-32">
 					{/* Botón anterior — scale en hover y tap */}
 					<motion.button
 						type="button"
 						onClick={prev}
 						aria-label={m.homeLandingPlatformPrevSlideLabel({}, { locale })}
 						className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary"
-						whileHover={{ scale: 1.1 }}
-						whileTap={{ scale: 0.88 }}
+						whileHover={prefersReducedMotion ? undefined : { scale: 1.06 }}
+						whileTap={prefersReducedMotion ? undefined : { scale: 0.94 }}
 					>
 						<ChevronLeftIcon className="h-4 w-4" />
 					</motion.button>
@@ -740,8 +769,8 @@ function PlatformSlider({ locale }: { locale: AppLocale }) {
 						onClick={next}
 						aria-label={m.homeLandingPlatformNextSlideLabel({}, { locale })}
 						className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary"
-						whileHover={{ scale: 1.1 }}
-						whileTap={{ scale: 0.88 }}
+						whileHover={prefersReducedMotion ? undefined : { scale: 1.06 }}
+						whileTap={prefersReducedMotion ? undefined : { scale: 0.94 }}
 					>
 						<ChevronRightIcon className="h-4 w-4" />
 					</motion.button>
@@ -749,7 +778,7 @@ function PlatformSlider({ locale }: { locale: AppLocale }) {
 
 				{/* Contador de diapositivas — accesibilidad */}
 				<p
-					className="mt-2 text-center text-xs text-muted-foreground"
+					className="mt-0 text-center text-xs text-muted-foreground"
 					aria-live="polite"
 				>
 					{currentIndex + 1} / {slides.length}
@@ -855,12 +884,9 @@ function getCapabilities(locale: AppLocale) {
 export default function HomePage() {
 	const location = useLocation();
 	const locale = currentLocale(location.pathname) as AppLocale;
+	const prefersReducedMotion = useReducedMotion();
 	const [isDarkMode, setIsDarkMode] = useState(false);
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-	const localeCycle = ['es', 'en', 'pt', 'fr', 'de'] as const;
-	const nextLocale =
-		localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
-	const localeTogglePath = `${localePath(location.pathname, nextLocale)}${location.search}${location.hash}`;
 
 	const navItems = [
 		{ id: 'home', label: m.homeLandingNavHome({}, { locale }) },
@@ -968,15 +994,10 @@ export default function HomePage() {
 										<MoonIcon className="h-4 w-4" />
 									)}
 								</button>
-								<Link
-									to={localeTogglePath}
-									className={cn(
-										buttonVariants({ variant: 'outline', size: 'sm' }),
-										'h-8 shrink-0 rounded-full px-3 text-xs font-semibold',
-									)}
-								>
-									{locale.toUpperCase()}
-								</Link>
+								<LanguageSwitcher
+									locale={locale}
+									triggerClassName="h-8 shrink-0 rounded-full bg-card/90 px-2.5 text-xs font-semibold backdrop-blur"
+								/>
 								<button
 									type="button"
 									onClick={() => setMobileMenuOpen((prev) => !prev)}
@@ -1029,15 +1050,10 @@ export default function HomePage() {
 									<MoonIcon className="h-4 w-4" />
 								)}
 							</button>
-							<Link
-								to={localeTogglePath}
-								className={cn(
-									buttonVariants({ variant: 'outline', size: 'sm' }),
-									'h-8 shrink-0 rounded-full px-3 text-xs font-semibold',
-								)}
-							>
-								{locale.toUpperCase()}
-							</Link>
+							<LanguageSwitcher
+								locale={locale}
+								triggerClassName="h-8 shrink-0 rounded-full bg-card/90 px-2.5 text-xs font-semibold backdrop-blur"
+							/>
 							<Link
 								to={localePath('/register', locale)}
 								className={cn(
@@ -1217,12 +1233,16 @@ export default function HomePage() {
 						{/* Tarjeta flotante izquierda — loop de float */}
 						<motion.div
 							className="absolute left-4 top-4 rounded-2xl border border-border bg-card/90 p-3 shadow-sm backdrop-blur md:left-6 md:top-6"
-							animate={{ y: [0, -6, 0] }}
-							transition={{
-								duration: 3.5,
-								repeat: Infinity,
-								ease: 'easeInOut',
-							}}
+							animate={prefersReducedMotion ? { y: 0 } : { y: [0, -6, 0] }}
+							transition={
+								prefersReducedMotion
+									? { duration: 0.2 }
+									: {
+											duration: 3.5,
+											repeat: Infinity,
+											ease: 'easeInOut',
+										}
+							}
 						>
 							<div className="mb-2 flex items-center gap-2">
 								<BeakerIcon className="h-4 w-4 text-primary" />
@@ -1238,13 +1258,17 @@ export default function HomePage() {
 						{/* Tarjeta flotante derecha — flota con fase opuesta */}
 						<motion.div
 							className="absolute bottom-4 right-4 flex items-center gap-3 rounded-full border border-border bg-card/90 px-4 py-2 shadow-sm backdrop-blur md:bottom-6 md:right-6"
-							animate={{ y: [0, 6, 0] }}
-							transition={{
-								duration: 3.5,
-								repeat: Infinity,
-								ease: 'easeInOut',
-								delay: 0.8,
-							}}
+							animate={prefersReducedMotion ? { y: 0 } : { y: [0, 6, 0] }}
+							transition={
+								prefersReducedMotion
+									? { duration: 0.2 }
+									: {
+											duration: 3.5,
+											repeat: Infinity,
+											ease: 'easeInOut',
+											delay: 0.8,
+										}
+							}
 						>
 							<PlayCircleIcon className="h-6 w-6 text-primary" />
 							<div>
@@ -1465,9 +1489,9 @@ export default function HomePage() {
 			{/* ── CTA BANNER ── */}
 			<section className="px-4 pb-14 sm:px-6 lg:px-8">
 				<RevealSection>
-					<div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-linear-to-r from-primary via-secondary to-primary px-6 py-16 text-center text-primary-foreground shadow-md">
+					<div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-linear-to-r from-primary via-secondary to-primary px-6 py-16 text-center shadow-md">
 						<div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.45)_1.5px,transparent_2px)] bg-size-[14px_14px] opacity-45" />
-						<h2 className="mx-auto max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">
+						<h2 className="mx-auto max-w-2xl text-3xl font-bold tracking-tight text-foreground dark:text-primary-foreground sm:text-4xl">
 							{m.homeLandingCtaTitle({}, { locale })}
 						</h2>
 						<Link

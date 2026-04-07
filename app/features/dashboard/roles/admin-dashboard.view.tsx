@@ -483,7 +483,7 @@ export function AdminDashboardView({
 		() =>
 			[...hospitalTurns]
 				.filter((turn) =>
-					/^(EN_CONSULTA|LLAMADO|LLAMANDO|EN_ATENCION)$/i.test(turn.estado),
+					/^EN_CONSULTA$/i.test(turn.estado),
 				)
 				.sort((a, b) => b.numeroTurno - a.numeroTurno)[0],
 		[hospitalTurns],
@@ -504,7 +504,7 @@ export function AdminDashboardView({
 		() =>
 			[...hospitalTurns]
 				.filter((turn) =>
-					/^(EN_ESPERA|PENDIENTE|EN_FILA|EN_CONSULTA|LLAMADO|LLAMANDO|EN_ATENCION)$/i.test(
+					/^(EN_ESPERA|EN_CONSULTA)$/i.test(
 						turn.estado,
 					),
 				)

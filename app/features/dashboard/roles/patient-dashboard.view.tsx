@@ -131,17 +131,9 @@ const HOSPITAL_TURNS_QUERY = `
 	}
 `;
 
-const CALLED_TURN_STATES = [
-	'EN_CONSULTA',
-] as const;
-const CALLED_HISTORY_TURN_STATES = [
-	...CALLED_TURN_STATES,
-	'ATENDIDO',
-] as const;
-const CLOSED_TURN_STATES = [
-	'ATENDIDO',
-	'CANCELADO',
-] as const;
+const CALLED_TURN_STATES = ['EN_CONSULTA'] as const;
+const CALLED_HISTORY_TURN_STATES = [...CALLED_TURN_STATES, 'ATENDIDO'] as const;
+const CLOSED_TURN_STATES = ['ATENDIDO', 'CANCELADO'] as const;
 
 const PATIENT_HISTORIAL_QUERY = `
 	query PatientHistorial($pacienteId: ID!) {
@@ -157,8 +149,8 @@ const PATIENT_HISTORIAL_QUERY = `
 
 // Traer médicos con disponibilidad para el selector de agendar cita
 const DOCTORS_QUERY = `
-	query DoctorsForBooking {
-		doctors {
+	query DoctorsForBooking($hospitalId: Int!) {
+		doctors(hospitalId: $hospitalId) {
 			id
 			nombre
 			apellido
@@ -301,12 +293,6 @@ function uniqueTurnConflictRetryMessage(locale: AppLocale) {
 		return 'No se pudo crear el turno por un conflicto temporal de numeracion. Intenta nuevamente en unos segundos.';
 	}
 	return 'The turn could not be created due to a temporary numbering conflict. Please try again in a few seconds.';
-}
-
-function wait(ms: number) {
-	return new Promise<void>((resolve) => {
-		setTimeout(resolve, ms);
-	});
 }
 
 function doctorDisplayName(doctor: Doctor, locale: AppLocale) {
@@ -465,9 +451,11 @@ export function PatientDashboardView({
 				section === 'appointments' ||
 				section === 'queue' ||
 				!section
-					? gqlQuery<{ doctors: Doctor[] }>(DOCTORS_QUERY).then((r) =>
-							setDoctors(r.doctors),
-						)
+					? selectedHospitalId
+						? gqlQuery<{ doctors: Doctor[] }>(DOCTORS_QUERY, {
+								hospitalId: selectedHospitalId,
+							}).then((r) => setDoctors(r.doctors))
+						: Promise.resolve(setDoctors([]))
 					: Promise.resolve(),
 			]);
 		} catch (err) {
@@ -479,7 +467,7 @@ export function PatientDashboardView({
 		} finally {
 			setLoading(false);
 		}
-	}, [loadProfile, locale, section]);
+	}, [loadProfile, locale, section, selectedHospitalId]);
 
 	const refreshQueueTurns = useCallback(async () => {
 		if (!patientId) return;

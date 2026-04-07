@@ -482,9 +482,7 @@ export function AdminDashboardView({
 	const currentTurn = useMemo(
 		() =>
 			[...hospitalTurns]
-				.filter((turn) =>
-					/^EN_CONSULTA$/i.test(turn.estado),
-				)
+				.filter((turn) => /^EN_CONSULTA$/i.test(turn.estado))
 				.sort((a, b) => b.numeroTurno - a.numeroTurno)[0],
 		[hospitalTurns],
 	);
@@ -503,11 +501,7 @@ export function AdminDashboardView({
 	const upcomingTurns = useMemo(
 		() =>
 			[...hospitalTurns]
-				.filter((turn) =>
-					/^(EN_ESPERA|EN_CONSULTA)$/i.test(
-						turn.estado,
-					),
-				)
+				.filter((turn) => /^(EN_ESPERA|EN_CONSULTA)$/i.test(turn.estado))
 				.sort((a, b) => a.numeroTurno - b.numeroTurno),
 		[hospitalTurns],
 	);

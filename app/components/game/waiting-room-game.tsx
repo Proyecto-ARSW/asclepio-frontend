@@ -1295,7 +1295,6 @@ export function WaitingRoomGame() {
 						</div>
 					</div>
 				)}
-
 			</div>
 
 			{isMobile && leaderboardPanel}

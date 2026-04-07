@@ -259,9 +259,12 @@ export function NurseDashboardView({
 
 	const loadTurns = useCallback(async () => {
 		const query = selectedHospitalId
-			? gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_BY_HOSPITAL_QUERY, {
-				hospitalId: selectedHospitalId,
-			})
+			? gqlQuery<{ turnosPorHospital: Turno[] }>(
+					HOSPITAL_TURNS_BY_HOSPITAL_QUERY,
+					{
+						hospitalId: selectedHospitalId,
+					},
+				)
 			: gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_QUERY);
 
 		const response = await query;
@@ -404,7 +407,10 @@ export function NurseDashboardView({
 						CALL_NEXT_TURN_BY_HOSPITAL,
 						{ hospitalId: selectedHospitalId },
 					)
-				: await gqlMutation<{ llamarSiguienteTurno: Turno }>(CALL_NEXT_TURN, {});
+				: await gqlMutation<{ llamarSiguienteTurno: Turno }>(
+						CALL_NEXT_TURN,
+						{},
+					);
 			if (res.llamarSiguienteTurno) {
 				flash(
 					m.dashboardTurnCalled(

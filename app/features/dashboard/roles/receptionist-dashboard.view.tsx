@@ -263,9 +263,12 @@ export function ReceptionistDashboardView({
 
 	const loadMainData = useCallback(async () => {
 		const query = selectedHospitalId
-			? gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_BY_HOSPITAL_QUERY, {
-				hospitalId: selectedHospitalId,
-			})
+			? gqlQuery<{ turnosPorHospital: Turno[] }>(
+					HOSPITAL_TURNS_BY_HOSPITAL_QUERY,
+					{
+						hospitalId: selectedHospitalId,
+					},
+				)
 			: gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_QUERY);
 
 		const response = await query;

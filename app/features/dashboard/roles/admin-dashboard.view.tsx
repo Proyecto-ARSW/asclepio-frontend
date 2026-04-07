@@ -503,7 +503,11 @@ export function AdminDashboardView({
 	const upcomingTurns = useMemo(
 		() =>
 			[...hospitalTurns]
-				.filter((turn) => /^(EN_ESPERA|PENDIENTE|EN_FILA)$/i.test(turn.estado))
+				.filter((turn) =>
+					/^(EN_ESPERA|PENDIENTE|EN_FILA|EN_CONSULTA|LLAMADO|LLAMANDO|EN_ATENCION)$/i.test(
+						turn.estado,
+					),
+				)
 				.sort((a, b) => a.numeroTurno - b.numeroTurno),
 		[hospitalTurns],
 	);

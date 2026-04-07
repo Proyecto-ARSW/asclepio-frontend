@@ -84,6 +84,7 @@ const ADMIN_SIDEBAR_SECTIONS: NavSection[] = [
 const DOCTOR_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
 	'appointments',
+	'queue',
 	'disponibilidad',
 	'historial',
 	'settings',
@@ -482,11 +483,21 @@ function SidebarSectionRenderer({
 			);
 		case 'MEDICO':
 			return (
-				<DoctorDashboardView user={user} locale={locale} section={section} />
+				<DoctorDashboardView
+					user={user}
+					locale={locale}
+					section={section}
+					selectedHospitalId={selectedHospitalId}
+				/>
 			);
 		case 'ENFERMERO':
 			return (
-				<NurseDashboardView user={user} locale={locale} section={section} />
+				<NurseDashboardView
+					user={user}
+					locale={locale}
+					section={section}
+					selectedHospitalId={selectedHospitalId}
+				/>
 			);
 		case 'RECEPCIONISTA':
 			return (
@@ -524,9 +535,21 @@ function RoleRenderer({
 				/>
 			);
 		case 'MEDICO':
-			return <DoctorDashboardView user={user} locale={locale} />;
+			return (
+				<DoctorDashboardView
+					user={user}
+					locale={locale}
+					selectedHospitalId={selectedHospitalId}
+				/>
+			);
 		case 'ENFERMERO':
-			return <NurseDashboardView user={user} locale={locale} />;
+			return (
+				<NurseDashboardView
+					user={user}
+					locale={locale}
+					selectedHospitalId={selectedHospitalId}
+				/>
+			);
 		case 'RECEPCIONISTA':
 			return (
 				<ReceptionistDashboardView

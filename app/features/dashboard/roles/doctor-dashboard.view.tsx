@@ -5,6 +5,7 @@ import {
 	ClipboardDocumentListIcon,
 	ClockIcon,
 	PlusIcon,
+	QueueListIcon,
 	TrashIcon,
 	XCircleIcon,
 } from '@heroicons/react/24/outline';
@@ -76,6 +77,16 @@ interface PatientOption {
 	apellido: string;
 }
 
+interface Turno {
+	id: string;
+	numeroTurno: number;
+	tipo: string;
+	estado: string;
+	pacienteId?: string;
+	medicoId?: string | null;
+	hospitalId?: number | null;
+}
+
 // ─── Queries & Mutations ──────────────────────────────────────────────────────
 
 const DOCTOR_PROFILE_QUERY = `
@@ -134,6 +145,60 @@ const DOCTOR_PATIENTS_QUERY = `
 			id
 			nombre
 			apellido
+		}
+	}
+`;
+
+const DOCTOR_TURNS_QUERY = `
+	query DoctorTurns {
+		turnosPorHospital {
+			id
+			numeroTurno
+			tipo
+			estado
+			pacienteId
+			medicoId
+			hospitalId
+		}
+	}
+`;
+
+const DOCTOR_TURNS_QUERY_FALLBACK = `
+	query DoctorTurnsFallback {
+		turnosPorHospital {
+			id
+			numeroTurno
+			tipo
+			estado
+			pacienteId
+			hospitalId
+		}
+	}
+`;
+
+const DOCTOR_TURNS_BY_HOSPITAL_QUERY = `
+	query DoctorTurnsByHospital($hospitalId: ID!) {
+		turnosPorHospital(hospitalId: $hospitalId) {
+			id
+			numeroTurno
+			tipo
+			estado
+			pacienteId
+			medicoId
+			hospitalId
+		}
+	}
+`;
+
+const DOCTOR_TURNS_BY_HOSPITAL_QUERY_FALLBACK = `
+	query DoctorTurnsByHospitalFallback($hospitalId: ID!) {
+		turnosPorHospital(hospitalId: $hospitalId) {
+			id
+			numeroTurno
+			tipo
+			estado
+			pacienteId
+			hospitalId
 		}
 	}
 `;
@@ -204,6 +269,15 @@ const CREATE_HISTORIAL = `
 	}
 `;
 
+const ATTEND_TURN = `
+	mutation DoctorAttendTurn($id: ID!) {
+		atenderTurno(id: $id) {
+			id
+			estado
+		}
+	}
+`;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const DAYS_ES = [
@@ -257,6 +331,44 @@ function statusLabel(estado: string, locale: AppLocale) {
 		default:
 			return estado;
 	}
+}
+
+function turnVariant(
+	estado: string,
+): 'default' | 'secondary' | 'destructive' | 'outline' {
+	switch (estado) {
+		case 'EN_CONSULTA':
+			return 'default';
+		case 'ATENDIDO':
+			return 'secondary';
+		case 'CANCELADO':
+			return 'destructive';
+		default:
+			return 'outline';
+	}
+}
+
+function turnLabel(estado: string, locale: AppLocale) {
+	switch (estado) {
+		case 'EN_ESPERA':
+			return m.dashboardStatusWaiting({}, { locale });
+		case 'EN_CONSULTA':
+			return m.dashboardStatusInConsultation({}, { locale });
+		case 'ATENDIDO':
+			return m.dashboardStatusAttended({}, { locale });
+		case 'CANCELADO':
+			return m.dashboardStatusCancelled({}, { locale });
+		default:
+			return estado;
+	}
+}
+
+function isTurnClosed(estado: string) {
+	return /^(ATENDIDO|ATENDIDA|CANCELADO|CANCELADA)$/i.test(estado);
+}
+
+function isConsultationTurn(estado: string) {
+	return /^(EN_CONSULTA|LLAMADO|LLAMANDO|EN_ATENCION)$/i.test(estado);
 }
 
 // ─── Helpers de disponibilidad ───────────────────────────────────────────────
@@ -344,10 +456,12 @@ export function DoctorDashboardView({
 	user,
 	locale,
 	section = 'overview',
+	selectedHospitalId,
 }: RoleViewProps) {
 	const [doctorId, setDoctorId] = useState<string | null>(null);
 	const [missingProfile, setMissingProfile] = useState(false);
 	const [appointments, setAppointments] = useState<Appointment[]>([]);
+	const [turns, setTurns] = useState<Turno[]>([]);
 	const [disponibilidad, setDisponibilidad] = useState<Disponibilidad[]>([]);
 	const [historial, setHistorial] = useState<HistorialEntry[]>([]);
 	const [patients, setPatients] = useState<PatientOption[]>([]);
@@ -428,6 +542,48 @@ export function DoctorDashboardView({
 		setPatients(res.patients);
 	}, []);
 
+	const loadTurns = useCallback(async () => {
+		let turnosPorHospital: Turno[] = [];
+
+		if (selectedHospitalId) {
+			try {
+				const scoped = await gqlQuery<{ turnosPorHospital: Turno[] }>(
+					DOCTOR_TURNS_BY_HOSPITAL_QUERY,
+					{ hospitalId: selectedHospitalId },
+				);
+				turnosPorHospital = scoped.turnosPorHospital ?? [];
+			} catch {
+				try {
+					const scopedFallback = await gqlQuery<{ turnosPorHospital: Turno[] }>(
+						DOCTOR_TURNS_BY_HOSPITAL_QUERY_FALLBACK,
+						{ hospitalId: selectedHospitalId },
+					);
+					turnosPorHospital = scopedFallback.turnosPorHospital ?? [];
+				} catch {
+					const fallback = await gqlQuery<{ turnosPorHospital: Turno[] }>(
+						DOCTOR_TURNS_QUERY_FALLBACK,
+					);
+					turnosPorHospital = fallback.turnosPorHospital ?? [];
+				}
+			}
+		} else {
+			try {
+				const fallback = await gqlQuery<{ turnosPorHospital: Turno[] }>(
+					DOCTOR_TURNS_QUERY,
+				);
+				turnosPorHospital = fallback.turnosPorHospital ?? [];
+			} catch {
+				const legacyFallback = await gqlQuery<{ turnosPorHospital: Turno[] }>(
+					DOCTOR_TURNS_QUERY_FALLBACK,
+				);
+				turnosPorHospital = legacyFallback.turnosPorHospital ?? [];
+			}
+		}
+
+		setTurns(turnosPorHospital);
+		return turnosPorHospital;
+	}, [selectedHospitalId]);
+
 	const loadData = useCallback(async () => {
 		setLoading(true);
 		setError('');
@@ -441,6 +597,9 @@ export function DoctorDashboardView({
 				section === 'appointments' ||
 				section === 'historial'
 					? loadAppointments(profile.id)
+					: Promise.resolve(),
+				section === 'overview' || section === 'queue'
+					? loadTurns()
 					: Promise.resolve(),
 				section === 'overview' || section === 'disponibilidad'
 					? loadDisponibilidad(profile.id)
@@ -460,6 +619,7 @@ export function DoctorDashboardView({
 	}, [
 		loadProfile,
 		loadAppointments,
+		loadTurns,
 		loadDisponibilidad,
 		loadHistorial,
 		loadPatients,
@@ -470,6 +630,40 @@ export function DoctorDashboardView({
 	useEffect(() => {
 		void loadData();
 	}, [loadData]);
+
+	useEffect(() => {
+		if (!(section === 'queue' || section === 'overview')) return;
+
+		let disposed = false;
+		const runRefresh = async () => {
+			if (disposed) return;
+			if (
+				typeof document !== 'undefined' &&
+				document.visibilityState === 'hidden'
+			) {
+				return;
+			}
+			try {
+				await loadTurns();
+			} catch (err) {
+				setError(
+					err instanceof Error
+						? err.message
+						: m.rootErrorUnexpected({}, { locale }),
+				);
+			}
+		};
+
+		void runRefresh();
+		const interval = window.setInterval(() => {
+			void runRefresh();
+		}, 4000);
+
+		return () => {
+			disposed = true;
+			window.clearInterval(interval);
+		};
+	}, [loadTurns, locale, section]);
 
 	// ── KPIs del overview ──
 	const today = new Date().toDateString();
@@ -482,6 +676,25 @@ export function DoctorDashboardView({
 	const kpiPending = useMemo(
 		() => appointments.filter((a) => a.estado === 'PENDIENTE').length,
 		[appointments],
+	);
+	const doctorTurns = useMemo(() => {
+		if (!doctorId) return [];
+		return turns.filter(
+			(turn) => String(turn.medicoId ?? '') === String(doctorId),
+		);
+	}, [doctorId, turns]);
+	const activeDoctorTurns = useMemo(
+		() =>
+			doctorTurns
+				.filter((turn) => !isTurnClosed(turn.estado))
+				.sort((a, b) => a.numeroTurno - b.numeroTurno),
+		[doctorTurns],
+	);
+	const currentDoctorTurn = useMemo(
+		() =>
+			[...activeDoctorTurns].find((turn) => isConsultationTurn(turn.estado)) ??
+			activeDoctorTurns[0],
+		[activeDoctorTurns],
 	);
 
 	// ── Acción: confirmar cita ──
@@ -565,6 +778,26 @@ export function DoctorDashboardView({
 			});
 			setAppointments((prev) =>
 				prev.map((a) => (a.id === id ? { ...a, estado: 'CANCELADA' } : a)),
+			);
+			flash(m.dashboardActionSuccess({}, { locale }));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setActionLoading(null);
+		}
+	}
+
+	async function handleAttendTurn(id: string) {
+		setActionLoading(`attend-turn-${id}`);
+		setError('');
+		try {
+			await gqlMutation(ATTEND_TURN, { id });
+			setTurns((prev) =>
+				prev.map((turn) =>
+					turn.id === id ? { ...turn, estado: 'ATENDIDO' } : turn,
+				),
 			);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
@@ -732,6 +965,8 @@ export function DoctorDashboardView({
 				return OverviewSection();
 			case 'appointments':
 				return AppointmentsSection();
+			case 'queue':
+				return QueueSection();
 			case 'disponibilidad':
 				return DisponibilidadSection();
 			case 'historial':
@@ -829,6 +1064,61 @@ export function DoctorDashboardView({
 				) : (
 					appointments.map((a) => <AppointmentRow key={a.id} appointment={a} />)
 				)}
+			</div>
+		);
+	}
+
+	function QueueSection() {
+		return (
+			<div className="space-y-4">
+				<Card className="border-border/70">
+					<CardHeader className="pb-2">
+						<CardTitle className="text-base">
+							{m.dashboardSidebarQueue({}, { locale })}
+						</CardTitle>
+						<CardDescription>
+							{m.dashboardStatusInConsultation({}, { locale })}
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						{loading ? (
+							<Skeleton className="h-20 rounded-lg" />
+						) : !currentDoctorTurn ? (
+							<p className="text-sm text-muted-foreground">
+								{m.dashboardPatientsEmptyDescription({}, { locale })}
+							</p>
+						) : (
+							<TurnRow
+								turn={currentDoctorTurn}
+								onAttend={() => handleAttendTurn(currentDoctorTurn.id)}
+								attending={
+									actionLoading === `attend-turn-${currentDoctorTurn.id}`
+								}
+							/>
+						)}
+					</CardContent>
+				</Card>
+
+				<div className="space-y-2">
+					{loading ? (
+						[1, 2, 3].map((i) => (
+							<Skeleton key={i} className="h-20 rounded-xl" />
+						))
+					) : activeDoctorTurns.length === 0 ? (
+						<p className="text-sm text-muted-foreground">
+							{m.dashboardPatientsEmptyDescription({}, { locale })}
+						</p>
+					) : (
+						activeDoctorTurns.map((turn) => (
+							<TurnRow
+								key={turn.id}
+								turn={turn}
+								onAttend={() => handleAttendTurn(turn.id)}
+								attending={actionLoading === `attend-turn-${turn.id}`}
+							/>
+						))
+					)}
+				</div>
 			</div>
 		);
 	}
@@ -1377,11 +1667,55 @@ export function DoctorDashboardView({
 		);
 	}
 
+	function TurnRow({
+		turn,
+		onAttend,
+		attending = false,
+	}: {
+		turn: Turno;
+		onAttend?: () => void;
+		attending?: boolean;
+	}) {
+		const canAttend = !isTurnClosed(turn.estado);
+		return (
+			<div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/90 p-3">
+				<div>
+					<p className="flex items-center gap-1 text-sm font-semibold text-foreground">
+						<QueueListIcon className="h-4 w-4 text-muted-foreground" />#
+						{turn.numeroTurno}
+					</p>
+					<p className="text-xs text-muted-foreground">{turn.tipo}</p>
+				</div>
+				<div className="flex items-center gap-2">
+					<Badge variant={turnVariant(turn.estado)}>
+						{turnLabel(turn.estado, locale)}
+					</Badge>
+					{canAttend && (
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							onClick={onAttend}
+							disabled={attending}
+							className="gap-1 text-xs"
+						>
+							<CheckCircleIcon className="h-3.5 w-3.5" />
+							{attending
+								? '...'
+								: m.dashboardReceptionistAttendTurn({}, { locale })}
+						</Button>
+					)}
+				</div>
+			</div>
+		);
+	}
+
 	// ─── Shell principal ──────────────────────────────────────────────────────
 
 	const sectionTitles: Partial<Record<DashboardSection, string>> = {
 		overview: m.dashboardDoctorOverviewTitle({}, { locale }),
 		appointments: m.dashboardSidebarAppointments({}, { locale }),
+		queue: m.dashboardSidebarQueue({}, { locale }),
 		disponibilidad: m.dashboardDoctorDisponibilidadTitle({}, { locale }),
 		historial: m.dashboardDoctorHistorialTitle({}, { locale }),
 	};

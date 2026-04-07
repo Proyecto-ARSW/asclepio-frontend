@@ -5,7 +5,7 @@ import {
 	QueueListIcon,
 	XCircleIcon,
 } from '@heroicons/react/24/outline';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Button } from '@/components/ui/button/button.component';
@@ -82,7 +82,67 @@ const NURSE_AVAILABILITY_QUERY = `
 
 const HOSPITAL_TURNS_QUERY = `
 	query HospitalTurnsNurse {
-		turnosPorHospital(estado: EN_ESPERA) {
+		turnosPorHospital {
+			id
+			numeroTurno
+			tipo
+			estado
+		}
+	}
+`;
+
+const HOSPITAL_TURNS_BY_HOSPITAL_QUERY = `
+	query HospitalTurnsNurseByHospital($hospitalId: ID!) {
+		turnosPorHospital(hospitalId: $hospitalId) {
+			id
+			numeroTurno
+			tipo
+			estado
+		}
+	}
+`;
+
+const HOSPITAL_TURNS_STATUS_QUERY = `
+	query HospitalTurnsNurseByStatus {
+		waiting: turnosPorHospital(estado: EN_ESPERA) {
+			id
+			numeroTurno
+			tipo
+			estado
+		}
+		pending: turnosPorHospital(estado: PENDIENTE) {
+			id
+			numeroTurno
+			tipo
+			estado
+		}
+		inConsultation: turnosPorHospital(estado: EN_CONSULTA) {
+			id
+			numeroTurno
+			tipo
+			estado
+		}
+	}
+`;
+
+const HOSPITAL_TURNS_BY_HOSPITAL_STATUS_QUERY = `
+	query HospitalTurnsNurseByHospitalStatus($hospitalId: ID!) {
+		waiting: turnosPorHospital(hospitalId: $hospitalId, estado: EN_ESPERA) {
+			id
+			numeroTurno
+			tipo
+			estado
+		}
+		pending: turnosPorHospital(hospitalId: $hospitalId, estado: PENDIENTE) {
+			id
+			numeroTurno
+			tipo
+			estado
+		}
+		inConsultation: turnosPorHospital(
+			hospitalId: $hospitalId
+			estado: EN_CONSULTA
+		) {
 			id
 			numeroTurno
 			tipo
@@ -113,6 +173,12 @@ const REMOVE_DISPONIBILIDAD_ENFERMERO = `
 const CALL_NEXT_TURN = `
 	mutation CallNextTurn {
 		llamarSiguienteTurno { id numeroTurno estado }
+	}
+`;
+
+const CALL_NEXT_TURN_BY_HOSPITAL = `
+	mutation CallNextTurnByHospital($hospitalId: ID!) {
+		llamarSiguienteTurno(hospitalId: $hospitalId) { id numeroTurno estado }
 	}
 `;
 
@@ -153,6 +219,17 @@ function dayLabel(day: number, locale: AppLocale) {
 	return locale === 'es' ? (DAYS_ES[day] ?? day) : (DAYS_EN[day] ?? day);
 }
 
+function formatTime(t: string | Date): string {
+	if (!t) return '';
+	const d = new Date(t);
+	if (Number.isNaN(d.getTime())) {
+		return String(t).slice(0, 5);
+	}
+	const h = String(d.getHours()).padStart(2, '0');
+	const min = String(d.getMinutes()).padStart(2, '0');
+	return `${h}:${min}`;
+}
+
 function turnVariant(
 	estado: string,
 ): 'default' | 'secondary' | 'destructive' | 'outline' {
@@ -183,12 +260,33 @@ function turnLabel(estado: string, locale: AppLocale) {
 	}
 }
 
+function isTurnClosed(estado: string) {
+	return /^(ATENDIDO|ATENDIDA|CANCELADO|CANCELADA)$/i.test(estado);
+}
+
+function isQueueActiveTurn(estado: string) {
+	return /^(EN_ESPERA|PENDIENTE|EN_FILA|EN_CONSULTA|LLAMADO|LLAMANDO|EN_ATENCION)$/i.test(
+		estado,
+	);
+}
+
+function mergeTurns(...groups: Turno[][]): Turno[] {
+	const byId = new Map<string, Turno>();
+	for (const group of groups) {
+		for (const turn of group) {
+			byId.set(turn.id, turn);
+		}
+	}
+	return [...byId.values()].sort((a, b) => a.numeroTurno - b.numeroTurno);
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function NurseDashboardView({
 	user,
 	locale,
 	section = 'overview',
+	selectedHospitalId,
 }: RoleViewProps) {
 	const [nurseId, setNurseId] = useState<string | null>(null);
 	const [missingProfile, setMissingProfile] = useState(false);
@@ -220,6 +318,67 @@ export function NurseDashboardView({
 		return mine;
 	}, [user.id]);
 
+	const loadTurns = useCallback(async () => {
+		let turnosPorHospital: Turno[] = [];
+		let turnosByStatus: Turno[] = [];
+
+		if (selectedHospitalId) {
+			try {
+				const scoped = await gqlQuery<{ turnosPorHospital: Turno[] }>(
+					HOSPITAL_TURNS_BY_HOSPITAL_QUERY,
+					{ hospitalId: selectedHospitalId },
+				);
+				turnosPorHospital = scoped.turnosPorHospital ?? [];
+			} catch {
+				const fallback = await gqlQuery<{ turnosPorHospital: Turno[] }>(
+					HOSPITAL_TURNS_QUERY,
+				);
+				turnosPorHospital = fallback.turnosPorHospital ?? [];
+			}
+
+			try {
+				const scopedStatus = await gqlQuery<{
+					waiting: Turno[];
+					pending: Turno[];
+					inConsultation: Turno[];
+				}>(HOSPITAL_TURNS_BY_HOSPITAL_STATUS_QUERY, {
+					hospitalId: selectedHospitalId,
+				});
+				turnosByStatus = mergeTurns(
+					scopedStatus.waiting ?? [],
+					scopedStatus.pending ?? [],
+					scopedStatus.inConsultation ?? [],
+				);
+			} catch {
+				// Si el backend no soporta filtro por estado, mantenemos carga base.
+			}
+		} else {
+			const fallback = await gqlQuery<{ turnosPorHospital: Turno[] }>(
+				HOSPITAL_TURNS_QUERY,
+			);
+			turnosPorHospital = fallback.turnosPorHospital ?? [];
+
+			try {
+				const globalByStatus = await gqlQuery<{
+					waiting: Turno[];
+					pending: Turno[];
+					inConsultation: Turno[];
+				}>(HOSPITAL_TURNS_STATUS_QUERY);
+				turnosByStatus = mergeTurns(
+					globalByStatus.waiting ?? [],
+					globalByStatus.pending ?? [],
+					globalByStatus.inConsultation ?? [],
+				);
+			} catch {
+				// Si el backend no soporta filtro por estado, mantenemos carga base.
+			}
+		}
+
+		const mergedTurns = mergeTurns(turnosPorHospital, turnosByStatus);
+		setTurns(mergedTurns);
+		return mergedTurns;
+	}, [selectedHospitalId]);
+
 	const loadData = useCallback(async () => {
 		setLoading(true);
 		setError('');
@@ -237,9 +396,7 @@ export function NurseDashboardView({
 						).then((r) => setAvailability(r.disponibilidadesByNurse))
 					: Promise.resolve(),
 				section === 'overview' || section === 'queue'
-					? gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_QUERY).then(
-							(r) => setTurns(r.turnosPorHospital),
-						)
+					? loadTurns()
 					: Promise.resolve(),
 			]);
 		} catch (err) {
@@ -251,11 +408,56 @@ export function NurseDashboardView({
 		} finally {
 			setLoading(false);
 		}
-	}, [loadProfile, locale, section]);
+	}, [loadProfile, loadTurns, locale, section]);
 
 	useEffect(() => {
 		void loadData();
 	}, [loadData]);
+
+	useEffect(() => {
+		if (!(section === 'queue' || section === 'overview')) return;
+
+		let disposed = false;
+		const runRefresh = async () => {
+			if (disposed) return;
+			if (
+				typeof document !== 'undefined' &&
+				document.visibilityState === 'hidden'
+			) {
+				return;
+			}
+			try {
+				await loadTurns();
+			} catch (err) {
+				setError(
+					err instanceof Error
+						? err.message
+						: m.rootErrorUnexpected({}, { locale }),
+				);
+			}
+		};
+
+		void runRefresh();
+		const interval = window.setInterval(() => {
+			void runRefresh();
+		}, 4000);
+
+		return () => {
+			disposed = true;
+			window.clearInterval(interval);
+		};
+	}, [loadTurns, locale, section]);
+
+	const actionableTurns = useMemo(
+		() =>
+			turns
+				.filter(
+					(turn) =>
+						isQueueActiveTurn(turn.estado) && !isTurnClosed(turn.estado),
+				)
+				.sort((a, b) => a.numeroTurno - b.numeroTurno),
+		[turns],
+	);
 
 	function flash(msg: string) {
 		setSuccessMsg(msg);
@@ -306,10 +508,25 @@ export function NurseDashboardView({
 		setActionLoading('call-next');
 		setError('');
 		try {
-			const res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(
-				CALL_NEXT_TURN,
-				{},
-			);
+			let res: { llamarSiguienteTurno: Turno };
+			if (selectedHospitalId) {
+				try {
+					res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(
+						CALL_NEXT_TURN_BY_HOSPITAL,
+						{ hospitalId: selectedHospitalId },
+					);
+				} catch {
+					res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(
+						CALL_NEXT_TURN,
+						{},
+					);
+				}
+			} else {
+				res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(
+					CALL_NEXT_TURN,
+					{},
+				);
+			}
 			if (res.llamarSiguienteTurno) {
 				flash(
 					m.dashboardTurnCalled(
@@ -386,9 +603,7 @@ export function NurseDashboardView({
 							{m.dashboardNurseKpiTurns({}, { locale })}
 						</p>
 						<p className="text-2xl font-semibold tabular-nums text-foreground">
-							{loading
-								? '—'
-								: turns.filter((t) => t.estado === 'EN_ESPERA').length}
+							{loading ? '—' : actionableTurns.length}
 						</p>
 					</div>
 				</div>
@@ -403,12 +618,12 @@ export function NurseDashboardView({
 					<CardContent className="space-y-2">
 						{loading ? (
 							<Skeleton className="h-16 rounded-lg" />
-						) : turns.slice(0, 5).length === 0 ? (
+						) : actionableTurns.slice(0, 5).length === 0 ? (
 							<p className="text-sm text-muted-foreground">
 								{m.dashboardPatientsEmptyDescription({}, { locale })}
 							</p>
 						) : (
-							turns
+							actionableTurns
 								.slice(0, 5)
 								.map((t) => <TurnRow key={t.id} turn={t} compact />)
 						)}
@@ -458,7 +673,7 @@ export function NurseDashboardView({
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-3">
-						<div className="grid gap-3 sm:grid-cols-3">
+						<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[11rem_minmax(0,1fr)_minmax(0,1fr)]">
 							<div className="space-y-1">
 								<label
 									htmlFor={daySelectId}
@@ -472,8 +687,10 @@ export function NurseDashboardView({
 										setNewSlot((prev) => ({ ...prev, diaSemana: Number(v) }))
 									}
 								>
-									<SelectTrigger id={daySelectId}>
-										<SelectValue />
+									<SelectTrigger id={daySelectId} className="w-full sm:w-44">
+										<SelectValue>
+											{dayLabel(newSlot.diaSemana, locale)}
+										</SelectValue>
 									</SelectTrigger>
 									<SelectContent>
 										{[0, 1, 2, 3, 4, 5, 6].map((d) => (
@@ -592,12 +809,12 @@ export function NurseDashboardView({
 						[1, 2, 3, 4].map((i) => (
 							<Skeleton key={i} className="h-20 rounded-xl" />
 						))
-					) : turns.length === 0 ? (
+					) : actionableTurns.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
 							{m.dashboardPatientsEmptyDescription({}, { locale })}
 						</p>
 					) : (
-						turns.map((t) => (
+						actionableTurns.map((t) => (
 							<TurnRow
 								key={t.id}
 								turn={t}
@@ -632,8 +849,8 @@ export function NurseDashboardView({
 					<ClockIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
 					<div>
 						<p className="text-sm font-medium text-foreground">
-							{dayLabel(slot.diaSemana, locale)} — {slot.horaInicio} -{' '}
-							{slot.horaFin}
+							{dayLabel(slot.diaSemana, locale)} — {formatTime(slot.horaInicio)}{' '}
+							- {formatTime(slot.horaFin)}
 						</p>
 					</div>
 				</div>
@@ -677,7 +894,7 @@ export function NurseDashboardView({
 		attending?: boolean;
 		cancelling?: boolean;
 	}) {
-		const isActive = t.estado === 'EN_ESPERA' || t.estado === 'EN_CONSULTA';
+		const isActive = !isTurnClosed(t.estado);
 		return (
 			<div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/90 p-3">
 				<div>

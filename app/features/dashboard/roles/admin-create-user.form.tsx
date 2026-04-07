@@ -107,19 +107,11 @@ export function AdminCreateUserForm({
 			!email.trim() ||
 			!password.trim()
 		) {
-			setError(
-				locale === 'es'
-					? 'Completa todos los campos obligatorios.'
-					: 'Fill all required fields.',
-			);
+			setError(m.dashboardAdminCreateUserErrorRequiredFields({}, { locale }));
 			return;
 		}
 		if (password.length < 6) {
-			setError(
-				locale === 'es'
-					? 'La contraseña debe tener al menos 6 caracteres.'
-					: 'Password must be at least 6 characters.',
-			);
+			setError(m.dashboardAdminCreateUserErrorPasswordLength({}, { locale }));
 			return;
 		}
 
@@ -136,9 +128,7 @@ export function AdminCreateUserForm({
 			const specId = Number(doctorSpecialtyId);
 			if (!doctorLicense.trim() || Number.isNaN(specId) || specId < 1) {
 				setError(
-					locale === 'es'
-						? 'Para médico se requiere número de registro y especialidad válida.'
-						: 'Doctor requires registration number and valid specialty.',
+					m.dashboardAdminCreateUserErrorDoctorRequirements({}, { locale }),
 				);
 				return;
 			}
@@ -153,9 +143,7 @@ export function AdminCreateUserForm({
 			const lvl = Number(nurseLevel);
 			if (!nurseRegistration.trim() || Number.isNaN(lvl) || lvl < 1) {
 				setError(
-					locale === 'es'
-						? 'Para enfermero se requiere número de registro y nivel de formación.'
-						: 'Nurse requires registration number and training level.',
+					m.dashboardAdminCreateUserErrorNurseRequirements({}, { locale }),
 				);
 				return;
 			}
@@ -175,14 +163,19 @@ export function AdminCreateUserForm({
 			// No se usa GraphQL aquí porque el registro usa el controlador REST de auth.
 			await apiPost('/auth/register', payload);
 			onSuccess(
-				locale === 'es'
-					? `Cuenta de ${role.toLowerCase()} creada exitosamente.`
-					: `${role} account created successfully.`,
+				m.dashboardAdminCreateUserSuccess(
+					{ role: roleLabelMap[role] },
+					{ locale },
+				),
 			);
 			resetForm();
 			setOpen(false);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error al crear la cuenta');
+			setError(
+				err instanceof Error
+					? err.message
+					: m.dashboardAdminCreateUserErrorFallback({}, { locale }),
+			);
 		} finally {
 			setLoading(false);
 		}
@@ -200,12 +193,10 @@ export function AdminCreateUserForm({
 				<div className="flex items-center justify-between gap-2">
 					<div>
 						<CardTitle className="text-base">
-							{locale === 'es' ? 'Crear nueva cuenta' : 'Create new account'}
+							{m.dashboardAdminCreateUserTitle({}, { locale })}
 						</CardTitle>
 						<CardDescription>
-							{locale === 'es'
-								? 'Registra médicos, enfermeros o recepcionistas en este hospital'
-								: 'Register doctors, nurses or receptionists at this hospital'}
+							{m.dashboardAdminCreateUserDescription({}, { locale })}
 						</CardDescription>
 					</div>
 					<Button
@@ -218,12 +209,8 @@ export function AdminCreateUserForm({
 						}}
 					>
 						{open
-							? locale === 'es'
-								? 'Cancelar'
-								: 'Cancel'
-							: locale === 'es'
-								? '+ Nueva cuenta'
-								: '+ New account'}
+							? m.dashboardCreateHospitalActionCancel({}, { locale })
+							: m.dashboardAdminCreateUserToggleOpen({}, { locale })}
 					</Button>
 				</div>
 			</CardHeader>
@@ -241,14 +228,19 @@ export function AdminCreateUserForm({
 								}
 							>
 								<SelectTrigger>
-									<SelectValue />
+									<SelectValue>{roleLabelMap[role]}</SelectValue>
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="MEDICO">{roleLabelMap.MEDICO}</SelectItem>
-									<SelectItem value="ENFERMERO">
+									<SelectItem value="MEDICO" label={roleLabelMap.MEDICO}>
+										{roleLabelMap.MEDICO}
+									</SelectItem>
+									<SelectItem value="ENFERMERO" label={roleLabelMap.ENFERMERO}>
 										{roleLabelMap.ENFERMERO}
 									</SelectItem>
-									<SelectItem value="RECEPCIONISTA">
+									<SelectItem
+										value="RECEPCIONISTA"
+										label={roleLabelMap.RECEPCIONISTA}
+									>
 										{roleLabelMap.RECEPCIONISTA}
 									</SelectItem>
 								</SelectContent>
@@ -287,7 +279,7 @@ export function AdminCreateUserForm({
 									type="email"
 									value={email}
 									onChange={(e) => setEmail(e.target.value)}
-									placeholder="correo@hospital.com"
+									placeholder={m.authLoginEmailPlaceholder({}, { locale })}
 									required
 								/>
 							</Field>
@@ -299,7 +291,7 @@ export function AdminCreateUserForm({
 									type="password"
 									value={password}
 									onChange={(e) => setPassword(e.target.value)}
-									placeholder="••••••"
+									placeholder={m.authLoginPasswordPlaceholder({}, { locale })}
 									minLength={6}
 									required
 								/>
@@ -310,7 +302,7 @@ export function AdminCreateUserForm({
 						{role === 'MEDICO' && (
 							<div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-border/50 bg-muted/10 p-3">
 								<p className="col-span-full text-xs font-medium text-muted-foreground">
-									{locale === 'es' ? 'Datos del médico' : 'Doctor data'}
+									{m.dashboardAdminCreateUserDoctorDataTitle({}, { locale })}
 								</p>
 								<Field>
 									<FieldLabel>
@@ -344,9 +336,7 @@ export function AdminCreateUserForm({
 								</Field>
 								<Field>
 									<FieldLabel>
-										{locale === 'es'
-											? 'Consultorio (opcional)'
-											: 'Office (optional)'}
+										{m.authRegisterLabelConsultorio({}, { locale })}
 									</FieldLabel>
 									<Input
 										value={doctorOffice}
@@ -361,7 +351,7 @@ export function AdminCreateUserForm({
 						{role === 'ENFERMERO' && (
 							<div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-border/50 bg-muted/10 p-3">
 								<p className="col-span-full text-xs font-medium text-muted-foreground">
-									{locale === 'es' ? 'Datos del enfermero' : 'Nurse data'}
+									{m.dashboardAdminCreateUserNurseDataTitle({}, { locale })}
 								</p>
 								<Field>
 									<FieldLabel>
@@ -442,9 +432,7 @@ export function AdminCreateUserForm({
 						<Button type="submit" disabled={loading} className="gap-2">
 							{loading
 								? m.authRegisterNavSubmitLoading({}, { locale })
-								: locale === 'es'
-									? 'Crear cuenta'
-									: 'Create account'}
+								: m.dashboardAdminCreateUserSubmit({}, { locale })}
 						</Button>
 					</form>
 				</CardContent>

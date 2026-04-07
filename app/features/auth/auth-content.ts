@@ -103,6 +103,11 @@ interface AuthContent {
 		registerAction: string;
 		errors: {
 			invalidCredentials: string;
+			forbidden: string;
+			tooManyAttempts: string;
+			invalidRequest: string;
+			serverUnavailable: string;
+			unknown: string;
 			requiredEmail: string;
 			requiredPassword: string;
 		};
@@ -289,6 +294,11 @@ export function getAuthContent(
 			registerAction: m.authLoginRegisterAction({}, options),
 			errors: {
 				invalidCredentials: m.authLoginErrorInvalidCredentials({}, options),
+				forbidden: m.authLoginErrorForbidden({}, options),
+				tooManyAttempts: m.authLoginErrorTooManyAttempts({}, options),
+				invalidRequest: m.authLoginErrorInvalidRequest({}, options),
+				serverUnavailable: m.authLoginErrorServerUnavailable({}, options),
+				unknown: m.authLoginErrorUnknown({}, options),
 				requiredEmail: m.authLoginErrorRequiredEmail({}, options),
 				requiredPassword: m.authLoginErrorRequiredPassword({}, options),
 			},

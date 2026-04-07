@@ -1,8 +1,11 @@
 import {
 	ArrowPathIcon,
+	CalendarDaysIcon,
 	CheckCircleIcon,
+	ClockIcon,
 	PlusIcon,
 	QueueListIcon,
+	UserGroupIcon,
 	XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -56,14 +59,30 @@ interface Patient {
 
 // ─── Queries & Mutations ──────────────────────────────────────────────────────
 
-const RECEPTIONIST_QUERY = `
-	query ReceptionistDashboard {
+const HOSPITAL_TURNS_QUERY = `
+	query ReceptionistHospitalTurns {
 		turnosPorHospital {
 			id
 			numeroTurno
 			tipo
 			estado
 		}
+	}
+`;
+
+const HOSPITAL_TURNS_BY_HOSPITAL_QUERY = `
+	query ReceptionistHospitalTurnsByHospital($hospitalId: Int!) {
+		turnosPorHospital(hospitalId: $hospitalId) {
+			id
+			numeroTurno
+			tipo
+			estado
+		}
+	}
+`;
+
+const RECEPTIONIST_APPOINTMENTS_QUERY = `
+	query ReceptionistAppointments {
 		appointments: appoinments {
 			id
 			fechaHora
@@ -86,6 +105,17 @@ const PATIENTS_QUERY = `
 	}
 `;
 
+const PATIENT_TURNS_QUERY = `
+	query ReceptionistPatientTurns($pacienteId: ID!) {
+		turnosPorPaciente(pacienteId: $pacienteId) {
+			id
+			numeroTurno
+			tipo
+			estado
+		}
+	}
+`;
+
 // Crear turno nuevo en la cola del hospital
 const CREATE_TURN = `
 	mutation CreateTurn($input: CreateTurnInput!) {
@@ -102,6 +132,12 @@ const CREATE_TURN = `
 const CALL_NEXT = `
 	mutation CallNext {
 		llamarSiguienteTurno { id numeroTurno estado }
+	}
+`;
+
+const CALL_NEXT_BY_HOSPITAL = `
+	mutation CallNextByHospital($hospitalId: Int!) {
+		llamarSiguienteTurno(hospitalId: $hospitalId) { id numeroTurno estado }
 	}
 `;
 
@@ -163,12 +199,45 @@ function statusLabel(estado: string, locale: AppLocale) {
 		case 'ATENDIDO':
 			return m.dashboardStatusAttended({}, { locale });
 		case 'EN_ESPERA':
-			return locale === 'es' ? 'En espera' : 'Waiting';
+			return m.dashboardStatusWaiting({}, { locale });
 		case 'EN_CONSULTA':
-			return locale === 'es' ? 'En consulta' : 'In consultation';
+			return m.dashboardStatusInConsultation({}, { locale });
 		default:
 			return estado;
 	}
+}
+
+function isActiveTurnConflictError(raw: string) {
+	return /(turno\s+activo|active\s+turn)/i.test(raw);
+}
+
+function isTurnNumberConflictError(raw: string) {
+	return /(idx_turnos_unique|p2002|numero_turno|unique|duplicate|valor\s+u?nico|valor\s+\u00fanico)/i.test(
+		raw,
+	);
+}
+
+function isTurnClosed(estado: string) {
+	return /^(ATENDIDO|ATENDIDA|CANCELADO|CANCELADA)$/i.test(estado);
+}
+
+function isWaitingTurn(estado: string) {
+	return /^EN_ESPERA$/i.test(estado);
+}
+
+function isCalledTurn(estado: string) {
+	return /^EN_CONSULTA$/i.test(estado);
+}
+
+function activeTurnConflictMessage(locale: AppLocale, turnNumber?: number) {
+	if (locale === 'es') {
+		return turnNumber
+			? `El paciente ya tiene un turno activo (#${turnNumber}). Debes atenderlo o cancelarlo antes de crear otro.`
+			: 'El paciente ya tiene un turno activo. Debes atenderlo o cancelarlo antes de crear otro.';
+	}
+	return turnNumber
+		? `This patient already has an active turn (#${turnNumber}). Attend or cancel it before creating another one.`
+		: 'This patient already has an active turn. Attend or cancel it before creating another one.';
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -192,32 +261,102 @@ export function ReceptionistDashboardView({
 		tipo: 'NORMAL' as 'NORMAL' | 'PRIORITARIO' | 'URGENTE',
 	});
 
+	const loadMainData = useCallback(async () => {
+		const query = selectedHospitalId
+			? gqlQuery<{ turnosPorHospital: Turno[] }>(
+					HOSPITAL_TURNS_BY_HOSPITAL_QUERY,
+					{
+						hospitalId: selectedHospitalId,
+					},
+				)
+			: gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_QUERY);
+
+		const response = await query;
+		const turnosPorHospital = response.turnosPorHospital ?? [];
+		setTurns(turnosPorHospital);
+		return turnosPorHospital;
+	}, [selectedHospitalId]);
+
+	const loadAppointmentsData = useCallback(async () => {
+		const data = await gqlQuery<{ appointments: Appointment[] }>(
+			RECEPTIONIST_APPOINTMENTS_QUERY,
+		);
+		setAppointments(data.appointments ?? []);
+	}, []);
+
 	const loadData = useCallback(async () => {
 		setLoading(true);
 		setError('');
 		try {
-			const [main, patientsRes] = await Promise.all([
-				gqlQuery<{ turnosPorHospital: Turno[]; appointments: Appointment[] }>(
-					RECEPTIONIST_QUERY,
-				),
+			const [, patientsRes] = await Promise.all([
+				loadMainData(),
 				// Cargar pacientes solo para la sección de crear turnos
 				section === 'queue'
 					? gqlQuery<{ patients: Patient[] }>(PATIENTS_QUERY)
 					: Promise.resolve({ patients: [] as Patient[] }),
 			]);
-			setTurns(main.turnosPorHospital);
-			setAppointments(main.appointments);
 			setPatients(patientsRes.patients);
+
+			if (section === 'overview' || section === 'appointments') {
+				try {
+					await loadAppointmentsData();
+				} catch (err) {
+					setAppointments([]);
+					setError(
+						err instanceof Error
+							? err.message
+							: m.rootErrorUnexpected({}, { locale }),
+					);
+				}
+			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error al cargar datos');
+			setError(
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale }),
+			);
 		} finally {
 			setLoading(false);
 		}
-	}, [section]);
+	}, [loadAppointmentsData, loadMainData, locale, section]);
 
 	useEffect(() => {
 		void loadData();
 	}, [loadData]);
+
+	useEffect(() => {
+		if (!(section === 'queue' || section === 'overview')) return;
+
+		let disposed = false;
+		const runRefresh = async () => {
+			if (disposed) return;
+			if (
+				typeof document !== 'undefined' &&
+				document.visibilityState === 'hidden'
+			) {
+				return;
+			}
+			try {
+				await loadMainData();
+			} catch (err) {
+				setError(
+					err instanceof Error
+						? err.message
+						: m.rootErrorUnexpected({}, { locale }),
+				);
+			}
+		};
+
+		void runRefresh();
+		const interval = window.setInterval(() => {
+			void runRefresh();
+		}, 4000);
+
+		return () => {
+			disposed = true;
+			window.clearInterval(interval);
+		};
+	}, [loadMainData, locale, section]);
 
 	function flash(msg: string) {
 		setSuccessMsg(msg);
@@ -231,9 +370,38 @@ export function ReceptionistDashboardView({
 		[appointments],
 	);
 	const waitingTurns = useMemo(
-		() => turns.filter((t) => t.estado === 'EN_ESPERA').length,
+		() => turns.filter((t) => isWaitingTurn(t.estado)).length,
 		[turns],
 	);
+	const currentTurn = useMemo(
+		() =>
+			[...turns]
+				.filter((t) => isCalledTurn(t.estado))
+				.sort((a, b) => b.numeroTurno - a.numeroTurno)[0],
+		[turns],
+	);
+	const turnHistory = useMemo(
+		() =>
+			[...turns]
+				.filter((t) => t.estado === 'ATENDIDO' || t.estado === 'CANCELADO')
+				.sort((a, b) => b.numeroTurno - a.numeroTurno)
+				.slice(0, 6),
+		[turns],
+	);
+	const upcomingTurns = useMemo(
+		() =>
+			[...turns]
+				.filter((t) => isWaitingTurn(t.estado))
+				.sort((a, b) => a.numeroTurno - b.numeroTurno),
+		[turns],
+	);
+	const nextWaitingTurn = useMemo(() => upcomingTurns[0], [upcomingTurns]);
+	const selectedPatientLabel = useMemo(() => {
+		if (!newTurn.pacienteId) return '';
+		const patient = patients.find((p) => p.id === newTurn.pacienteId);
+		if (!patient) return '';
+		return `${patient.nombre} ${patient.apellido}`.trim();
+	}, [newTurn.pacienteId, patients]);
 
 	// ── Acción: crear turno ──
 	async function handleCreateTurn() {
@@ -241,6 +409,18 @@ export function ReceptionistDashboardView({
 		setActionLoading('create-turn');
 		setError('');
 		try {
+			const patientTurns = await gqlQuery<{ turnosPorPaciente: Turno[] }>(
+				PATIENT_TURNS_QUERY,
+				{ pacienteId: newTurn.pacienteId },
+			);
+			const activeTurn = (patientTurns.turnosPorPaciente ?? [])
+				.filter((turn) => !isTurnClosed(turn.estado))
+				.sort((a, b) => b.numeroTurno - a.numeroTurno)[0];
+			if (activeTurn) {
+				setError(activeTurnConflictMessage(locale, activeTurn.numeroTurno));
+				return;
+			}
+
 			// hospitalId es obligatorio en CreateTurnInput — sin él el backend devuelve 400
 			const res = await gqlMutation<{ crearTurno: Turno }>(CREATE_TURN, {
 				input: {
@@ -249,11 +429,37 @@ export function ReceptionistDashboardView({
 					hospitalId: selectedHospitalId,
 				},
 			});
-			setTurns((prev) => [res.crearTurno, ...prev]);
+			await loadMainData();
 			setNewTurn({ pacienteId: '', tipo: 'NORMAL' });
-			flash(`Turno #${res.crearTurno.numeroTurno} creado`);
+			flash(
+				m.dashboardTurnCreated(
+					{ number: String(res.crearTurno.numeroTurno) },
+					{ locale },
+				),
+			);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			const message =
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale });
+			if (isActiveTurnConflictError(message)) {
+				try {
+					const patientTurns = await gqlQuery<{ turnosPorPaciente: Turno[] }>(
+						PATIENT_TURNS_QUERY,
+						{ pacienteId: newTurn.pacienteId },
+					);
+					const activeTurn = (patientTurns.turnosPorPaciente ?? [])
+						.filter((turn) => !isTurnClosed(turn.estado))
+						.sort((a, b) => b.numeroTurno - a.numeroTurno)[0];
+					setError(activeTurnConflictMessage(locale, activeTurn?.numeroTurno));
+				} catch {
+					setError(activeTurnConflictMessage(locale));
+				}
+				await loadMainData();
+			} else if (isTurnNumberConflictError(message)) {
+				setError(message);
+				await loadMainData();
+			} else {
+				setError(message);
+			}
 		} finally {
 			setActionLoading(null);
 		}
@@ -264,16 +470,42 @@ export function ReceptionistDashboardView({
 		setActionLoading('call-next');
 		setError('');
 		try {
-			const res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(
-				CALL_NEXT,
-				{},
-			);
+			let res: { llamarSiguienteTurno: Turno };
+			if (selectedHospitalId) {
+				try {
+					res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(
+						CALL_NEXT_BY_HOSPITAL,
+						{ hospitalId: selectedHospitalId },
+					);
+				} catch {
+					res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(
+						CALL_NEXT,
+						{},
+					);
+				}
+			} else {
+				res = await gqlMutation<{ llamarSiguienteTurno: Turno }>(CALL_NEXT, {});
+			}
 			if (res.llamarSiguienteTurno) {
-				flash(`Turno #${res.llamarSiguienteTurno.numeroTurno} llamado`);
-				void loadData();
+				flash(
+					m.dashboardTurnCalled(
+						{ number: String(res.llamarSiguienteTurno.numeroTurno) },
+						{ locale },
+					),
+				);
+				await loadMainData();
+			} else {
+				await loadMainData();
+				setError(
+					locale === 'es'
+						? 'No se pudo llamar el siguiente turno. Verifica que haya turnos en espera en la cola del hospital.'
+						: 'Could not call the next turn. Verify there are waiting turns in the hospital queue.',
+				);
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -290,7 +522,9 @@ export function ReceptionistDashboardView({
 			);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -307,7 +541,9 @@ export function ReceptionistDashboardView({
 			);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -321,7 +557,8 @@ export function ReceptionistDashboardView({
 				{/* KPIs en grid de 3 columnas */}
 				<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 					<div className="rounded-xl border border-border/70 bg-background/80 p-3">
-						<p className="text-xs text-muted-foreground">
+						<p className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">
+							<QueueListIcon className="h-3.5 w-3.5" />
 							{m.dashboardSidebarQueue({}, { locale })}
 						</p>
 						<p className="text-2xl font-semibold tabular-nums text-foreground">
@@ -329,15 +566,17 @@ export function ReceptionistDashboardView({
 						</p>
 					</div>
 					<div className="rounded-xl border border-border/70 bg-background/80 p-3">
-						<p className="text-xs text-muted-foreground">
-							{locale === 'es' ? 'En espera' : 'Waiting'}
+						<p className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">
+							<ClockIcon className="h-3.5 w-3.5" />
+							{m.dashboardStatusWaiting({}, { locale })}
 						</p>
 						<p className="text-2xl font-semibold tabular-nums text-foreground">
 							{loading ? '—' : waitingTurns}
 						</p>
 					</div>
 					<div className="rounded-xl border border-border/70 bg-background/80 p-3">
-						<p className="text-xs text-muted-foreground">
+						<p className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">
+							<CalendarDaysIcon className="h-3.5 w-3.5" />
 							{m.dashboardSidebarAppointments({}, { locale })} (
 							{m.dashboardStatusPending({}, { locale })})
 						</p>
@@ -355,7 +594,7 @@ export function ReceptionistDashboardView({
 					<Button
 						type="button"
 						onClick={handleCallNext}
-						disabled={actionLoading === 'call-next' || waitingTurns === 0}
+						disabled={actionLoading === 'call-next'}
 						className="gap-2 shrink-0"
 					>
 						<QueueListIcon className="h-4 w-4" />
@@ -365,24 +604,88 @@ export function ReceptionistDashboardView({
 					</Button>
 				</div>
 
-				{/* Preview de turnos recientes */}
+				{/* Resumen operativo de turnos */}
 				<Card className="border-border/70">
 					<CardHeader className="pb-2">
-						<CardTitle className="text-base">
+						<CardTitle className="flex items-center gap-2 text-base">
+							<QueueListIcon className="h-4 w-4" />
 							{m.dashboardSidebarQueue({}, { locale })}
 						</CardTitle>
+						<CardDescription>
+							{m.dashboardReceptionistOverviewSubtitle({}, { locale })}
+						</CardDescription>
 					</CardHeader>
-					<CardContent className="space-y-2">
+					<CardContent className="space-y-3">
 						{loading ? (
-							<Skeleton className="h-20 rounded-lg" />
-						) : turns.slice(0, 6).length === 0 ? (
+							<>
+								<Skeleton className="h-24 rounded-lg" />
+								<Skeleton className="h-20 rounded-lg" />
+							</>
+						) : turns.length === 0 ? (
 							<p className="text-sm text-muted-foreground">
 								{m.dashboardPatientsEmptyDescription({}, { locale })}
 							</p>
 						) : (
-							turns
-								.slice(0, 6)
-								.map((t) => <TurnRow key={t.id} turn={t} compact />)
+							<>
+								<div className="grid gap-3 sm:grid-cols-2">
+									<div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+										<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+											{m.dashboardPatientCalledTurnLabel({}, { locale })}
+										</p>
+										<p className="mt-1 text-2xl font-bold tabular-nums text-primary">
+											{currentTurn ? `#${currentTurn.numeroTurno}` : '--'}
+										</p>
+										<p className="mt-1 text-xs text-muted-foreground">
+											{currentTurn
+												? `${currentTurn.tipo} - ${statusLabel(currentTurn.estado, locale)}`
+												: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
+										</p>
+									</div>
+
+									<div className="rounded-lg border border-border/70 bg-background/90 p-3">
+										<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+											{m.dashboardStatusWaiting({}, { locale })}
+										</p>
+										<p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+											{nextWaitingTurn
+												? `#${nextWaitingTurn.numeroTurno}`
+												: '--'}
+										</p>
+										<p className="mt-1 text-xs text-muted-foreground">
+											{nextWaitingTurn
+												? `${nextWaitingTurn.tipo} - ${statusLabel(nextWaitingTurn.estado, locale)}`
+												: m.dashboardPatientsEmptyDescription({}, { locale })}
+										</p>
+									</div>
+								</div>
+
+								<div className="space-y-2 border-t border-border/60 pt-3">
+									<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+										{m.dashboardSidebarQueue({}, { locale })}
+									</p>
+									{upcomingTurns.length === 0 ? (
+										<p className="text-sm text-muted-foreground">
+											{m.dashboardPatientsEmptyDescription({}, { locale })}
+										</p>
+									) : (
+										<ul className="space-y-1.5">
+											{upcomingTurns.slice(0, 6).map((turn) => (
+												<li
+													key={turn.id}
+													className="flex items-center justify-between rounded-md bg-background/80 px-2 py-1.5"
+												>
+													<span className="text-sm font-semibold tabular-nums text-foreground">
+														#{turn.numeroTurno}
+													</span>
+													<span className="text-xs text-muted-foreground">
+														{turn.tipo} - {statusLabel(turn.estado, locale)}
+													</span>
+												</li>
+											))}
+										</ul>
+									)}
+								</div>
+							</>
 						)}
 					</CardContent>
 				</Card>
@@ -426,12 +729,105 @@ export function ReceptionistDashboardView({
 	}
 
 	function QueueSection() {
+		const patientSelectId = 'receptionist-turn-patient';
+		const turnTypeSelectId = 'receptionist-turn-type';
+
 		return (
 			<div className="space-y-4">
+				{/* Turno actual grande + historial compacto */}
+				<Card className="border-border/70">
+					<CardHeader className="pb-2">
+						<CardTitle className="flex items-center gap-2 text-base">
+							<QueueListIcon className="h-4 w-4" />
+							{m.dashboardSidebarQueue({}, { locale })}
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+							<div className="flex items-center justify-between gap-2">
+								<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+									{m.dashboardPatientCalledTurnLabel({}, { locale })}
+								</p>
+								<Button
+									type="button"
+									onClick={handleCallNext}
+									disabled={actionLoading === 'call-next' || waitingTurns === 0}
+									size="sm"
+									className="gap-2"
+								>
+									<QueueListIcon className="h-4 w-4" />
+									{actionLoading === 'call-next'
+										? m.dashboardActionCreating({}, { locale })
+										: m.dashboardReceptionistCallNext({}, { locale })}
+								</Button>
+							</div>
+							<p className="mt-2 text-center text-3xl font-bold tabular-nums text-primary sm:text-4xl">
+								{currentTurn ? `#${currentTurn.numeroTurno}` : '--'}
+							</p>
+							<p className="mt-1 text-center text-xs text-muted-foreground">
+								{currentTurn
+									? `${currentTurn.tipo} - ${statusLabel(currentTurn.estado, locale)}`
+									: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
+							</p>
+						</div>
+
+						{turnHistory.length > 0 && (
+							<div className="space-y-2 border-t border-border/60 pt-3">
+								<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+									{m.dashboardSidebarHistorial({}, { locale })}
+								</p>
+								<ul className="space-y-1.5">
+									{turnHistory.map((turn) => (
+										<li
+											key={turn.id}
+											className="flex items-center justify-between rounded-md bg-background/80 px-2 py-1.5"
+										>
+											<span className="text-sm font-semibold tabular-nums text-foreground">
+												#{turn.numeroTurno}
+											</span>
+											<span className="text-xs text-muted-foreground">
+												{statusLabel(turn.estado, locale)}
+											</span>
+										</li>
+									))}
+								</ul>
+							</div>
+						)}
+
+						<div className="space-y-2 border-t border-border/60 pt-3">
+							<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+								{m.dashboardStatusWaiting({}, { locale })}
+							</p>
+							{upcomingTurns.length === 0 ? (
+								<p className="text-sm text-muted-foreground">
+									{m.dashboardPatientsEmptyDescription({}, { locale })}
+								</p>
+							) : (
+								<ul className="space-y-1.5">
+									{upcomingTurns.slice(0, 6).map((turn) => (
+										<li
+											key={turn.id}
+											className="flex items-center justify-between rounded-md bg-background/80 px-2 py-1.5"
+										>
+											<span className="text-sm font-semibold tabular-nums text-foreground">
+												#{turn.numeroTurno}
+											</span>
+											<span className="text-xs text-muted-foreground">
+												{turn.tipo} - {statusLabel(turn.estado, locale)}
+											</span>
+										</li>
+									))}
+								</ul>
+							)}
+						</div>
+					</CardContent>
+				</Card>
+
 				{/* Formulario para crear turno nuevo */}
 				<Card className="border-border/70">
 					<CardHeader className="pb-2">
-						<CardTitle className="text-base">
+						<CardTitle className="flex items-center gap-2 text-base">
+							<UserGroupIcon className="h-4 w-4" />
 							{m.dashboardReceptionistCreateTurnTitle({}, { locale })}
 						</CardTitle>
 						<CardDescription>
@@ -442,8 +838,11 @@ export function ReceptionistDashboardView({
 						<div className="grid gap-3 sm:grid-cols-2">
 							{/* Selector de paciente — construido desde la lista real del backend */}
 							<div className="space-y-1">
-								<label className="text-xs font-medium text-muted-foreground">
-									{m.dashboardPatientSelectDoctor({}, { locale })}
+								<label
+									htmlFor={patientSelectId}
+									className="text-xs font-medium text-muted-foreground"
+								>
+									{m.dashboardReceptionistSelectPatient({}, { locale })}
 								</label>
 								<Select
 									value={newTurn.pacienteId}
@@ -451,18 +850,27 @@ export function ReceptionistDashboardView({
 										setNewTurn((prev) => ({ ...prev, pacienteId: v ?? '' }))
 									}
 								>
-									<SelectTrigger>
+									<SelectTrigger
+										id={patientSelectId}
+										className="h-10 w-full sm:w-72"
+									>
 										<SelectValue
-											placeholder={
-												locale === 'es'
-													? 'Seleccionar paciente'
-													: 'Select patient'
-											}
-										/>
+											placeholder={m.dashboardReceptionistSelectPatient(
+												{},
+												{ locale },
+											)}
+										>
+											{selectedPatientLabel || undefined}
+										</SelectValue>
 									</SelectTrigger>
 									<SelectContent>
 										{patients.map((p) => (
-											<SelectItem key={p.id} value={p.id}>
+											<SelectItem
+												key={p.id}
+												value={p.id}
+												label={`${p.nombre} ${p.apellido}`}
+												title={`${p.nombre} ${p.apellido}`}
+											>
 												{p.nombre} {p.apellido}
 											</SelectItem>
 										))}
@@ -472,8 +880,11 @@ export function ReceptionistDashboardView({
 
 							{/* Tipo de turno: NORMAL, PRIORITARIO, URGENTE */}
 							<div className="space-y-1">
-								<label className="text-xs font-medium text-muted-foreground">
-									{locale === 'es' ? 'Tipo' : 'Type'}
+								<label
+									htmlFor={turnTypeSelectId}
+									className="text-xs font-medium text-muted-foreground"
+								>
+									{m.dashboardReceptionistTurnTypeLabel({}, { locale })}
 								</label>
 								<Select
 									value={newTurn.tipo}
@@ -484,7 +895,10 @@ export function ReceptionistDashboardView({
 										}))
 									}
 								>
-									<SelectTrigger>
+									<SelectTrigger
+										id={turnTypeSelectId}
+										className="h-10 w-full sm:w-72"
+									>
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
@@ -507,7 +921,9 @@ export function ReceptionistDashboardView({
 								type="button"
 								onClick={handleCreateTurn}
 								disabled={
-									actionLoading === 'create-turn' || !newTurn.pacienteId
+									actionLoading === 'create-turn' ||
+									!newTurn.pacienteId ||
+									!selectedHospitalId
 								}
 								className="gap-2"
 							>
@@ -521,7 +937,7 @@ export function ReceptionistDashboardView({
 								type="button"
 								variant="outline"
 								onClick={handleCallNext}
-								disabled={actionLoading === 'call-next' || waitingTurns === 0}
+								disabled={actionLoading === 'call-next'}
 								className="gap-2"
 							>
 								<QueueListIcon className="h-4 w-4" />
@@ -539,12 +955,12 @@ export function ReceptionistDashboardView({
 						[1, 2, 3, 4, 5].map((i) => (
 							<Skeleton key={i} className="h-20 rounded-xl" />
 						))
-					) : turns.length === 0 ? (
+					) : upcomingTurns.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
 							{m.dashboardPatientsEmptyDescription({}, { locale })}
 						</p>
 					) : (
-						turns.map((t) => (
+						upcomingTurns.map((t) => (
 							<TurnRow
 								key={t.id}
 								turn={t}
@@ -578,15 +994,19 @@ export function ReceptionistDashboardView({
 		cancelling?: boolean;
 	}) {
 		// Solo mostrar acciones para turnos activos (en espera o en consulta)
-		const isActive = t.estado === 'EN_ESPERA' || t.estado === 'EN_CONSULTA';
+		const isActive = !isTurnClosed(t.estado);
 
 		return (
 			<div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/90 p-3">
 				<div>
-					<p className="text-sm font-semibold text-foreground">
-						#{t.numeroTurno}
+					<p className="flex items-center gap-1 text-sm font-semibold text-foreground">
+						<QueueListIcon className="h-4 w-4 text-muted-foreground" />#
+						{t.numeroTurno}
 					</p>
-					<p className="text-xs text-muted-foreground">{t.tipo}</p>
+					<p className="flex items-center gap-1 text-xs text-muted-foreground">
+						<ClockIcon className="h-3.5 w-3.5" />
+						{t.tipo}
+					</p>
 				</div>
 				<div className="flex items-center gap-2">
 					<Badge variant={turnVariant(t.estado)}>
@@ -638,13 +1058,13 @@ export function ReceptionistDashboardView({
 	function renderSection() {
 		switch (section) {
 			case 'overview':
-				return <OverviewSection />;
+				return OverviewSection();
 			case 'appointments':
-				return <AppointmentsSection />;
+				return AppointmentsSection();
 			case 'queue':
-				return <QueueSection />;
+				return QueueSection();
 			default:
-				return <OverviewSection />;
+				return OverviewSection();
 		}
 	}
 

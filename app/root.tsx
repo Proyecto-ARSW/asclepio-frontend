@@ -97,9 +97,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				    con position:fixed que viven FUERA de este div (portal-root,
 				    VoiceGuideButton) mantienen su referencia de posicionamiento al
 				    viewport, no al contenedor filtrado. */}
-				<div id="filter-scope">
-					{children}
-				</div>
+				<div id="filter-scope">{children}</div>
 
 				{/* portal-root: punto de montaje externo al scope del filtro.
 				    El sidebar FAB y otros elementos fixed usan createPortal aquí

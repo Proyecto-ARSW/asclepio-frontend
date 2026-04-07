@@ -4,11 +4,12 @@ import {
 	PlusIcon,
 	XCircleIcon,
 } from '@heroicons/react/24/outline';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { WaitingRoomGame } from '@/components/game/waiting-room-game';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Button } from '@/components/ui/button/button.component';
+import { Calendar } from '@/components/ui/calendar/calendar.component';
 import {
 	Card,
 	CardContent,
@@ -16,7 +17,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
-import { Input } from '@/components/ui/input/input.component';
 import {
 	Select,
 	SelectContent,
@@ -25,6 +25,7 @@ import {
 	SelectValue,
 } from '@/components/ui/select/select.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
+import { Textarea } from '@/components/ui/textarea/textarea.component';
 import type { AppLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import { gqlMutation, gqlQuery } from '@/lib/graphql-client';
@@ -46,6 +47,7 @@ interface Appointment {
 	fechaHora: string;
 	estado: string;
 	motivo: string | null;
+	medicoId?: string | null;
 }
 
 interface Turno {
@@ -71,6 +73,12 @@ interface Doctor {
 	consultorio: string | null;
 }
 
+interface DoctorAvailability {
+	id: number;
+	diaSemana: number;
+	activo: boolean;
+}
+
 interface SlotDisponible {
 	fechaHora: string;
 	duracionMinutos: number;
@@ -93,6 +101,7 @@ const PATIENT_APPOINTMENTS_QUERY = `
 	query PatientAppointments($pacienteId: ID!) {
 		appoinmentsByPatient(pacienteId: $pacienteId) {
 			id
+			medicoId
 			fechaHora
 			estado
 			motivo
@@ -111,6 +120,21 @@ const PATIENT_TURNS_QUERY = `
 	}
 `;
 
+const HOSPITAL_TURNS_QUERY = `
+	query PatientHospitalTurns {
+		turnosPorHospital {
+			id
+			numeroTurno
+			estado
+			tipo
+		}
+	}
+`;
+
+const CALLED_TURN_STATES = ['EN_CONSULTA'] as const;
+const CALLED_HISTORY_TURN_STATES = [...CALLED_TURN_STATES, 'ATENDIDO'] as const;
+const CLOSED_TURN_STATES = ['ATENDIDO', 'CANCELADO'] as const;
+
 const PATIENT_HISTORIAL_QUERY = `
 	query PatientHistorial($pacienteId: ID!) {
 		historialByPaciente(pacienteId: $pacienteId) {
@@ -125,8 +149,8 @@ const PATIENT_HISTORIAL_QUERY = `
 
 // Traer médicos con disponibilidad para el selector de agendar cita
 const DOCTORS_QUERY = `
-	query DoctorsForBooking {
-		doctors {
+	query DoctorsForBooking($hospitalId: Int!) {
+		doctors(hospitalId: $hospitalId) {
 			id
 			nombre
 			apellido
@@ -147,11 +171,22 @@ const AVAILABLE_SLOTS_QUERY = `
 	}
 `;
 
+const DOCTOR_AVAILABILITY_QUERY = `
+	query DoctorAvailabilityForBooking($medicoId: ID!) {
+		disponibilidadesByDoctor(medicoId: $medicoId) {
+			id
+			diaSemana
+			activo
+		}
+	}
+`;
+
 // Agendar una cita en un slot específico
 const CREATE_APPOINTMENT = `
 	mutation CreateAppointment($input: CreateAppoinmentInput!) {
 		createAppoinment(input: $input) {
 			id
+			medicoId
 			fechaHora
 			estado
 			motivo
@@ -166,6 +201,15 @@ const CREATE_PATIENT_TURN = `
 			id
 			numeroTurno
 			tipo
+			estado
+		}
+	}
+`;
+
+const CANCEL_TURN = `
+	mutation CancelPatientTurn($id: ID!) {
+		cancelarTurno(id: $id) {
+			id
 			estado
 		}
 	}
@@ -206,12 +250,113 @@ function statusLabel(estado: string, locale: AppLocale) {
 		case 'COMPLETADA':
 			return m.dashboardStatusAttended({}, { locale });
 		case 'EN_ESPERA':
-			return locale === 'es' ? 'En espera' : 'Waiting';
+			return m.dashboardStatusWaiting({}, { locale });
 		case 'EN_CONSULTA':
-			return locale === 'es' ? 'En consulta' : 'In consultation';
+			return m.dashboardStatusInConsultation({}, { locale });
 		default:
 			return estado;
 	}
+}
+
+function isActiveTurnConflictError(raw: string) {
+	return /(turno\s+activo|active\s+turn)/i.test(raw);
+}
+
+function isTurnNumberConflictError(raw: string) {
+	return /(idx_turnos_unique|p2002|numero_turno|unique|duplicate|valor\s+u?nico|valor\s+\u00fanico)/i.test(
+		raw,
+	);
+}
+
+function isWaitingTurn(estado: string) {
+	return /^EN_ESPERA$/i.test(estado);
+}
+
+function isActiveAppointment(estado: string) {
+	return /^(PENDIENTE|CONFIRMADA)$/i.test(estado);
+}
+
+function activeTurnConflictMessage(locale: AppLocale, turnNumber?: number) {
+	if (locale === 'es') {
+		return turnNumber
+			? `Ya tienes un turno activo (#${turnNumber}). Debes esperar a ser atendido o cancelarlo antes de pedir otro.`
+			: 'Ya tienes un turno activo. Debes esperar a ser atendido o cancelarlo antes de pedir otro.';
+	}
+
+	return turnNumber
+		? `You already have an active turn (#${turnNumber}). Wait to be attended or cancel it before requesting another one.`
+		: 'You already have an active turn. Wait to be attended or cancel it before requesting another one.';
+}
+
+function uniqueTurnConflictRetryMessage(locale: AppLocale) {
+	if (locale === 'es') {
+		return 'No se pudo crear el turno por un conflicto temporal de numeracion. Intenta nuevamente en unos segundos.';
+	}
+	return 'The turn could not be created due to a temporary numbering conflict. Please try again in a few seconds.';
+}
+
+function doctorDisplayName(doctor: Doctor, locale: AppLocale) {
+	const fullName = `${doctor.nombre ?? ''} ${doctor.apellido ?? ''}`.trim();
+	return fullName || m.dashboardPatientDoctorUnnamed({}, { locale });
+}
+
+function doctorDisplayLabel(doctor: Doctor, locale: AppLocale) {
+	const name = doctorDisplayName(doctor, locale);
+	return doctor.consultorio ? `${name} - ${doctor.consultorio}` : name;
+}
+
+function toLocalDateValue(date: Date) {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
+
+function fromLocalDateValue(value: string) {
+	if (!value) return null;
+	const [year, month, day] = value.split('-').map(Number);
+	if (!year || !month || !day) return null;
+	return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
+
+function startOfToday() {
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	return today;
+}
+
+function slotRangeLabel(slot: SlotDisponible, locale: AppLocale) {
+	const inicio = new Date(slot.fechaHora);
+	const fin = new Date(inicio.getTime() + slot.duracionMinutos * 60_000);
+	const timeOpts: Intl.DateTimeFormatOptions = {
+		hour: '2-digit',
+		minute: '2-digit',
+	};
+	return `${inicio.toLocaleTimeString(locale, timeOpts)} — ${fin.toLocaleTimeString(locale, timeOpts)}`;
+}
+
+function slotHourLabelFromIso(iso: string, locale: AppLocale) {
+	const date = new Date(iso);
+	if (Number.isNaN(date.getTime())) return '';
+	return date.toLocaleTimeString(locale, {
+		hour: '2-digit',
+		minute: '2-digit',
+	});
+}
+
+function finalSlotDateTimeLabel(iso: string, locale: AppLocale) {
+	const date = new Date(iso);
+	if (Number.isNaN(date.getTime())) return '';
+	const datePart = date.toLocaleDateString(locale, {
+		weekday: 'long',
+		day: '2-digit',
+		month: 'long',
+	});
+	const timePart = date.toLocaleTimeString(locale, {
+		hour: '2-digit',
+		minute: '2-digit',
+	});
+	return `${datePart} ${timePart}`;
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -226,11 +371,19 @@ export function PatientDashboardView({
 	const [missingProfile, setMissingProfile] = useState(false);
 	const [appointments, setAppointments] = useState<Appointment[]>([]);
 	const [turns, setTurns] = useState<Turno[]>([]);
+	const [hospitalTurns, setHospitalTurns] = useState<Turno[]>([]);
 	const [historial, setHistorial] = useState<HistorialEntry[]>([]);
 	const [doctors, setDoctors] = useState<Doctor[]>([]);
+	const [doctorAvailabilityDays, setDoctorAvailabilityDays] = useState<
+		number[]
+	>([]);
 	const [slots, setSlots] = useState<SlotDisponible[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [doctorAvailabilityLoading, setDoctorAvailabilityLoading] =
+		useState(false);
 	const [slotsLoading, setSlotsLoading] = useState(false);
+	const [slotsLoadError, setSlotsLoadError] = useState('');
+	const [availabilityLoadError, setAvailabilityLoadError] = useState('');
 	const [error, setError] = useState('');
 	const [successMsg, setSuccessMsg] = useState('');
 	const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -246,7 +399,10 @@ export function PatientDashboardView({
 
 	const loadProfile = useCallback(async () => {
 		const res = await gqlQuery<{ patients: PatientProfile[] }>(PATIENTS_QUERY);
-		const mine = res.patients.find((p) => p.usuarioId === user.id);
+		const normalizedUserId = String(user.id);
+		const mine = res.patients.find(
+			(p) => String(p.usuarioId) === normalizedUserId,
+		);
 		if (!mine) {
 			setMissingProfile(true);
 			return null;
@@ -265,7 +421,10 @@ export function PatientDashboardView({
 
 			// Carga paralela por sección para evitar waterfalls
 			await Promise.all([
-				section === 'overview' || section === 'appointments' || !section
+				section === 'overview' ||
+				section === 'appointments' ||
+				section === 'queue' ||
+				!section
 					? gqlQuery<{ appoinmentsByPatient: Appointment[] }>(
 							PATIENT_APPOINTMENTS_QUERY,
 							{ pacienteId: profile.id },
@@ -276,30 +435,143 @@ export function PatientDashboardView({
 							pacienteId: profile.id,
 						}).then((r) => setTurns(r.turnosPorPaciente))
 					: Promise.resolve(),
+				section === 'overview' || section === 'queue' || !section
+					? gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_QUERY).then(
+							(r) => setHospitalTurns(r.turnosPorHospital),
+						)
+					: Promise.resolve(),
 				section === 'historial'
 					? gqlQuery<{ historialByPaciente: HistorialEntry[] }>(
 							PATIENT_HISTORIAL_QUERY,
 							{ pacienteId: profile.id },
 						).then((r) => setHistorial(r.historialByPaciente))
 					: Promise.resolve(),
-				// Cargar médicos al llegar a la sección de citas (para el formulario)
-				section === 'appointments'
-					? gqlQuery<{ doctors: Doctor[] }>(DOCTORS_QUERY).then((r) =>
-							setDoctors(r.doctors),
-						)
+				// Cargar médicos también en cola para mostrar médico de referencia
+				section === 'overview' ||
+				section === 'appointments' ||
+				section === 'queue' ||
+				!section
+					? selectedHospitalId
+						? gqlQuery<{ doctors: Doctor[] }>(DOCTORS_QUERY, {
+								hospitalId: selectedHospitalId,
+							}).then((r) => setDoctors(r.doctors))
+						: Promise.resolve(setDoctors([]))
 					: Promise.resolve(),
 			]);
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : 'Error al cargar datos';
+			const msg =
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale });
 			setError(msg);
 		} finally {
 			setLoading(false);
 		}
-	}, [loadProfile, section]);
+	}, [loadProfile, locale, section, selectedHospitalId]);
+
+	const refreshQueueTurns = useCallback(async () => {
+		if (!patientId) return;
+		try {
+			const [patientTurns, hospitalTurnsData] = await Promise.all([
+				gqlQuery<{ turnosPorPaciente: Turno[] }>(PATIENT_TURNS_QUERY, {
+					pacienteId: patientId,
+				}),
+				gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_QUERY),
+			]);
+			setTurns(patientTurns.turnosPorPaciente);
+			setHospitalTurns(hospitalTurnsData.turnosPorHospital);
+		} catch (err) {
+			setError(
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale }),
+			);
+		}
+	}, [locale, patientId]);
+
+	const refreshAppointments = useCallback(async () => {
+		if (!patientId) return;
+		try {
+			const patientAppointments = await gqlQuery<{
+				appoinmentsByPatient: Appointment[];
+			}>(PATIENT_APPOINTMENTS_QUERY, {
+				pacienteId: patientId,
+			});
+			setAppointments(patientAppointments.appoinmentsByPatient);
+		} catch (err) {
+			setError(
+				err instanceof Error
+					? err.message
+					: m.rootErrorUnexpected({}, { locale }),
+			);
+		}
+	}, [locale, patientId]);
 
 	useEffect(() => {
 		void loadData();
 	}, [loadData]);
+
+	useEffect(() => {
+		if (!(section === 'queue' || section === 'overview' || !section)) return;
+		if (!patientId) return;
+
+		let disposed = false;
+		const runRefresh = async () => {
+			if (disposed) return;
+			if (
+				typeof document !== 'undefined' &&
+				document.visibilityState === 'hidden'
+			) {
+				return;
+			}
+			await refreshQueueTurns();
+		};
+
+		void runRefresh();
+		const interval = window.setInterval(() => {
+			void runRefresh();
+		}, 4000);
+
+		return () => {
+			disposed = true;
+			window.clearInterval(interval);
+		};
+	}, [patientId, refreshQueueTurns, section]);
+
+	useEffect(() => {
+		if (
+			!(
+				section === 'appointments' ||
+				section === 'overview' ||
+				section === 'queue' ||
+				!section
+			)
+		)
+			return;
+		if (!patientId) return;
+
+		let disposed = false;
+		const runRefresh = async () => {
+			if (disposed) return;
+			if (
+				typeof document !== 'undefined' &&
+				document.visibilityState === 'hidden'
+			) {
+				return;
+			}
+			await refreshAppointments();
+		};
+
+		void runRefresh();
+		const interval = window.setInterval(() => {
+			void runRefresh();
+		}, 10_000);
+
+		return () => {
+			disposed = true;
+			window.clearInterval(interval);
+		};
+	}, [patientId, refreshAppointments, section]);
 
 	// Cerrar sala de espera al cambiar de sección
 	useEffect(() => {
@@ -316,18 +588,63 @@ export function PatientDashboardView({
 	useEffect(() => {
 		if (!booking.medicoId || !booking.fecha) {
 			setSlots([]);
+			setSlotsLoadError('');
 			return;
 		}
 		setSlotsLoading(true);
+		setSlotsLoadError('');
 		gqlQuery<{ availableSlots: SlotDisponible[] }>(AVAILABLE_SLOTS_QUERY, {
 			medicoId: booking.medicoId,
 			// Usar mediodía local para evitar que UTC midnight desplace el día en el servidor
 			fecha: new Date(`${booking.fecha}T12:00:00`).toISOString(),
 		})
 			.then((r) => setSlots(r.availableSlots))
-			.catch(() => setSlots([]))
+			.catch((err) => {
+				setSlots([]);
+				setSlotsLoadError(
+					err instanceof Error
+						? err.message
+						: m.rootErrorUnexpected({}, { locale }),
+				);
+			})
 			.finally(() => setSlotsLoading(false));
-	}, [booking.medicoId, booking.fecha]);
+	}, [booking.medicoId, booking.fecha, locale]);
+
+	useEffect(() => {
+		if (!booking.medicoId) {
+			setDoctorAvailabilityDays([]);
+			setAvailabilityLoadError('');
+			setDoctorAvailabilityLoading(false);
+			return;
+		}
+
+		setDoctorAvailabilityLoading(true);
+		setAvailabilityLoadError('');
+		gqlQuery<{ disponibilidadesByDoctor: DoctorAvailability[] }>(
+			DOCTOR_AVAILABILITY_QUERY,
+			{ medicoId: booking.medicoId },
+		)
+			.then((response) => {
+				const uniqueDays = [
+					...new Set(
+						response.disponibilidadesByDoctor
+							.filter((slot) => slot.activo)
+							.map((slot) => slot.diaSemana)
+							.filter((day) => day >= 0 && day <= 6),
+					),
+				].sort((a, b) => a - b);
+				setDoctorAvailabilityDays(uniqueDays);
+			})
+			.catch((err) => {
+				setDoctorAvailabilityDays([]);
+				setAvailabilityLoadError(
+					err instanceof Error
+						? err.message
+						: m.rootErrorUnexpected({}, { locale }),
+				);
+			})
+			.finally(() => setDoctorAvailabilityLoading(false));
+	}, [booking.medicoId, locale]);
 
 	// ── Acción: agendar cita ──
 	async function handleBook() {
@@ -346,12 +663,20 @@ export function PatientDashboardView({
 					},
 				},
 			);
-			setAppointments((prev) => [res.createAppoinment, ...prev]);
+			setAppointments((prev) => [
+				{
+					...res.createAppoinment,
+					medicoId: res.createAppoinment.medicoId ?? booking.medicoId,
+				},
+				...prev,
+			]);
 			setBooking({ medicoId: '', fecha: '', slot: '', motivo: '' });
 			setSlots([]);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -365,24 +690,94 @@ export function PatientDashboardView({
 		setActionLoading('create-turn');
 		setError('');
 		try {
-			const res = await gqlMutation<{ crearTurno: Turno }>(
-				CREATE_PATIENT_TURN,
-				{
+			const resolveActiveTurn = async () => {
+				const patientTurns = await gqlQuery<{ turnosPorPaciente: Turno[] }>(
+					PATIENT_TURNS_QUERY,
+					{ pacienteId: patientId },
+				);
+				return [...(patientTurns.turnosPorPaciente ?? [])]
+					.filter(
+						(turn) =>
+							!CLOSED_TURN_STATES.includes(
+								turn.estado as (typeof CLOSED_TURN_STATES)[number],
+							),
+					)
+					.sort((a, b) => a.numeroTurno - b.numeroTurno)[0];
+			};
+
+			const createTurn = async () =>
+				gqlMutation<{ crearTurno: Turno }>(CREATE_PATIENT_TURN, {
 					input: {
 						pacienteId: patientId,
 						hospitalId: selectedHospitalId,
 						tipo: 'NORMAL',
 					},
-				},
-			);
-			setTurns((prev) => [res.crearTurno, ...prev]);
-			flash(
-				locale === 'es'
-					? `Turno #${res.crearTurno.numeroTurno} creado`
-					: `Turn #${res.crearTurno.numeroTurno} created`,
-			);
+				});
+
+			const applyCreatedTurn = async (turn: Turno) => {
+				setTurns((prev) => [turn, ...prev]);
+				await refreshQueueTurns();
+				flash(
+					m.dashboardTurnCreated(
+						{ number: String(turn.numeroTurno) },
+						{ locale },
+					),
+				);
+			};
+
+			const activeTurn = await resolveActiveTurn();
+			if (activeTurn) {
+				setError(activeTurnConflictMessage(locale, activeTurn.numeroTurno));
+				return;
+			}
+
+			const res = await createTurn();
+			await applyCreatedTurn(res.crearTurno);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			const message =
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale });
+			if (isActiveTurnConflictError(message)) {
+				try {
+					const patientTurns = await gqlQuery<{ turnosPorPaciente: Turno[] }>(
+						PATIENT_TURNS_QUERY,
+						{ pacienteId: patientId },
+					);
+					const activeTurn = [...(patientTurns.turnosPorPaciente ?? [])]
+						.filter(
+							(turn) =>
+								!CLOSED_TURN_STATES.includes(
+									turn.estado as (typeof CLOSED_TURN_STATES)[number],
+								),
+						)
+						.sort((a, b) => a.numeroTurno - b.numeroTurno)[0];
+					setError(activeTurnConflictMessage(locale, activeTurn?.numeroTurno));
+				} catch {
+					setError(activeTurnConflictMessage(locale));
+				}
+				await refreshQueueTurns();
+			} else if (isTurnNumberConflictError(message)) {
+				await refreshQueueTurns();
+				setError(uniqueTurnConflictRetryMessage(locale));
+			} else {
+				setError(message);
+			}
+		} finally {
+			setActionLoading(null);
+		}
+	}
+
+	// ── Acción: cancelar mi turno en espera ──
+	async function handleCancelMyTurn(turnId: string) {
+		setActionLoading('cancel-my-turn');
+		setError('');
+		try {
+			await gqlMutation(CANCEL_TURN, { id: turnId });
+			await refreshQueueTurns();
+			flash(m.dashboardActionSuccess({}, { locale }));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
@@ -398,7 +793,10 @@ export function PatientDashboardView({
 				input: {
 					id,
 					canceladaPor: user.id,
-					motivoCancelacion: 'Cancelado por el paciente',
+					motivoCancelacion: m.dashboardPatientCancellationReason(
+						{},
+						{ locale },
+					),
 				},
 			});
 			setAppointments((prev) =>
@@ -406,20 +804,68 @@ export function PatientDashboardView({
 			);
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Error');
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
 		} finally {
 			setActionLoading(null);
 		}
 	}
 
-	// ─── Cita activa / turno llamado ──────────────────────────────────────────
-	const calledTurnCandidate = turns.find((t) =>
-		['LLAMADO', 'LLAMANDO', 'EN_ATENCION', 'EN_CURSO'].includes(t.estado),
-	);
-	const fallbackTurn = turns
-		.filter((t) => !['ATENDIDA', 'CANCELADA'].includes(t.estado))
+	// ─── Turno llamado actual (hospital) + tu turno (paciente) ───────────────
+	const currentCalledTurn = [...hospitalTurns]
+		.filter((turn) =>
+			CALLED_TURN_STATES.includes(
+				turn.estado as (typeof CALLED_TURN_STATES)[number],
+			),
+		)
+		.sort((a, b) => b.numeroTurno - a.numeroTurno)[0];
+
+	const calledTurnsHistory = [...hospitalTurns]
+		.filter((turn) =>
+			CALLED_HISTORY_TURN_STATES.includes(
+				turn.estado as (typeof CALLED_HISTORY_TURN_STATES)[number],
+			),
+		)
+		.sort((a, b) => b.numeroTurno - a.numeroTurno)
+		.slice(0, 6);
+
+	const myCurrentTurn = [...turns]
+		.filter(
+			(turn) =>
+				!CLOSED_TURN_STATES.includes(
+					turn.estado as (typeof CLOSED_TURN_STATES)[number],
+				),
+		)
 		.sort((a, b) => a.numeroTurno - b.numeroTurno)[0];
-	const currentCalledTurn = calledTurnCandidate ?? fallbackTurn;
+
+	const activeAppointments = useMemo(
+		() =>
+			[...appointments]
+				.filter((appointment) => isActiveAppointment(appointment.estado))
+				.sort(
+					(a, b) =>
+						new Date(a.fechaHora).getTime() - new Date(b.fechaHora).getTime(),
+				),
+		[appointments],
+	);
+
+	const assignedAppointment = useMemo(() => {
+		const now = Date.now();
+		const upcoming = activeAppointments.find(
+			(appointment) => new Date(appointment.fechaHora).getTime() >= now,
+		);
+		return upcoming ?? activeAppointments[0] ?? null;
+	}, [activeAppointments]);
+
+	const assignedDoctorLabel = useMemo(() => {
+		if (!assignedAppointment?.medicoId) return '';
+		const doctor = doctors.find(
+			(item) => item.id === assignedAppointment.medicoId,
+		);
+		if (!doctor) return '';
+		return doctorDisplayLabel(doctor, locale);
+	}, [assignedAppointment, doctors, locale]);
 
 	const isOverview = !section || section === 'overview';
 	const showAppointments = isOverview || section === 'appointments';
@@ -436,6 +882,37 @@ export function PatientDashboardView({
 	// ─── Sección de citas con formulario de agendado ──────────────────────────
 
 	function AppointmentBookingForm() {
+		const doctorSelectId = 'patient-booking-doctor';
+		const doctorHelpId = 'patient-booking-doctor-help';
+		const doctorEmptyStateId = 'patient-booking-doctor-empty';
+		const dateInputId = 'patient-booking-calendar';
+		const slotSelectId = 'patient-booking-slot';
+		const reasonInputId = 'patient-booking-reason';
+		const selectedDoctor =
+			doctors.find((d) => d.id === booking.medicoId) ?? null;
+		const selectedDate = fromLocalDateValue(booking.fecha);
+		const selectedSlot =
+			slots.find((s) => s.fechaHora === booking.slot) ?? null;
+		const selectedSlotLabel = selectedSlot
+			? slotRangeLabel(selectedSlot, locale)
+			: booking.slot
+				? slotHourLabelFromIso(booking.slot, locale)
+				: undefined;
+		const finalSelectionLabel = booking.slot
+			? finalSlotDateTimeLabel(booking.slot, locale)
+			: '';
+		const availableDaysSet = new Set(doctorAvailabilityDays);
+		const minDate = startOfToday();
+
+		const isDateDisabled = (date: Date) => {
+			const currentDate = new Date(date);
+			currentDate.setHours(0, 0, 0, 0);
+			if (currentDate < minDate) return true;
+			if (!booking.medicoId) return true;
+			if (availableDaysSet.size === 0) return true;
+			return !availableDaysSet.has(currentDate.getDay());
+		};
+
 		return (
 			<Card className="border-border/70">
 				<CardHeader className="pb-2">
@@ -448,127 +925,234 @@ export function PatientDashboardView({
 				</CardHeader>
 				<CardContent className="space-y-3">
 					{/* Paso 1: seleccionar médico */}
-					<div className="space-y-1">
-						<label className="text-xs font-medium text-muted-foreground">
+					<div className="space-y-2">
+						<label
+							htmlFor={doctorSelectId}
+							className="text-xs font-medium text-muted-foreground"
+						>
 							{m.dashboardPatientSelectDoctor({}, { locale })}
 						</label>
 						<Select
 							value={booking.medicoId}
+							disabled={loading || doctors.length === 0}
 							onValueChange={(v) =>
-								setBooking((prev) => ({ ...prev, medicoId: v ?? '', slot: '' }))
+								setBooking((prev) => ({
+									...prev,
+									medicoId: v ?? '',
+									fecha: '',
+									slot: '',
+								}))
 							}
 						>
-							<SelectTrigger>
+							<SelectTrigger
+								id={doctorSelectId}
+								className="h-auto min-h-10 w-full py-2"
+								aria-describedby={
+									selectedDoctor
+										? doctorHelpId
+										: !loading && doctors.length === 0
+											? doctorEmptyStateId
+											: undefined
+								}
+							>
 								<SelectValue
-									placeholder={
-										locale === 'es' ? 'Seleccionar médico' : 'Select doctor'
-									}
-								/>
+									placeholder={m.dashboardPatientSelectDoctor({}, { locale })}
+									className="min-w-0"
+								>
+									{selectedDoctor
+										? doctorDisplayLabel(selectedDoctor, locale)
+										: undefined}
+								</SelectValue>
 							</SelectTrigger>
-							<SelectContent>
+							<SelectContent className="w-[min(94vw,36rem)]">
 								{doctors.map((d) => {
-									// Base UI necesita `label` explícito para que SelectValue
-									// muestre el nombre en el trigger en vez del UUID
-									const label = `${d.nombre ?? ''} ${d.apellido ?? ''}`.trim();
+									const label = doctorDisplayLabel(d, locale);
 									return (
-										<SelectItem key={d.id} value={d.id} label={label}>
-											{label}
-											{d.consultorio ? ` — ${d.consultorio}` : ''}
+										<SelectItem
+											key={d.id}
+											value={d.id}
+											label={label}
+											title={label}
+											className="items-start py-2"
+										>
+											<div className="flex min-w-0 flex-col text-left">
+												<span className="truncate font-medium">
+													{doctorDisplayName(d, locale)}
+												</span>
+												{d.consultorio && (
+													<span className="truncate text-xs text-muted-foreground">
+														{d.consultorio}
+													</span>
+												)}
+											</div>
 										</SelectItem>
 									);
 								})}
 							</SelectContent>
 						</Select>
+						{selectedDoctor && (
+							<p
+								id={doctorHelpId}
+								className="wrap-break-word text-xs text-muted-foreground"
+							>
+								{doctorDisplayLabel(selectedDoctor, locale)}
+							</p>
+						)}
+						{!loading && doctors.length === 0 && (
+							<p
+								id={doctorEmptyStateId}
+								className="text-xs text-muted-foreground"
+							>
+								{m.dashboardPatientNoDoctorsAvailable({}, { locale })}
+							</p>
+						)}
 					</div>
 
-					{/* Paso 2: seleccionar fecha */}
-					<div className="space-y-1">
-						<label className="text-xs font-medium text-muted-foreground">
-							{locale === 'es' ? 'Fecha' : 'Date'}
-						</label>
-						<Input
-							type="date"
-							value={booking.fecha}
-							min={new Date().toISOString().split('T')[0]}
-							onChange={(e) =>
-								setBooking((prev) => ({
-									...prev,
-									fecha: e.target.value,
-									slot: '',
-								}))
-							}
-						/>
-					</div>
-
-					{/* Paso 3: seleccionar slot disponible — se carga automáticamente */}
-					{booking.medicoId && booking.fecha && (
-						<div className="space-y-1">
-							<label className="text-xs font-medium text-muted-foreground">
-								{m.dashboardPatientSelectSlot({}, { locale })}
+					{/* Paso 2 + Paso 3: fecha a la izquierda, horario a la derecha */}
+					<div className="grid gap-4 md:grid-cols-2 md:items-stretch">
+						<div className="space-y-2 md:mx-auto md:flex md:h-full md:w-full md:max-w-76 md:flex-col md:gap-2 md:space-y-0">
+							<label
+								htmlFor={dateInputId}
+								className="text-xs font-medium text-muted-foreground"
+							>
+								{m.dashboardPatientDateLabel({}, { locale })}
 							</label>
-							{slotsLoading ? (
-								<Skeleton className="h-9 rounded-md" />
-							) : slots.length === 0 ? (
+							{!booking.medicoId ? (
 								<p className="text-xs text-muted-foreground">
-									{locale === 'es'
-										? 'No hay horarios disponibles para esta fecha'
-										: 'No available slots for this date'}
+									{m.dashboardPatientSelectDoctor({}, { locale })}
+								</p>
+							) : doctorAvailabilityLoading ? (
+								<Skeleton className="h-52 rounded-xl" />
+							) : doctorAvailabilityDays.length === 0 ? (
+								<p className="text-xs text-muted-foreground">
+									{m.dashboardPatientNoSlotsForDate({}, { locale })}
 								</p>
 							) : (
-								<Select
-									value={booking.slot}
-									onValueChange={(v) =>
-										setBooking((prev) => ({ ...prev, slot: v ?? '' }))
-									}
+								<div
+									id={dateInputId}
+									className="mx-auto w-fit max-w-full rounded-xl border border-border/70 bg-muted/20 p-1.5"
 								>
-									<SelectTrigger>
-										<SelectValue
-											placeholder={
-												locale === 'es'
-													? 'Seleccionar horario'
-													: 'Select time slot'
+									<Calendar
+										mode="single"
+										selected={selectedDate ?? undefined}
+										onSelect={(date) => {
+											if (!date) {
+												setBooking((prev) => ({
+													...prev,
+													fecha: '',
+													slot: '',
+												}));
+												return;
 											}
-										/>
-									</SelectTrigger>
-									<SelectContent>
-										{slots.map((s) => {
-											// fin se computa desde fechaHora + duracionMinutos
-											const inicio = new Date(s.fechaHora);
-											const fin = new Date(
-												inicio.getTime() + s.duracionMinutos * 60_000,
-											);
-											const timeOpts: Intl.DateTimeFormatOptions = {
-												hour: '2-digit',
-												minute: '2-digit',
-											};
-											const label = `${inicio.toLocaleTimeString(locale, timeOpts)} — ${fin.toLocaleTimeString(locale, timeOpts)}`;
-											return (
-												<SelectItem
-													key={s.fechaHora}
-													value={s.fechaHora}
-													label={label}
-												>
-													{label}
-												</SelectItem>
-											);
-										})}
-									</SelectContent>
-								</Select>
+											setBooking((prev) => ({
+												...prev,
+												fecha: toLocalDateValue(date),
+												slot: '',
+											}));
+										}}
+										disabled={isDateDisabled}
+										className="p-1 [--cell-size:1.95rem]"
+										classNames={{ root: 'mx-auto w-fit' }}
+									/>
+								</div>
+							)}
+
+							{availabilityLoadError && (
+								<p className="text-xs text-destructive">
+									{availabilityLoadError}
+								</p>
 							)}
 						</div>
-					)}
+
+						<div className="space-y-2 md:mx-auto md:w-full md:max-w-76">
+							<label
+								htmlFor={slotSelectId}
+								className="text-xs font-medium text-muted-foreground"
+							>
+								{m.dashboardPatientSelectSlot({}, { locale })}
+							</label>
+							{!booking.medicoId ? (
+								<p className="text-xs text-muted-foreground">
+									{m.dashboardPatientSelectDoctor({}, { locale })}
+								</p>
+							) : !booking.fecha ? (
+								<p className="text-xs text-muted-foreground">
+									{m.dashboardPatientDateLabel({}, { locale })}
+								</p>
+							) : slotsLoading ? (
+								<Skeleton className="h-9 rounded-md" />
+							) : slotsLoadError ? (
+								<p className="text-xs text-destructive">{slotsLoadError}</p>
+							) : slots.length === 0 ? (
+								<p className="text-xs text-muted-foreground">
+									{m.dashboardPatientNoSlotsForDate({}, { locale })}
+								</p>
+							) : (
+								<div className="space-y-2 md:flex md:flex-1 md:flex-col md:space-y-0">
+									<Select
+										value={booking.slot}
+										onValueChange={(v) =>
+											setBooking((prev) => ({ ...prev, slot: v ?? '' }))
+										}
+									>
+										<SelectTrigger id={slotSelectId} className="w-full">
+											<SelectValue
+												placeholder={m.dashboardPatientSelectSlot(
+													{},
+													{ locale },
+												)}
+											>
+												{selectedSlotLabel}
+											</SelectValue>
+										</SelectTrigger>
+										<SelectContent>
+											{slots.map((s) => {
+												const label = slotRangeLabel(s, locale);
+												return (
+													<SelectItem
+														key={s.fechaHora}
+														value={s.fechaHora}
+														label={label}
+													>
+														{label}
+													</SelectItem>
+												);
+											})}
+										</SelectContent>
+									</Select>
+									{finalSelectionLabel && (
+										<div className="md:flex md:flex-1 md:items-center pt-5">
+											<div className="w-full rounded-xl border border-secondary/70 bg-secondary/25 px-3 py-2 text-center">
+												<p className="text-[11px] font-semibold uppercase tracking-wide text-secondary-foreground">
+													{m.dashboardPatientDateLabel({}, { locale })}
+												</p>
+												<p className="mt-1 text-xl font-bold text-secondary-foreground sm:text-2xl">
+													{finalSelectionLabel}
+												</p>
+											</div>
+										</div>
+									)}
+								</div>
+							)}
+						</div>
+					</div>
 
 					{/* Motivo de la consulta */}
 					<div className="space-y-1">
-						<label className="text-xs font-medium text-muted-foreground">
+						<label
+							htmlFor={reasonInputId}
+							className="text-xs font-medium text-muted-foreground"
+						>
 							{m.dashboardPatientMotivo({}, { locale })}
 						</label>
-						<Input
+						<Textarea
+							id={reasonInputId}
 							value={booking.motivo}
 							onChange={(e) =>
 								setBooking((prev) => ({ ...prev, motivo: e.target.value }))
 							}
 							placeholder={m.dashboardPatientMotivoPlaceholder({}, { locale })}
+							className="min-h-20 resize-y"
 						/>
 					</div>
 
@@ -590,15 +1174,140 @@ export function PatientDashboardView({
 		);
 	}
 
+	function TurnStatusPanel({
+		showOwnTurn,
+		splitOwnTurn,
+	}: {
+		showOwnTurn: boolean;
+		splitOwnTurn?: boolean;
+	}) {
+		const shouldSplitWithOwnTurn = Boolean(splitOwnTurn && myCurrentTurn);
+
+		return (
+			<div className="rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4">
+				<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+					{m.dashboardSidebarQueue({}, { locale })}
+				</p>
+				{currentCalledTurn && (
+					<p className="mt-1 text-xs text-muted-foreground">
+						{m.dashboardTurnCalled(
+							{ number: String(currentCalledTurn.numeroTurno) },
+							{ locale },
+						)}
+					</p>
+				)}
+				{shouldSplitWithOwnTurn ? (
+					<div className="mt-3 grid grid-cols-2 divide-x divide-border/60 overflow-hidden rounded-lg border border-border/60 bg-background/80">
+						<div className="p-3 text-center">
+							<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+								{m.dashboardSidebarQueue({}, { locale })}
+							</p>
+							<p className="mt-2 text-3xl font-bold tabular-nums text-secondary-foreground sm:text-4xl">
+								{currentCalledTurn ? `#${currentCalledTurn.numeroTurno}` : '--'}
+							</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								{currentCalledTurn
+									? `${currentCalledTurn.tipo} - ${statusLabel(currentCalledTurn.estado, locale)}`
+									: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
+							</p>
+						</div>
+						<div className="p-3 text-center">
+							<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+								{m.dashboardPatientCalledTurnLabel({}, { locale })}
+							</p>
+							<p className="mt-2 text-3xl font-bold tabular-nums text-primary sm:text-4xl">
+								#{myCurrentTurn.numeroTurno}
+							</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								{`${myCurrentTurn.tipo} - ${statusLabel(myCurrentTurn.estado, locale)}`}
+							</p>
+						</div>
+					</div>
+				) : (
+					<>
+						<p className="mt-3 text-center text-4xl font-bold tabular-nums text-secondary-foreground sm:text-5xl">
+							{currentCalledTurn ? `#${currentCalledTurn.numeroTurno}` : '--'}
+						</p>
+						<p className="mt-1 text-center text-xs text-muted-foreground">
+							{currentCalledTurn
+								? `${currentCalledTurn.tipo} - ${statusLabel(currentCalledTurn.estado, locale)}`
+								: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
+						</p>
+					</>
+				)}
+
+				{calledTurnsHistory.length > 0 && (
+					<div className="mt-4 space-y-2 border-t border-border/60 pt-3">
+						<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+							{m.dashboardSidebarHistorial({}, { locale })}
+						</p>
+						<ul className="space-y-1.5">
+							{calledTurnsHistory.map((turn) => (
+								<li
+									key={turn.id}
+									className="flex items-center justify-between rounded-md bg-background/80 px-2 py-1.5"
+								>
+									<span className="text-sm font-semibold tabular-nums text-foreground">
+										#{turn.numeroTurno}
+									</span>
+									<span className="text-xs text-muted-foreground">
+										{statusLabel(turn.estado, locale)}
+									</span>
+								</li>
+							))}
+						</ul>
+					</div>
+				)}
+
+				{myCurrentTurn && (
+					<div className="mt-4 border-t border-border/60 pt-3">
+						<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+							{locale === 'es' ? 'Flujo de atencion' : 'Care flow'}
+						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							{locale === 'es'
+								? 'El cambio a Atendido lo realiza recepcion o enfermeria desde la gestion de cola.'
+								: 'The transition to Attended is done by reception or nursing from queue management.'}
+						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							{assignedDoctorLabel
+								? locale === 'es'
+									? `Medico de referencia por cita: ${assignedDoctorLabel}`
+									: `Assigned doctor from appointment: ${assignedDoctorLabel}`
+								: locale === 'es'
+									? 'Aun no hay un medico asignado por cita para este flujo.'
+									: 'There is no doctor assigned by appointment for this flow yet.'}
+						</p>
+					</div>
+				)}
+
+				{showOwnTurn && !shouldSplitWithOwnTurn && (
+					<div className="mt-4 border-t border-border/60 pt-3">
+						<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+							{m.dashboardPatientCalledTurnLabel({}, { locale })}
+						</p>
+						<p className="mt-2 text-center text-3xl font-bold tabular-nums text-primary sm:text-4xl">
+							{myCurrentTurn ? `#${myCurrentTurn.numeroTurno}` : '--'}
+						</p>
+						<p className="mt-1 text-center text-xs text-muted-foreground">
+							{myCurrentTurn
+								? `${myCurrentTurn.tipo} - ${statusLabel(myCurrentTurn.estado, locale)}`
+								: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
+						</p>
+					</div>
+				)}
+			</div>
+		);
+	}
+
 	// ─── Shell y render principal ─────────────────────────────────────────────
 
 	return (
 		<RoleDashboardShell
 			title={m.authRolePatient({}, { locale })}
 			subtitle={headerSubtitle}
-			showCardIdentity={section !== 'queue'}
 			headerAction={
-				!showGame && section !== 'ai' ? (
+				!showGame && section !== 'ai' && section !== 'queue' ? (
 					<Button
 						type="button"
 						variant="outline"
@@ -688,8 +1397,8 @@ export function PatientDashboardView({
 								{m.dashboardSidebarAppointments({}, { locale })}
 							</h3>
 
-							{/* Formulario de agendar cita — solo en sección appointments, no en overview */}
-							{section === 'appointments' && <AppointmentBookingForm />}
+							{/* Render como función para evitar remount del formulario interno y conservar el foco en campos de texto */}
+							{section === 'appointments' && AppointmentBookingForm()}
 
 							{loading ? (
 								<Skeleton className="h-16 rounded-lg" />
@@ -705,13 +1414,19 @@ export function PatientDashboardView({
 										(a) => {
 											const canCancel =
 												a.estado === 'PENDIENTE' || a.estado === 'CONFIRMADA';
+											const doctor = a.medicoId
+												? doctors.find((d) => d.id === a.medicoId)
+												: null;
+											const doctorLabel = doctor
+												? doctorDisplayLabel(doctor, locale)
+												: m.dashboardPatientDoctorUnnamed({}, { locale });
 											return (
 												<li key={a.id} className="rounded-lg bg-muted/30 p-2">
 													<div className="flex items-start justify-between gap-2">
 														<div className="min-w-0">
 															<div className="flex items-center gap-2">
-																<span className="text-xs text-muted-foreground truncate">
-																	{a.id}
+																<span className="text-xs font-medium text-foreground truncate">
+																	{doctorLabel}
 																</span>
 																<Badge variant={statusVariant(a.estado)}>
 																	{statusLabel(a.estado, locale)}
@@ -762,20 +1477,21 @@ export function PatientDashboardView({
 								{m.dashboardSidebarQueue({}, { locale })}
 							</h3>
 
+							<TurnStatusPanel
+								showOwnTurn={false}
+								splitOwnTurn={isOverview || section === 'queue'}
+							/>
+
 							{/* Crear turno — paciente puede unirse a la cola directamente */}
 							{section === 'queue' && selectedHospitalId && (
 								<div className="rounded-xl border border-border/70 bg-muted/20 p-3">
 									<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 										<div>
 											<h4 className="text-sm font-semibold text-foreground">
-												{locale === 'es'
-													? 'Unirse a la cola'
-													: 'Join the queue'}
+												{m.dashboardPatientJoinQueueTitle({}, { locale })}
 											</h4>
 											<p className="text-xs text-muted-foreground">
-												{locale === 'es'
-													? 'Solicita un turno de atención en el hospital'
-													: 'Request a service turn at the hospital'}
+												{m.dashboardPatientJoinQueueDescription({}, { locale })}
 											</p>
 										</div>
 										<Button
@@ -788,13 +1504,45 @@ export function PatientDashboardView({
 											<PlusIcon className="h-4 w-4" />
 											{actionLoading === 'create-turn'
 												? m.dashboardActionSaving({}, { locale })
-												: locale === 'es'
-													? 'Pedir turno'
-													: 'Get turn'}
+												: m.dashboardPatientJoinQueueAction({}, { locale })}
 										</Button>
 									</div>
 								</div>
 							)}
+
+							{section === 'queue' &&
+								myCurrentTurn &&
+								isWaitingTurn(myCurrentTurn.estado) && (
+									<div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+										<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+											<div>
+												<h4 className="text-sm font-semibold text-foreground">
+													{locale === 'es'
+														? 'Cancelar turno en espera'
+														: 'Cancel waiting turn'}
+												</h4>
+												<p className="text-xs text-muted-foreground">
+													{locale === 'es'
+														? `Tienes el turno #${myCurrentTurn.numeroTurno} en espera. Puedes cancelarlo si ya no lo necesitas.`
+														: `You have turn #${myCurrentTurn.numeroTurno} waiting. You can cancel it if you no longer need it.`}
+												</p>
+											</div>
+											<Button
+												type="button"
+												variant="destructive"
+												onClick={() => handleCancelMyTurn(myCurrentTurn.id)}
+												disabled={actionLoading === 'cancel-my-turn'}
+												size="sm"
+												className="shrink-0 gap-2"
+											>
+												<XCircleIcon className="h-4 w-4" />
+												{actionLoading === 'cancel-my-turn'
+													? m.dashboardActionCancelling({}, { locale })
+													: m.dashboardNurseCancelTurn({}, { locale })}
+											</Button>
+										</div>
+									</div>
+								)}
 
 							{/* Botón de sala de espera con juego interactivo */}
 							{section === 'queue' && (
@@ -862,29 +1610,8 @@ export function PatientDashboardView({
 				<section className="space-y-3 rounded-xl border border-border/70 p-3">
 					<div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_260px]">
 						<WaitingRoomGame />
-						<div className="rounded-xl border border-border/70 bg-muted/20 p-3 xl:sticky xl:top-4">
-							<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-								{m.dashboardPatientCalledTurnLabel({}, { locale })}
-							</p>
-							<p className="mt-2 text-2xl font-bold tabular-nums text-primary">
-								{currentCalledTurn ? `#${currentCalledTurn.numeroTurno}` : '--'}
-							</p>
-							<p className="mt-1 text-xs text-muted-foreground">
-								{currentCalledTurn
-									? `${currentCalledTurn.tipo} - ${currentCalledTurn.estado}`
-									: m.dashboardPatientNoCalledTurnInfo({}, { locale })}
-							</p>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={loadData}
-								disabled={loading}
-								size="sm"
-								className="mt-3 w-full"
-							>
-								<ArrowPathIcon className="mr-2 h-4 w-4" />
-								{m.dashboardPatientsRefresh({}, { locale })}
-							</Button>
+						<div className="xl:sticky xl:top-4">
+							<TurnStatusPanel showOwnTurn />
 						</div>
 					</div>
 				</section>

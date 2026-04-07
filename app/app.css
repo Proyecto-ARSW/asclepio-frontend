@@ -366,18 +366,18 @@ html.color-colorblind-rg .sidebar-mobile-fab:hover {
 /* VoiceGuideButton también vive fuera de #filter-scope: mismo esquema. */
 html.color-grayscale .voice-guide-fab,
 html.color-colorblind-rg .voice-guide-fab {
-	background: oklch(0.14 0 0) !important;
-	color: oklch(0.97 0 0) !important;
-	border-color: oklch(0.45 0 0) !important;
+	background: oklch(0.14 0 0);
+	color: oklch(0.97 0 0);
+	border-color: oklch(0.45 0 0);
 	outline: 2px solid oklch(0.6 0 0);
-	box-shadow: 0 4px 18px oklch(0 0 0 / 0.55) !important;
+	box-shadow: 0 4px 18px oklch(0 0 0 / 0.55);
 }
 
 html.color-grayscale .voice-guide-fab-panel,
 html.color-colorblind-rg .voice-guide-fab-panel {
-	background: oklch(0.1 0 0) !important;
-	border-color: oklch(0.35 0 0) !important;
-	color: oklch(0.9 0 0) !important;
+	background: oklch(0.1 0 0);
+	border-color: oklch(0.35 0 0);
+	color: oklch(0.9 0 0);
 }
 
 @keyframes stepIn {

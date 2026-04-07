@@ -318,7 +318,7 @@ export function SidebarNav(props: SidebarNavProps) {
 				data-open={mobileOpen ? 'true' : 'false'}
 				variant="default"
 				size="sm"
-				className={`sidebar-mobile-fab fixed z-50 border border-primary/20 bg-gradient-to-r from-primary to-[color-mix(in_oklch,var(--color-primary)_58%,white)] text-primary-foreground shadow-[0_18px_35px_-16px_var(--color-primary)] transition-all duration-300 active:scale-[0.98] lg:hidden ${
+				className={`sidebar-mobile-fab fixed z-50 border border-primary/20 bg-linear-to-r from-primary to-[color-mix(in_oklch,var(--color-primary)_58%,white)] text-primary-foreground shadow-[0_18px_35px_-16px_var(--color-primary)] transition-all duration-300 active:scale-[0.98] lg:hidden ${
 					mobileOpen
 						? // Cuando está abierto mostramos solo icono para evitar overflow en
 							// pantallas estrechas (< 320 px): el texto añadiría ~80 px extra.

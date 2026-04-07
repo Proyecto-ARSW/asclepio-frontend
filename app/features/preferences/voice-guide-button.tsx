@@ -38,18 +38,26 @@ function getRouteLabel(pathname: string, locale: SupportedLocale): string {
 	if (pathname.includes('/register')) {
 		return m.a11yRouteRegister({}, { locale });
 	}
-	if (pathname.includes('/hospitals/select') || pathname.includes('/select-hospital')) {
+	if (
+		pathname.includes('/hospitals/select') ||
+		pathname.includes('/select-hospital')
+	) {
 		return m.a11yRouteSelectHospital({}, { locale });
 	}
 	return m.a11yRouteDefault({}, { locale });
 }
 
-export function VoiceGuideButton({ locale: localeProp }: { locale: SupportedLocale }) {
+export function VoiceGuideButton({
+	locale: localeProp,
+}: {
+	locale: SupportedLocale;
+}) {
 	const location = useLocation();
 	// Derivamos el locale reactivamente desde la URL para que el botón
 	// siempre hable en el idioma correcto sin depender de que el componente
 	// padre se re-renderice tras un cambio de idioma por navegación.
-	const locale = (localeFromPathname(location.pathname) as SupportedLocale) || localeProp;
+	const locale =
+		(localeFromPathname(location.pathname) as SupportedLocale) || localeProp;
 
 	const shouldReduceMotion = useReducedMotion();
 	const [enabled, setEnabled] = useState(false);
@@ -71,7 +79,10 @@ export function VoiceGuideButton({ locale: localeProp }: { locale: SupportedLoca
 			activeState: m.a11yVoiceGuideActiveState({}, { locale }),
 			inactiveState: m.a11yVoiceGuideInactiveState({}, { locale }),
 			unsupported: m.a11yVoiceGuideUnsupported({}, { locale }),
-			activatedAnnouncement: m.a11yVoiceGuideActivatedAnnouncement({}, { locale }),
+			activatedAnnouncement: m.a11yVoiceGuideActivatedAnnouncement(
+				{},
+				{ locale },
+			),
 			routeIntro: m.a11yVoiceGuideRouteIntro({}, { locale }),
 		}),
 		[locale],

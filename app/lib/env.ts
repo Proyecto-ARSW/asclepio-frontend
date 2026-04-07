@@ -12,6 +12,25 @@ const BASE_FALLBACK = (
 	import.meta.env.VITE_APP_API_URL ?? 'http://localhost:3000'
 ).replace(/\/$/, '');
 
+function resolveGraphqlUrl(): string {
+	const raw = import.meta.env.VITE_API_GRAPHQL_URL?.trim();
+	if (!raw) return `${BASE_FALLBACK}/graphql`;
+
+	const normalized = raw.replace(/\/$/, '');
+
+	// If only host/port is provided (or root path), default to /graphql.
+	try {
+		const parsed = new URL(normalized);
+		if (parsed.pathname === '' || parsed.pathname === '/') {
+			return `${normalized}/graphql`;
+		}
+	} catch {
+		// Keep custom values that are not absolute URLs (e.g. relative paths).
+	}
+
+	return normalized;
+}
+
 /**
  * Base URL para llamadas REST al backend NestJS.
  * En producción con gateway podría apuntar a: https://api.asclepio.com
@@ -25,8 +44,7 @@ export const REST_API_URL = (
  * En producción con gateway podría apuntar a: https://graphql.asclepio.com/graphql
  * Se puede separar de REST para rutearlo a un microservicio o federated gateway.
  */
-export const GRAPHQL_URL =
-	import.meta.env.VITE_API_GRAPHQL_URL ?? `${BASE_FALLBACK}/graphql`;
+export const GRAPHQL_URL = resolveGraphqlUrl();
 
 /**
  * Base URL del servicio de autenticación (better-auth).

@@ -1,6 +1,5 @@
 import {
 	ArrowRightStartOnRectangleIcon,
-	LanguageIcon,
 	MoonIcon,
 	SunIcon,
 } from '@heroicons/react/24/outline';
@@ -38,6 +37,8 @@ import { DoctorDashboardView } from '@/features/dashboard/roles/doctor-dashboard
 import { NurseDashboardView } from '@/features/dashboard/roles/nurse-dashboard.view';
 import { PatientDashboardView } from '@/features/dashboard/roles/patient-dashboard.view';
 import { ReceptionistDashboardView } from '@/features/dashboard/roles/receptionist-dashboard.view';
+import { getLocalizedRoleLabel } from '@/features/dashboard/roles/role-label';
+import { LanguageSwitcher } from '@/features/i18n/language-switcher';
 import type { AppLocale } from '@/features/i18n/locale-path';
 import {
 	currentLocale,
@@ -54,6 +55,7 @@ import {
 	type ThemeMode,
 	type UiPreferences,
 } from '@/features/preferences/ui-preferences';
+import { hasValidAccessTokenInStorage } from '@/lib/auth-session';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/dashboard.page';
@@ -82,6 +84,7 @@ const ADMIN_SIDEBAR_SECTIONS: NavSection[] = [
 const DOCTOR_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
 	'appointments',
+	'queue',
 	'disponibilidad',
 	'historial',
 	'settings',
@@ -135,31 +138,10 @@ function getSidebarSectionsForRole(
 	}
 }
 
-function getRoleLabel(role: string | null | undefined, locale: AppLocale) {
-	switch (role) {
-		case 'ADMIN':
-			return m.authRoleAdmin({}, { locale });
-		case 'MEDICO':
-			return m.authRoleDoctor({}, { locale });
-		case 'ENFERMERO':
-			return m.authRoleNurse({}, { locale });
-		case 'RECEPCIONISTA':
-			return m.authRoleReceptionist({}, { locale });
-		default:
-			return m.authRolePatient({}, { locale });
-	}
-}
-
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
 	const locale = currentLocale(window.location.pathname);
-	const raw = localStorage.getItem('asclepio-auth');
-	if (!raw) return redirect(localePath('/login', locale));
-	try {
-		const parsed = JSON.parse(raw);
-		if (!parsed.state?.accessToken)
-			return redirect(localePath('/login', locale));
-	} catch {
+	if (!hasValidAccessTokenInStorage()) {
 		return redirect(localePath('/login', locale));
 	}
 	return null;
@@ -174,9 +156,6 @@ export default function DashboardPage() {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const locale = localeFromPathname(location.pathname);
-	const localeCycle: AppLocale[] = ['es', 'en', 'pt', 'fr', 'de'];
-	const nextLocale =
-		localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
 	const { user, selectedHospital, logout } = useAuthStore();
 	const [uiPreferences, setUiPreferences] = useState<UiPreferences>(() =>
 		readUiPreferences(),
@@ -228,22 +207,6 @@ export default function DashboardPage() {
 		}));
 	}
 
-	function handleOverviewBlocksReorder(
-		from: OverviewBlockKey,
-		to: OverviewBlockKey,
-	) {
-		if (from === to) return;
-		setUiPreferences((prev) => {
-			const fromIndex = prev.overviewBlocks.indexOf(from);
-			const toIndex = prev.overviewBlocks.indexOf(to);
-			if (fromIndex === -1 || toIndex === -1) return prev;
-			const next = [...prev.overviewBlocks];
-			next.splice(fromIndex, 1);
-			next.splice(toIndex, 0, from);
-			return { ...prev, overviewBlocks: next };
-		});
-	}
-
 	function handleSidebarNavigate(section: NavSection) {
 		setActiveSection(section);
 		if (typeof window !== 'undefined') {
@@ -269,7 +232,7 @@ export default function DashboardPage() {
 		return null;
 	}
 
-	const roleLabel = getRoleLabel(user.rol, locale);
+	const roleLabel = getLocalizedRoleLabel(user.rol, locale);
 	const overviewBlockChoices: Array<{ key: OverviewBlockKey; label: string }> =
 		[
 			{
@@ -313,13 +276,17 @@ export default function DashboardPage() {
 	return (
 		// role="region" no es necesario en <div> raíz — el <header> y <main> semánticos
 		// ya crean landmarks suficientes para que el lector de pantalla navegue por secciones.
-		<div className="min-h-screen bg-background">
-			<div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
-				{/* aria-label localizado → el lector de pantalla anuncia "Encabezado de página" / "Page header" */}
-				<header
-					aria-label={m.a11yLandmarkHeader({}, { locale })}
-					className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/90 p-3 shadow-sm backdrop-blur sm:p-4"
-				>
+		<div className="relative min-h-screen overflow-hidden bg-background">
+			<img
+				src="/images/register-background.svg"
+				alt=""
+				aria-hidden="true"
+				className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-45 saturate-125"
+			/>
+			<div className="pointer-events-none absolute inset-0 bg-background/72" />
+			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_18%,hsl(var(--primary)/0.06),transparent_42%)]" />
+			<div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+				<header className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/90 p-3 shadow-sm backdrop-blur sm:p-4">
 					<div className="min-w-0">
 						<div className="flex items-center gap-2">
 							<Link
@@ -357,16 +324,7 @@ export default function DashboardPage() {
 								<MoonIcon className="h-4 w-4" />
 							)}
 						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={() => handleLanguageChange(nextLocale)}
-							className="gap-1"
-						>
-							<LanguageIcon className="h-4 w-4" />
-							{locale.toUpperCase()}
-						</Button>
+						<LanguageSwitcher locale={locale} triggerClassName="h-8 px-2.5" />
 						{!hasSidebarNavigation && (
 							<Button
 								type="button"
@@ -424,7 +382,6 @@ export default function DashboardPage() {
 								overviewBlockChoices={overviewBlockChoices}
 								onOverviewBlockToggle={handleOverviewBlockToggle}
 								onOverviewBlockReset={handleOverviewBlocksReset}
-								onOverviewBlocksReorder={handleOverviewBlocksReorder}
 							/>
 						</main>
 					</div>
@@ -451,7 +408,6 @@ export default function DashboardPage() {
 							}
 							onOverviewBlockToggle={handleOverviewBlockToggle}
 							onOverviewBlockReset={handleOverviewBlocksReset}
-							onOverviewBlocksReorder={handleOverviewBlocksReorder}
 						/>
 					</div>
 				)}
@@ -476,7 +432,6 @@ function SidebarSectionRenderer({
 	overviewBlockChoices,
 	onOverviewBlockToggle,
 	onOverviewBlockReset,
-	onOverviewBlocksReorder,
 }: {
 	section: NavSection;
 	user: DashboardUser;
@@ -493,10 +448,6 @@ function SidebarSectionRenderer({
 	overviewBlockChoices: Array<{ key: OverviewBlockKey; label: string }>;
 	onOverviewBlockToggle: (block: OverviewBlockKey, checked: boolean) => void;
 	onOverviewBlockReset: () => void;
-	onOverviewBlocksReorder: (
-		from: OverviewBlockKey,
-		to: OverviewBlockKey,
-	) => void;
 }) {
 	if (section === 'settings') {
 		return (
@@ -513,7 +464,6 @@ function SidebarSectionRenderer({
 				onDyslexiaToggle={onDyslexiaToggle}
 				onOverviewBlockToggle={onOverviewBlockToggle}
 				onOverviewBlockReset={onOverviewBlockReset}
-				onOverviewBlocksReorder={onOverviewBlocksReorder}
 			/>
 		);
 	}
@@ -541,11 +491,21 @@ function SidebarSectionRenderer({
 			);
 		case 'MEDICO':
 			return (
-				<DoctorDashboardView user={user} locale={locale} section={section} />
+				<DoctorDashboardView
+					user={user}
+					locale={locale}
+					section={section}
+					selectedHospitalId={selectedHospitalId}
+				/>
 			);
 		case 'ENFERMERO':
 			return (
-				<NurseDashboardView user={user} locale={locale} section={section} />
+				<NurseDashboardView
+					user={user}
+					locale={locale}
+					section={section}
+					selectedHospitalId={selectedHospitalId}
+				/>
 			);
 		case 'RECEPCIONISTA':
 			return (
@@ -583,9 +543,21 @@ function RoleRenderer({
 				/>
 			);
 		case 'MEDICO':
-			return <DoctorDashboardView user={user} locale={locale} />;
+			return (
+				<DoctorDashboardView
+					user={user}
+					locale={locale}
+					selectedHospitalId={selectedHospitalId}
+				/>
+			);
 		case 'ENFERMERO':
-			return <NurseDashboardView user={user} locale={locale} />;
+			return (
+				<NurseDashboardView
+					user={user}
+					locale={locale}
+					selectedHospitalId={selectedHospitalId}
+				/>
+			);
 		case 'RECEPCIONISTA':
 			return (
 				<ReceptionistDashboardView
@@ -668,7 +640,6 @@ function SettingsPanel({
 	onDyslexiaToggle,
 	onOverviewBlockToggle,
 	onOverviewBlockReset,
-	onOverviewBlocksReorder,
 }: {
 	locale: AppLocale;
 	theme: ThemeMode;
@@ -682,18 +653,7 @@ function SettingsPanel({
 	onDyslexiaToggle: (enabled: boolean) => void;
 	onOverviewBlockToggle: (block: OverviewBlockKey, checked: boolean) => void;
 	onOverviewBlockReset: () => void;
-	onOverviewBlocksReorder: (
-		from: OverviewBlockKey,
-		to: OverviewBlockKey,
-	) => void;
 }) {
-	const [draggingBlock, setDraggingBlock] = useState<OverviewBlockKey | null>(
-		null,
-	);
-
-	const overviewChoiceMap = Object.fromEntries(
-		overviewBlockChoices.map((choice) => [choice.key, choice.label]),
-	) as Record<OverviewBlockKey, string>;
 	return (
 		<Card className="h-fit border-border/70 bg-card/90 shadow-sm">
 			<CardHeader>
@@ -855,37 +815,6 @@ function SettingsPanel({
 					<p className="text-xs text-muted-foreground">
 						{m.dashboardSettingsOverviewBlocksDescription({}, { locale })}
 					</p>
-					<div className="space-y-2 rounded-md border border-border/60 bg-background/70 p-2">
-						<p className="text-xs font-medium text-foreground">
-							{m.dashboardSettingsOverviewBlocksReorderTitle({}, { locale })}
-						</p>
-						<p className="text-xs text-muted-foreground">
-							{m.dashboardSettingsOverviewBlocksReorderHint({}, { locale })}
-						</p>
-						<ul className="space-y-1">
-							{overviewBlocks.map((block) => (
-								<li
-									key={block}
-									draggable
-									onDragStart={() => setDraggingBlock(block)}
-									onDragOver={(event) => event.preventDefault()}
-									onDrop={() => {
-										if (!draggingBlock) return;
-										onOverviewBlocksReorder(draggingBlock, block);
-										setDraggingBlock(null);
-									}}
-									onDragEnd={() => setDraggingBlock(null)}
-									className={cn(
-										'flex cursor-grab items-center justify-between rounded-md border border-border/60 bg-card px-2 py-1.5 text-xs text-foreground active:cursor-grabbing',
-										draggingBlock === block && 'opacity-50',
-									)}
-								>
-									<span>{overviewChoiceMap[block]}</span>
-									<span className="text-muted-foreground">::</span>
-								</li>
-							))}
-						</ul>
-					</div>
 					<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 						{overviewBlockChoices.map((choice) => (
 							<div

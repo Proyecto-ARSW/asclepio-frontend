@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/field/field.component';
 import { Input } from '@/components/ui/input/input.component';
 import { getAuthContent } from '@/features/auth/auth-content';
+import { LanguageSwitcher } from '@/features/i18n/language-switcher';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import {
@@ -31,7 +32,8 @@ import {
 	saveUiPreferences,
 	type ThemeMode,
 } from '@/features/preferences/ui-preferences';
-import { apiPost } from '@/lib/api';
+import { ApiError, apiPost } from '@/lib/api';
+import { hasValidAccessTokenInStorage } from '@/lib/auth-session';
 import { cn } from '@/lib/utils';
 import { type Hospital, type Usuario, useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/login.page';
@@ -42,17 +44,90 @@ interface LoginResponse {
 	hospitales: Hospital[];
 }
 
+interface LoginErrorMessages {
+	invalidCredentials: string;
+	forbidden: string;
+	tooManyAttempts: string;
+	invalidRequest: string;
+	serverUnavailable: string;
+	unknown: string;
+}
+
+function isMissingAccountMessage(message: string): boolean {
+	return (
+		message.includes('not found') ||
+		message.includes('user not found') ||
+		message.includes('correo no registrado') ||
+		message.includes('no existe')
+	);
+}
+
+function resolveLoginSubmitError(
+	error: unknown,
+	messages: LoginErrorMessages,
+): string {
+	if (error instanceof ApiError) {
+		if (error.status === 401 || error.status === 404) {
+			return messages.invalidCredentials;
+		}
+
+		if (error.status === 403) {
+			return messages.forbidden;
+		}
+
+		if (error.status === 429) {
+			return messages.tooManyAttempts;
+		}
+
+		if (error.status === 400 || error.status === 422) {
+			return messages.invalidRequest;
+		}
+
+		if (error.status >= 500) {
+			return messages.serverUnavailable;
+		}
+
+		const apiMessage = error.message.trim();
+		if (!apiMessage) return messages.unknown;
+
+		const normalizedApiMessage = apiMessage.toLowerCase();
+		if (isMissingAccountMessage(normalizedApiMessage)) {
+			return messages.invalidCredentials;
+		}
+
+		return apiMessage;
+	}
+
+	if (error instanceof Error) {
+		const message = error.message.trim();
+		if (!message) return messages.unknown;
+
+		const normalized = message.toLowerCase();
+		const looksLikeTooManyAttempts =
+			normalized.includes('too many') ||
+			normalized.includes('demasiados intentos') ||
+			normalized.includes('muitos intentos') ||
+			normalized.includes('rate limit');
+
+		if (isMissingAccountMessage(normalized)) {
+			return messages.invalidCredentials;
+		}
+
+		if (looksLikeTooManyAttempts) {
+			return messages.tooManyAttempts;
+		}
+
+		return message;
+	}
+
+	return messages.unknown;
+}
+
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
 	const locale = currentLocale(window.location.pathname);
-	const raw = localStorage.getItem('asclepio-auth');
-	if (raw) {
-		try {
-			const parsed = JSON.parse(raw);
-			if (parsed.state?.accessToken) {
-				return redirect(localePath('/dashboard', locale));
-			}
-		} catch {}
+	if (hasValidAccessTokenInStorage()) {
+		return redirect(localePath('/dashboard', locale));
 	}
 	return null;
 }
@@ -68,8 +143,6 @@ export default function LoginPage() {
 	const locale = currentLocale();
 	const content = getAuthContent(locale);
 	const [isDarkMode, setIsDarkMode] = useState(false);
-	const localeCycle = ['es', 'en', 'pt', 'fr', 'de'] as const;
-	const nextLocale = localeCycle[(localeCycle.indexOf(locale) + 1) % localeCycle.length];
 
 	useEffect(() => {
 		if (typeof document === 'undefined') return;
@@ -105,9 +178,7 @@ export default function LoginPage() {
 			} catch (err) {
 				form.setFieldValue(
 					'submitError',
-					err instanceof Error
-						? err.message
-						: content.login.errors.invalidCredentials,
+					resolveLoginSubmitError(err, content.login.errors),
 				);
 			}
 		},
@@ -120,7 +191,11 @@ export default function LoginPage() {
 		show: (i: number) => ({
 			opacity: 1,
 			y: 0,
-			transition: { duration: 0.35, ease: 'easeOut' as const, delay: 0.3 + i * 0.08 },
+			transition: {
+				duration: 0.35,
+				ease: 'easeOut' as const,
+				delay: 0.3 + i * 0.08,
+			},
 		}),
 	};
 
@@ -164,15 +239,10 @@ export default function LoginPage() {
 						<MoonIcon className="h-4 w-4" />
 					)}
 				</button>
-				<Link
-					to={localePath('/login', nextLocale)}
-					className={cn(
-						buttonVariants({ variant: 'outline', size: 'sm' }),
-						'rounded-full bg-card/90 px-3 text-xs font-semibold backdrop-blur',
-					)}
-				>
-					{locale.toUpperCase()}
-				</Link>
+				<LanguageSwitcher
+					locale={locale}
+					triggerClassName="rounded-full bg-card/90 px-2.5 text-xs font-semibold backdrop-blur"
+				/>
 			</motion.div>
 
 			<img
@@ -219,7 +289,12 @@ export default function LoginPage() {
 								className="space-y-5"
 							>
 								{/* Campo email — entra con stagger personalizado */}
-								<motion.div custom={0} variants={fieldVariants} initial="hidden" animate="show">
+								<motion.div
+									custom={0}
+									variants={fieldVariants}
+									initial="hidden"
+									animate="show"
+								>
 									<form.Field
 										name="email"
 										validators={{
@@ -230,7 +305,9 @@ export default function LoginPage() {
 										}}
 									>
 										{(field) => (
-											<Field data-invalid={Boolean(field.state.meta.errors.length)}>
+											<Field
+												data-invalid={Boolean(field.state.meta.errors.length)}
+											>
 												<FieldLabel htmlFor={field.name}>
 													{content.login.emailLabel}
 												</FieldLabel>
@@ -255,7 +332,12 @@ export default function LoginPage() {
 								</motion.div>
 
 								{/* Campo password — entra 80ms después del email */}
-								<motion.div custom={1} variants={fieldVariants} initial="hidden" animate="show">
+								<motion.div
+									custom={1}
+									variants={fieldVariants}
+									initial="hidden"
+									animate="show"
+								>
 									<form.Field
 										name="password"
 										validators={{
@@ -266,7 +348,9 @@ export default function LoginPage() {
 										}}
 									>
 										{(field) => (
-											<Field data-invalid={Boolean(field.state.meta.errors.length)}>
+											<Field
+												data-invalid={Boolean(field.state.meta.errors.length)}
+											>
 												<FieldLabel htmlFor={field.name}>
 													{content.login.passwordLabel}
 												</FieldLabel>
@@ -303,7 +387,9 @@ export default function LoginPage() {
 													transition={{ duration: 0.2 }}
 												>
 													<Alert variant="destructive">
-														<AlertDescription>{field.state.value}</AlertDescription>
+														<AlertDescription>
+															{field.state.value}
+														</AlertDescription>
 													</Alert>
 												</motion.div>
 											) : null}
@@ -311,7 +397,12 @@ export default function LoginPage() {
 									)}
 								</form.Field>
 
-								<motion.div custom={2} variants={fieldVariants} initial="hidden" animate="show">
+								<motion.div
+									custom={2}
+									variants={fieldVariants}
+									initial="hidden"
+									animate="show"
+								>
 									<form.Subscribe
 										selector={(state) => [state.canSubmit, state.isSubmitting]}
 									>

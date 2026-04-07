@@ -28,7 +28,11 @@ import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import { Textarea } from '@/components/ui/textarea/textarea.component';
 import type { AppLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
-import { gqlMutation, gqlQuery } from '@/lib/graphql-client';
+import {
+	gqlMutation,
+	gqlQuery,
+	gqlQueryWithFallback,
+} from '@/lib/graphql-client';
 import type { RoleViewProps } from './dashboard-role.types';
 import { PatientAiSection } from './patient-ai.section';
 import { RoleDashboardShell } from './role-dashboard-shell';
@@ -100,6 +104,18 @@ const PATIENTS_QUERY = `
 const PATIENT_APPOINTMENTS_QUERY = `
 	query PatientAppointments($pacienteId: ID!) {
 		appoinmentsByPatient(pacienteId: $pacienteId) {
+			id
+			medicoId
+			fechaHora
+			estado
+			motivo
+		}
+	}
+`;
+
+const PATIENT_APPOINTMENTS_QUERY_V2 = `
+	query PatientAppointmentsV2($pacienteId: ID!) {
+		appointmentsByPatient(pacienteId: $pacienteId) {
 			id
 			medicoId
 			fechaHora
@@ -425,10 +441,16 @@ export function PatientDashboardView({
 				section === 'appointments' ||
 				section === 'queue' ||
 				!section
-					? gqlQuery<{ appoinmentsByPatient: Appointment[] }>(
-							PATIENT_APPOINTMENTS_QUERY,
-							{ pacienteId: profile.id },
-						).then((r) => setAppointments(r.appoinmentsByPatient))
+					? gqlQueryWithFallback<{
+							appoinmentsByPatient?: Appointment[];
+							appointmentsByPatient?: Appointment[];
+						}>([PATIENT_APPOINTMENTS_QUERY, PATIENT_APPOINTMENTS_QUERY_V2], {
+							pacienteId: profile.id,
+						}).then((r) =>
+							setAppointments(
+								r.appoinmentsByPatient ?? r.appointmentsByPatient ?? [],
+							),
+						)
 					: Promise.resolve(),
 				section === 'overview' || section === 'queue' || !section
 					? gqlQuery<{ turnosPorPaciente: Turno[] }>(PATIENT_TURNS_QUERY, {
@@ -492,12 +514,17 @@ export function PatientDashboardView({
 	const refreshAppointments = useCallback(async () => {
 		if (!patientId) return;
 		try {
-			const patientAppointments = await gqlQuery<{
-				appoinmentsByPatient: Appointment[];
-			}>(PATIENT_APPOINTMENTS_QUERY, {
+			const patientAppointments = await gqlQueryWithFallback<{
+				appoinmentsByPatient?: Appointment[];
+				appointmentsByPatient?: Appointment[];
+			}>([PATIENT_APPOINTMENTS_QUERY, PATIENT_APPOINTMENTS_QUERY_V2], {
 				pacienteId: patientId,
 			});
-			setAppointments(patientAppointments.appoinmentsByPatient);
+			setAppointments(
+				patientAppointments.appoinmentsByPatient ??
+					patientAppointments.appointmentsByPatient ??
+					[],
+			);
 		} catch (err) {
 			setError(
 				err instanceof Error

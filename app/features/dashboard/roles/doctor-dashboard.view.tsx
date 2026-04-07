@@ -31,7 +31,11 @@ import {
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import type { AppLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
-import { gqlMutation, gqlQuery } from '@/lib/graphql-client';
+import {
+	gqlMutation,
+	gqlQuery,
+	gqlQueryWithFallback,
+} from '@/lib/graphql-client';
 import type { DashboardSection, RoleViewProps } from './dashboard-role.types';
 import { RoleDashboardShell } from './role-dashboard-shell';
 
@@ -104,6 +108,19 @@ const DOCTOR_PROFILE_QUERY = `
 const DOCTOR_APPOINTMENTS_QUERY = `
 	query DoctorAppointments($medicoId: ID!) {
 		appoinmentsByDoctor(medicoId: $medicoId) {
+			id
+			fechaHora
+			estado
+			motivo
+			notasMedico
+			pacienteId
+		}
+	}
+`;
+
+const DOCTOR_APPOINTMENTS_QUERY_V2 = `
+	query DoctorAppointmentsV2($medicoId: ID!) {
+		appointmentsByDoctor(medicoId: $medicoId) {
 			id
 			fechaHora
 			estado
@@ -512,12 +529,15 @@ export function DoctorDashboardView({
 	}, [user.email, user.id]);
 
 	const loadAppointments = useCallback(async (id: string) => {
-		const res = await gqlQuery<{ appoinmentsByDoctor: Appointment[] }>(
-			DOCTOR_APPOINTMENTS_QUERY,
-			{ medicoId: id },
-		);
-		setAppointments(res.appoinmentsByDoctor);
-		return res.appoinmentsByDoctor;
+		const res = await gqlQueryWithFallback<{
+			appoinmentsByDoctor?: Appointment[];
+			appointmentsByDoctor?: Appointment[];
+		}>([DOCTOR_APPOINTMENTS_QUERY, DOCTOR_APPOINTMENTS_QUERY_V2], {
+			medicoId: id,
+		});
+		const resolved = res.appoinmentsByDoctor ?? res.appointmentsByDoctor ?? [];
+		setAppointments(resolved);
+		return resolved;
 	}, []);
 
 	const loadDisponibilidad = useCallback(async (id: string) => {

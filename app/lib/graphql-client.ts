@@ -44,6 +44,12 @@ export interface GqlResponse<T> {
 	errors?: GqlError[];
 }
 
+function isSchemaValidationErrorMessage(message: string) {
+	return /(cannot\s+query\s+field|unknown\s+argument|unknown\s+type)/i.test(
+		message,
+	);
+}
+
 export async function gqlQuery<T>(
 	query: string,
 	variables?: Record<string, unknown>,
@@ -67,6 +73,21 @@ export async function gqlQuery<T>(
 	}
 
 	if (!res.ok) {
+		let body: GqlResponse<T> | null = null;
+		try {
+			body = (await res.json()) as GqlResponse<T>;
+		} catch {
+			body = null;
+		}
+
+		const gqlMessage = body?.errors?.[0]?.message;
+		if (gqlMessage) {
+			if (token && isUnauthorizedGraphqlMessage(gqlMessage)) {
+				handleExpiredSessionRedirect();
+			}
+			throw new Error(gqlMessage);
+		}
+
 		if (res.status === 401 && token) {
 			handleExpiredSessionRedirect();
 		}
@@ -95,4 +116,29 @@ export async function gqlMutation<T>(
 	variables?: Record<string, unknown>,
 ): Promise<T> {
 	return gqlQuery<T>(mutation, variables);
+}
+
+export async function gqlQueryWithFallback<T>(
+	queries: string[],
+	variables?: Record<string, unknown>,
+): Promise<T> {
+	let lastError: unknown;
+	for (const query of queries) {
+		try {
+			return await gqlQuery<T>(query, variables);
+		} catch (error) {
+			lastError = error;
+			if (
+				!(error instanceof Error) ||
+				!isSchemaValidationErrorMessage(error.message)
+			) {
+				throw error;
+			}
+		}
+	}
+
+	if (lastError instanceof Error) {
+		throw lastError;
+	}
+	throw new Error('No GraphQL query fallback succeeded');
 }

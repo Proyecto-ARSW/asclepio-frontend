@@ -29,7 +29,11 @@ import {
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import type { AppLocale } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
-import { gqlMutation, gqlQuery } from '@/lib/graphql-client';
+import {
+	gqlMutation,
+	gqlQuery,
+	gqlQueryWithFallback,
+} from '@/lib/graphql-client';
 import type { RoleViewProps } from './dashboard-role.types';
 import { RoleDashboardShell } from './role-dashboard-shell';
 
@@ -84,6 +88,19 @@ const HOSPITAL_TURNS_BY_HOSPITAL_QUERY = `
 const RECEPTIONIST_APPOINTMENTS_QUERY = `
 	query ReceptionistAppointments {
 		appointments: appoinments {
+			id
+			fechaHora
+			estado
+			motivo
+			pacienteId
+			medicoId
+		}
+	}
+`;
+
+const RECEPTIONIST_APPOINTMENTS_QUERY_V2 = `
+	query ReceptionistAppointmentsV2 {
+		appointments {
 			id
 			fechaHora
 			estado
@@ -262,25 +279,25 @@ export function ReceptionistDashboardView({
 	});
 
 	const loadMainData = useCallback(async () => {
-		const query = selectedHospitalId
-			? gqlQuery<{ turnosPorHospital: Turno[] }>(
-					HOSPITAL_TURNS_BY_HOSPITAL_QUERY,
+		const response = selectedHospitalId
+			? await gqlQueryWithFallback<{ turnosPorHospital: Turno[] }>(
+					[HOSPITAL_TURNS_BY_HOSPITAL_QUERY, HOSPITAL_TURNS_QUERY],
 					{
 						hospitalId: selectedHospitalId,
 					},
 				)
-			: gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_QUERY);
+			: await gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_QUERY);
 
-		const response = await query;
 		const turnosPorHospital = response.turnosPorHospital ?? [];
 		setTurns(turnosPorHospital);
 		return turnosPorHospital;
 	}, [selectedHospitalId]);
 
 	const loadAppointmentsData = useCallback(async () => {
-		const data = await gqlQuery<{ appointments: Appointment[] }>(
+		const data = await gqlQueryWithFallback<{ appointments: Appointment[] }>([
 			RECEPTIONIST_APPOINTMENTS_QUERY,
-		);
+			RECEPTIONIST_APPOINTMENTS_QUERY_V2,
+		]);
 		setAppointments(data.appointments ?? []);
 	}, []);
 

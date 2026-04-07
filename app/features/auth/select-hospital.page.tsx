@@ -136,7 +136,14 @@ export default function SelectHospitalPage() {
 
 	return (
 		<div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-8">
-			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.14),transparent_50%)]" />
+			<img
+				src="/images/register-background.svg"
+				alt=""
+				aria-hidden="true"
+				className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-45 saturate-125"
+			/>
+			<div className="pointer-events-none absolute inset-0 bg-background/72" />
+			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.12),transparent_50%)]" />
 
 			{/* Card principal desliza desde abajo al montar */}
 			<motion.div

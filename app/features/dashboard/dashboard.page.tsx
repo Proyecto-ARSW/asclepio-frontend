@@ -276,8 +276,16 @@ export default function DashboardPage() {
 	return (
 		// role="region" no es necesario en <div> raíz — el <header> y <main> semánticos
 		// ya crean landmarks suficientes para que el lector de pantalla navegue por secciones.
-		<div className="min-h-screen bg-background">
-			<div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+		<div className="relative min-h-screen overflow-hidden bg-background">
+			<img
+				src="/images/register-background.svg"
+				alt=""
+				aria-hidden="true"
+				className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-45 saturate-125"
+			/>
+			<div className="pointer-events-none absolute inset-0 bg-background/72" />
+			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_18%,hsl(var(--primary)/0.06),transparent_42%)]" />
+			<div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
 				<header className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/90 p-3 shadow-sm backdrop-blur sm:p-4">
 					<div className="min-w-0">
 						<div className="flex items-center gap-2">

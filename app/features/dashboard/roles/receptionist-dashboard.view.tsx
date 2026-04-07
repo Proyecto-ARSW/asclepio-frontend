@@ -71,57 +71,8 @@ const HOSPITAL_TURNS_QUERY = `
 `;
 
 const HOSPITAL_TURNS_BY_HOSPITAL_QUERY = `
-	query ReceptionistHospitalTurnsByHospital($hospitalId: ID!) {
+	query ReceptionistHospitalTurnsByHospital($hospitalId: Int!) {
 		turnosPorHospital(hospitalId: $hospitalId) {
-			id
-			numeroTurno
-			tipo
-			estado
-		}
-	}
-`;
-
-const HOSPITAL_TURNS_STATUS_QUERY = `
-	query ReceptionistHospitalTurnsByStatus {
-		waiting: turnosPorHospital(estado: EN_ESPERA) {
-			id
-			numeroTurno
-			tipo
-			estado
-		}
-		pending: turnosPorHospital(estado: PENDIENTE) {
-			id
-			numeroTurno
-			tipo
-			estado
-		}
-		inConsultation: turnosPorHospital(estado: EN_CONSULTA) {
-			id
-			numeroTurno
-			tipo
-			estado
-		}
-	}
-`;
-
-const HOSPITAL_TURNS_BY_HOSPITAL_STATUS_QUERY = `
-	query ReceptionistHospitalTurnsByHospitalStatus($hospitalId: ID!) {
-		waiting: turnosPorHospital(hospitalId: $hospitalId, estado: EN_ESPERA) {
-			id
-			numeroTurno
-			tipo
-			estado
-		}
-		pending: turnosPorHospital(hospitalId: $hospitalId, estado: PENDIENTE) {
-			id
-			numeroTurno
-			tipo
-			estado
-		}
-		inConsultation: turnosPorHospital(
-			hospitalId: $hospitalId
-			estado: EN_CONSULTA
-		) {
 			id
 			numeroTurno
 			tipo
@@ -185,7 +136,7 @@ const CALL_NEXT = `
 `;
 
 const CALL_NEXT_BY_HOSPITAL = `
-	mutation CallNextByHospital($hospitalId: ID!) {
+	mutation CallNextByHospital($hospitalId: Int!) {
 		llamarSiguienteTurno(hospitalId: $hospitalId) { id numeroTurno estado }
 	}
 `;
@@ -271,21 +222,11 @@ function isTurnClosed(estado: string) {
 }
 
 function isWaitingTurn(estado: string) {
-	return /^(EN_ESPERA|PENDIENTE|EN_FILA)$/i.test(estado);
+	return /^EN_ESPERA$/i.test(estado);
 }
 
 function isCalledTurn(estado: string) {
-	return /^(EN_CONSULTA|LLAMADO|LLAMANDO|EN_ATENCION)$/i.test(estado);
-}
-
-function mergeTurns(...groups: Turno[][]): Turno[] {
-	const byId = new Map<string, Turno>();
-	for (const group of groups) {
-		for (const turn of group) {
-			byId.set(turn.id, turn);
-		}
-	}
-	return [...byId.values()].sort((a, b) => a.numeroTurno - b.numeroTurno);
+	return /^EN_CONSULTA$/i.test(estado);
 }
 
 function activeTurnConflictMessage(locale: AppLocale, turnNumber?: number) {
@@ -321,65 +262,16 @@ export function ReceptionistDashboardView({
 	});
 
 	const loadMainData = useCallback(async () => {
-		let turnosPorHospital: Turno[] = [];
-		let turnosByStatus: Turno[] = [];
+		const query = selectedHospitalId
+			? gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_BY_HOSPITAL_QUERY, {
+				hospitalId: selectedHospitalId,
+			})
+			: gqlQuery<{ turnosPorHospital: Turno[] }>(HOSPITAL_TURNS_QUERY);
 
-		if (selectedHospitalId) {
-			try {
-				const scoped = await gqlQuery<{ turnosPorHospital: Turno[] }>(
-					HOSPITAL_TURNS_BY_HOSPITAL_QUERY,
-					{ hospitalId: selectedHospitalId },
-				);
-				turnosPorHospital = scoped.turnosPorHospital ?? [];
-			} catch {
-				// Fallback al contrato sin argumentos si el backend no soporta hospitalId.
-				const fallback = await gqlQuery<{ turnosPorHospital: Turno[] }>(
-					HOSPITAL_TURNS_QUERY,
-				);
-				turnosPorHospital = fallback.turnosPorHospital ?? [];
-			}
-
-			try {
-				const scopedStatus = await gqlQuery<{
-					waiting: Turno[];
-					pending: Turno[];
-					inConsultation: Turno[];
-				}>(HOSPITAL_TURNS_BY_HOSPITAL_STATUS_QUERY, {
-					hospitalId: selectedHospitalId,
-				});
-				turnosByStatus = mergeTurns(
-					scopedStatus.waiting ?? [],
-					scopedStatus.pending ?? [],
-					scopedStatus.inConsultation ?? [],
-				);
-			} catch {
-				// Si el backend no soporta filtrar por estado, mantenemos la carga base.
-			}
-		} else {
-			const fallback = await gqlQuery<{ turnosPorHospital: Turno[] }>(
-				HOSPITAL_TURNS_QUERY,
-			);
-			turnosPorHospital = fallback.turnosPorHospital ?? [];
-
-			try {
-				const globalByStatus = await gqlQuery<{
-					waiting: Turno[];
-					pending: Turno[];
-					inConsultation: Turno[];
-				}>(HOSPITAL_TURNS_STATUS_QUERY);
-				turnosByStatus = mergeTurns(
-					globalByStatus.waiting ?? [],
-					globalByStatus.pending ?? [],
-					globalByStatus.inConsultation ?? [],
-				);
-			} catch {
-				// Si el backend no soporta filtrar por estado, mantenemos la carga base.
-			}
-		}
-
-		const mergedTurns = mergeTurns(turnosPorHospital, turnosByStatus);
-		setTurns(mergedTurns);
-		return mergedTurns;
+		const response = await query;
+		const turnosPorHospital = response.turnosPorHospital ?? [];
+		setTurns(turnosPorHospital);
+		return turnosPorHospital;
 	}, [selectedHospitalId]);
 
 	const loadAppointmentsData = useCallback(async () => {

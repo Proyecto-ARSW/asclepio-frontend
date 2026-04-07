@@ -177,7 +177,7 @@ const DOCTOR_TURNS_QUERY_FALLBACK = `
 `;
 
 const DOCTOR_TURNS_BY_HOSPITAL_QUERY = `
-	query DoctorTurnsByHospital($hospitalId: ID!) {
+	query DoctorTurnsByHospital($hospitalId: Int!) {
 		turnosPorHospital(hospitalId: $hospitalId) {
 			id
 			numeroTurno
@@ -191,7 +191,7 @@ const DOCTOR_TURNS_BY_HOSPITAL_QUERY = `
 `;
 
 const DOCTOR_TURNS_BY_HOSPITAL_QUERY_FALLBACK = `
-	query DoctorTurnsByHospitalFallback($hospitalId: ID!) {
+	query DoctorTurnsByHospitalFallback($hospitalId: Int!) {
 		turnosPorHospital(hospitalId: $hospitalId) {
 			id
 			numeroTurno
@@ -368,7 +368,7 @@ function isTurnClosed(estado: string) {
 }
 
 function isConsultationTurn(estado: string) {
-	return /^(EN_CONSULTA|LLAMADO|LLAMANDO|EN_ATENCION)$/i.test(estado);
+	return /^EN_CONSULTA$/i.test(estado);
 }
 
 // ─── Helpers de disponibilidad ───────────────────────────────────────────────

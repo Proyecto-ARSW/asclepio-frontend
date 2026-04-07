@@ -132,21 +132,15 @@ const HOSPITAL_TURNS_QUERY = `
 `;
 
 const CALLED_TURN_STATES = [
-	'LLAMADO',
-	'LLAMANDO',
 	'EN_CONSULTA',
-	'EN_ATENCION',
 ] as const;
 const CALLED_HISTORY_TURN_STATES = [
 	...CALLED_TURN_STATES,
 	'ATENDIDO',
-	'ATENDIDA',
 ] as const;
 const CLOSED_TURN_STATES = [
 	'ATENDIDO',
-	'ATENDIDA',
 	'CANCELADO',
-	'CANCELADA',
 ] as const;
 
 const PATIENT_HISTORIAL_QUERY = `
@@ -283,7 +277,7 @@ function isTurnNumberConflictError(raw: string) {
 }
 
 function isWaitingTurn(estado: string) {
-	return /^(EN_ESPERA|PENDIENTE|EN_FILA)$/i.test(estado);
+	return /^EN_ESPERA$/i.test(estado);
 }
 
 function isActiveAppointment(estado: string) {
@@ -775,77 +769,6 @@ export function PatientDashboardView({
 				await refreshQueueTurns();
 			} else if (isTurnNumberConflictError(message)) {
 				await refreshQueueTurns();
-
-				const resolveActiveTurn = async () => {
-					const patientTurns = await gqlQuery<{ turnosPorPaciente: Turno[] }>(
-						PATIENT_TURNS_QUERY,
-						{ pacienteId: patientId },
-					);
-					return [...(patientTurns.turnosPorPaciente ?? [])]
-						.filter(
-							(turn) =>
-								!CLOSED_TURN_STATES.includes(
-									turn.estado as (typeof CLOSED_TURN_STATES)[number],
-								),
-						)
-						.sort((a, b) => a.numeroTurno - b.numeroTurno)[0];
-				};
-
-				for (const delayMs of [450, 900, 1600, 2600] as const) {
-					try {
-						const activeTurn = await resolveActiveTurn();
-						if (activeTurn) {
-							setError(
-								activeTurnConflictMessage(locale, activeTurn.numeroTurno),
-							);
-							return;
-						}
-					} catch {
-						// Si falla la verificación, continuamos con el intento de crear.
-					}
-
-					await wait(delayMs);
-
-					try {
-						const retry = await gqlMutation<{ crearTurno: Turno }>(
-							CREATE_PATIENT_TURN,
-							{
-								input: {
-									pacienteId: patientId,
-									hospitalId: selectedHospitalId,
-									tipo: 'NORMAL',
-								},
-							},
-						);
-						setTurns((prev) => [retry.crearTurno, ...prev]);
-						await refreshQueueTurns();
-						flash(
-							m.dashboardTurnCreated(
-								{ number: String(retry.crearTurno.numeroTurno) },
-								{ locale },
-							),
-						);
-						return;
-					} catch (retryErr) {
-						const retryMessage =
-							retryErr instanceof Error
-								? retryErr.message
-								: m.rootErrorTitle({}, { locale });
-
-						if (isActiveTurnConflictError(retryMessage)) {
-							setError(activeTurnConflictMessage(locale));
-							return;
-						}
-
-						if (!isTurnNumberConflictError(retryMessage)) {
-							setError(retryMessage);
-							return;
-						}
-
-						await refreshQueueTurns();
-					}
-				}
-
 				setError(uniqueTurnConflictRetryMessage(locale));
 			} else {
 				setError(message);

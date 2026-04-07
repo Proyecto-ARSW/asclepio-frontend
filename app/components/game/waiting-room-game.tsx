@@ -152,10 +152,14 @@ function buildWsUrl(token: string, setup?: GameSetupValues): string {
 	const wsOrigin = origin
 		.replace(/^https:\/\//, 'wss://')
 		.replace(/^http:\/\//, 'ws://');
+	const cleanOrigin = wsOrigin.replace(/\/+$/, '');
+	const endpoint = cleanOrigin.endsWith('/ws/game')
+		? cleanOrigin
+		: `${cleanOrigin}/ws/game`;
 	const params = new URLSearchParams({ token });
 	if (setup?.nickname) params.set('name', setup.nickname);
 	if (setup?.color) params.set('color', setup.color);
-	return `${wsOrigin}/ws/game?${params.toString()}`;
+	return `${endpoint}?${params.toString()}`;
 }
 
 function getStoredNickname(userId?: string): string | null {
@@ -807,10 +811,14 @@ export function WaitingRoomGame() {
 		themeRef.current = getThemeColors();
 
 		let ws: WebSocket;
+		let url = '';
 		try {
-			const url = buildWsUrl(accessToken, setupRef.current);
+			url = buildWsUrl(accessToken, setupRef.current);
 			ws = new WebSocket(url);
 		} catch {
+			console.error('[game-ws] invalid websocket URL', {
+				base: GAME_SERVER_URL,
+			});
 			enterErrorState(m.gameWaitingRoomConnectionFailed({}, { locale }));
 			return;
 		}
@@ -848,6 +856,7 @@ export function WaitingRoomGame() {
 		};
 
 		ws.onerror = () => {
+			console.error('[game-ws] connection error', { url });
 			enterErrorState(m.gameWaitingRoomConnectionFailed({}, { locale }));
 		};
 
@@ -856,6 +865,12 @@ export function WaitingRoomGame() {
 			const wasActivePhase =
 				phaseRef.current === 'playing' || phaseRef.current === 'connecting';
 			if (!wasActivePhase || connectionErrorHandledRef.current) return;
+
+			console.warn('[game-ws] closed', {
+				url,
+				code: event.code,
+				reason: event.reason,
+			});
 
 			if (event.code === 1000) {
 				setPhase('idle');

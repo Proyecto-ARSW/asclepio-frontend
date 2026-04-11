@@ -172,6 +172,20 @@ const CANCEL_TURN = `
 	}
 `;
 
+// Cancelar cita (recepcionista cierra administrativamente)
+const CANCEL_APPOINTMENT = `
+	mutation ReceptionistCancelAppointment($input: CancelAppoinmentInput!) {
+		cancelAppoinment(input: $input) { id estado }
+	}
+`;
+
+// Marcar cita como atendida/completada
+const COMPLETE_APPOINTMENT = `
+	mutation ReceptionistCompleteAppointment($id: ID!) {
+		completeAppoinment(id: $id) { id estado }
+	}
+`;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function turnVariant(
@@ -260,6 +274,7 @@ function activeTurnConflictMessage(locale: AppLocale, turnNumber?: number) {
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function ReceptionistDashboardView({
+	user,
 	locale,
 	section = 'overview',
 	selectedHospitalId,
@@ -566,6 +581,48 @@ export function ReceptionistDashboardView({
 		}
 	}
 
+	// ── Acción: cancelar cita ──
+	// canceladaPor requiere el ID del usuario que cancela; lo tomamos del prop `user`
+	// para que el backend registre quién realizó la acción (auditoría).
+	async function handleCancelAppointment(id: string) {
+		setActionLoading(`cancel-appt-${id}`);
+		setError('');
+		try {
+			await gqlMutation(CANCEL_APPOINTMENT, {
+				input: { id, canceladaPor: user.id },
+			});
+			setAppointments((prev) =>
+				prev.map((a) => (a.id === id ? { ...a, estado: 'CANCELADA' } : a)),
+			);
+			flash(m.dashboardActionSuccess({}, { locale }));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setActionLoading(null);
+		}
+	}
+
+	// ── Acción: marcar cita como atendida ──
+	async function handleCompleteAppointment(id: string) {
+		setActionLoading(`complete-appt-${id}`);
+		setError('');
+		try {
+			await gqlMutation(COMPLETE_APPOINTMENT, { id });
+			setAppointments((prev) =>
+				prev.map((a) => (a.id === id ? { ...a, estado: 'COMPLETADA' } : a)),
+			);
+			flash(m.dashboardActionSuccess({}, { locale }));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setActionLoading(null);
+		}
+	}
+
 	// ─── Secciones ────────────────────────────────────────────────────────────
 
 	function OverviewSection() {
@@ -722,24 +779,65 @@ export function ReceptionistDashboardView({
 						{m.dashboardPatientsEmptyDescription({}, { locale })}
 					</p>
 				) : (
-					appointments.map((a) => (
-						<div
-							key={a.id}
-							className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/90 p-3"
-						>
-							<div className="min-w-0">
-								<p className="truncate text-sm font-medium text-foreground">
-									{new Date(a.fechaHora).toLocaleString(locale)}
-								</p>
-								<p className="truncate text-xs text-muted-foreground">
-									{a.motivo || a.id}
-								</p>
+					appointments.map((a) => {
+						// Solo las citas activas (PENDIENTE/CONFIRMADA) admiten acciones
+						const isActive =
+							a.estado === 'PENDIENTE' || a.estado === 'CONFIRMADA';
+						return (
+							<div
+								key={a.id}
+								className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/90 p-3"
+							>
+								<div className="min-w-0 flex-1">
+									<p className="truncate text-sm font-medium text-foreground">
+										{new Date(a.fechaHora).toLocaleString(locale)}
+									</p>
+									<p className="truncate text-xs text-muted-foreground">
+										{a.motivo || a.id}
+									</p>
+								</div>
+								<div className="flex shrink-0 items-center gap-2">
+									<Badge variant={appointmentVariant(a.estado)}>
+										{statusLabel(a.estado, locale)}
+									</Badge>
+									{isActive && (
+										<>
+											{/* Marcar como atendida: cierre administrativo de la consulta */}
+											<Button
+												type="button"
+												size="sm"
+												variant="outline"
+												className="gap-1 text-xs"
+												disabled={
+													actionLoading === `complete-appt-${a.id}` ||
+													actionLoading === `cancel-appt-${a.id}`
+												}
+												onClick={() => handleCompleteAppointment(a.id)}
+											>
+												<CheckCircleIcon className="h-3.5 w-3.5" />
+												{m.dashboardReceptionistAttendTurn({}, { locale })}
+											</Button>
+											{/* Cancelar cita */}
+											<Button
+												type="button"
+												size="sm"
+												variant="ghost"
+												className="gap-1 text-xs text-destructive hover:text-destructive"
+												disabled={
+													actionLoading === `cancel-appt-${a.id}` ||
+													actionLoading === `complete-appt-${a.id}`
+												}
+												onClick={() => handleCancelAppointment(a.id)}
+											>
+												<XCircleIcon className="h-3.5 w-3.5" />
+												{m.dashboardReceptionistCancelTurn({}, { locale })}
+											</Button>
+										</>
+									)}
+								</div>
 							</div>
-							<Badge variant={appointmentVariant(a.estado)}>
-								{statusLabel(a.estado, locale)}
-							</Badge>
-						</div>
-					))
+						);
+					})
 				)}
 			</div>
 		);

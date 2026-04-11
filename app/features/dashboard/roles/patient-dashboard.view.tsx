@@ -17,6 +17,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
+import { Input } from '@/components/ui/input/input.component';
 import {
 	Select,
 	SelectContent,
@@ -88,11 +89,38 @@ interface SlotDisponible {
 	duracionMinutos: number;
 }
 
+interface MedicineItem {
+	id: number;
+	nombreComercial: string;
+	nombreGenerico?: string;
+	presentacion?: string;
+	requiereReceta: boolean;
+}
+
+interface InventarioItem {
+	id: number;
+	medicamentoId: number;
+	sedeId: number;
+	stockActual: number;
+	disponibilidad: string;
+	precio?: string;
+}
+
+interface SedeItem {
+	id: number;
+	nombre: string;
+	direccion?: string;
+	ciudad?: string;
+}
+
 // ─── Queries & Mutations ──────────────────────────────────────────────────────
 
-const PATIENTS_QUERY = `
-	query PatientProfile {
-		patients {
+// myPatientProfile usa @CurrentUser() en el backend: el paciente solo accede a
+// SU propio perfil sin necesitar permisos sobre el listado completo de pacientes
+// (que es PHI restringido a personal clínico/administrativo).
+const MY_PATIENT_PROFILE_QUERY = `
+	query MyPatientProfile {
+		myPatientProfile {
 			id
 			usuarioId
 			tipoSangre
@@ -231,6 +259,43 @@ const CANCEL_TURN = `
 	}
 `;
 
+// Medicamentos: catálogo, inventario por medicamento y sedes
+const MEDICINES_QUERY = `
+	query PatientMedicines($busqueda: String) {
+		medicines(busqueda: $busqueda) {
+			id
+			nombreComercial
+			nombreGenerico
+			presentacion
+			requiereReceta
+		}
+	}
+`;
+
+const INVENTARIO_BY_MEDICAMENTO_QUERY = `
+	query InventarioByMedicamento($medicamentoId: Int!) {
+		inventarioByMedicamento(medicamentoId: $medicamentoId) {
+			id
+			medicamentoId
+			sedeId
+			stockActual
+			disponibilidad
+			precio
+		}
+	}
+`;
+
+const SEDES_QUERY = `
+	query Sedes {
+		sedes {
+			id
+			nombre
+			direccion
+			ciudad
+		}
+	}
+`;
+
 // Cancelar cita del paciente
 const CANCEL_APPOINTMENT = `
 	mutation CancelPatientAppointment($input: CancelAppoinmentInput!) {
@@ -311,6 +376,23 @@ function uniqueTurnConflictRetryMessage(locale: AppLocale) {
 	return 'The turn could not be created due to a temporary numbering conflict. Please try again in a few seconds.';
 }
 
+// Mapa de especialidades — sincronizado con el backend (tabla especialidades)
+const SPECIALTY_MAP: Record<number, { es: string; en: string }> = {
+	1: { es: 'Medicina General', en: 'General Medicine' },
+	2: { es: 'Cardiología', en: 'Cardiology' },
+	3: { es: 'Pediatría', en: 'Pediatrics' },
+	4: { es: 'Dermatología', en: 'Dermatology' },
+	5: { es: 'Ginecología', en: 'Gynecology' },
+	6: { es: 'Neurología', en: 'Neurology' },
+	7: { es: 'Ortopedia', en: 'Orthopedics' },
+};
+
+function specialtyLabel(id: number, locale: AppLocale): string {
+	const entry = SPECIALTY_MAP[id];
+	if (!entry) return `#${id}`;
+	return locale === 'es' ? entry.es : entry.en;
+}
+
 function doctorDisplayName(doctor: Doctor, locale: AppLocale) {
 	const fullName = `${doctor.nombre ?? ''} ${doctor.apellido ?? ''}`.trim();
 	return fullName || m.dashboardPatientDoctorUnnamed({}, { locale });
@@ -318,7 +400,10 @@ function doctorDisplayName(doctor: Doctor, locale: AppLocale) {
 
 function doctorDisplayLabel(doctor: Doctor, locale: AppLocale) {
 	const name = doctorDisplayName(doctor, locale);
-	return doctor.consultorio ? `${name} - ${doctor.consultorio}` : name;
+	const spec = specialtyLabel(doctor.especialidadId, locale);
+	const parts = [name, spec];
+	if (doctor.consultorio) parts.push(doctor.consultorio);
+	return parts.join(' — ');
 }
 
 function toLocalDateValue(date: Date) {
@@ -404,6 +489,17 @@ export function PatientDashboardView({
 	const [successMsg, setSuccessMsg] = useState('');
 	const [actionLoading, setActionLoading] = useState<string | null>(null);
 	const [isWaitingRoomOpen, setIsWaitingRoomOpen] = useState(false);
+	const [specialtyFilter, setSpecialtyFilter] = useState<string>('');
+	const [medicineSearch, setMedicineSearch] = useState('');
+	const [medicinesList, setMedicinesList] = useState<MedicineItem[]>([]);
+	const [sedes, setSedes] = useState<SedeItem[]>([]);
+	const [selectedMedicineInventory, setSelectedMedicineInventory] = useState<
+		InventarioItem[]
+	>([]);
+	const [selectedMedicineId, setSelectedMedicineId] = useState<number | null>(
+		null,
+	);
+	const [medicinesLoading, setMedicinesLoading] = useState(false);
 
 	// Formulario de agendar cita
 	const [booking, setBooking] = useState({
@@ -414,18 +510,19 @@ export function PatientDashboardView({
 	});
 
 	const loadProfile = useCallback(async () => {
-		const res = await gqlQuery<{ patients: PatientProfile[] }>(PATIENTS_QUERY);
-		const normalizedUserId = String(user.id);
-		const mine = res.patients.find(
-			(p) => String(p.usuarioId) === normalizedUserId,
+		// myPatientProfile devuelve null si el usuario autenticado no tiene perfil
+		// de paciente creado aún, sin requerir acceso al listado completo (PHI).
+		const res = await gqlQuery<{ myPatientProfile: PatientProfile | null }>(
+			MY_PATIENT_PROFILE_QUERY,
 		);
+		const mine = res.myPatientProfile;
 		if (!mine) {
 			setMissingProfile(true);
 			return null;
 		}
 		setPatientId(mine.id);
 		return mine;
-	}, [user.id]);
+	}, []);
 
 	const loadData = useCallback(async () => {
 		setLoading(true);
@@ -709,6 +806,44 @@ export function PatientDashboardView({
 		}
 	}
 
+	// ── Acción: buscar medicamentos ──
+	async function handleSearchMedicines(query?: string) {
+		setMedicinesLoading(true);
+		try {
+			const [medsRes, sedesRes] = await Promise.all([
+				gqlQuery<{ medicines: MedicineItem[] }>(MEDICINES_QUERY, {
+					busqueda: query || undefined,
+				}),
+				sedes.length === 0
+					? gqlQuery<{ sedes: SedeItem[] }>(SEDES_QUERY)
+					: Promise.resolve({ sedes }),
+			]);
+			setMedicinesList(medsRes.medicines);
+			if (sedesRes.sedes !== sedes) setSedes(sedesRes.sedes);
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setMedicinesLoading(false);
+		}
+	}
+
+	async function handleSelectMedicine(medicamentoId: number) {
+		setSelectedMedicineId(medicamentoId);
+		try {
+			const res = await gqlQuery<{ inventarioByMedicamento: InventarioItem[] }>(
+				INVENTARIO_BY_MEDICAMENTO_QUERY,
+				{ medicamentoId },
+			);
+			setSelectedMedicineInventory(res.inventarioByMedicamento);
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		}
+	}
+
 	// ── Acción: crear turno ──
 	// El paciente puede unirse a la cola del hospital directamente.
 	// hospitalId viene de selectedHospitalId (hospital seleccionado al iniciar sesión).
@@ -900,6 +1035,7 @@ export function PatientDashboardView({
 	const showAi = section === 'ai';
 	const showGame = section === 'queue' && isWaitingRoomOpen;
 	const showHistorial = section === 'historial';
+	const showMedicines = section === 'medicines';
 	const _showQueueList = showQueue && !(section === 'queue' && showGame);
 	const headerSubtitle =
 		section === 'ai'
@@ -909,14 +1045,28 @@ export function PatientDashboardView({
 	// ─── Sección de citas con formulario de agendado ──────────────────────────
 
 	function AppointmentBookingForm() {
+		const specialtySelectId = 'patient-booking-specialty';
 		const doctorSelectId = 'patient-booking-doctor';
 		const doctorHelpId = 'patient-booking-doctor-help';
 		const doctorEmptyStateId = 'patient-booking-doctor-empty';
 		const dateInputId = 'patient-booking-calendar';
 		const slotSelectId = 'patient-booking-slot';
 		const reasonInputId = 'patient-booking-reason';
+		// Filtrar médicos por especialidad cuando el paciente selecciona una
+		const filteredDoctors = specialtyFilter
+			? doctors.filter((d) => String(d.especialidadId) === specialtyFilter)
+			: doctors;
+		// Extraer especialidades únicas de los médicos disponibles
+		const availableSpecialties = [
+			...new Map(
+				doctors.map((d) => [
+					d.especialidadId,
+					specialtyLabel(d.especialidadId, locale),
+				]),
+			),
+		].sort((a, b) => a[1].localeCompare(b[1]));
 		const selectedDoctor =
-			doctors.find((d) => d.id === booking.medicoId) ?? null;
+			filteredDoctors.find((d) => d.id === booking.medicoId) ?? null;
 		const selectedDate = fromLocalDateValue(booking.fecha);
 		const selectedSlot =
 			slots.find((s) => s.fechaHora === booking.slot) ?? null;
@@ -951,7 +1101,49 @@ export function PatientDashboardView({
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					{/* Paso 1: seleccionar médico */}
+					{/* Paso 1a: filtrar por especialidad */}
+					<div className="space-y-2">
+						<label
+							htmlFor={specialtySelectId}
+							className="text-xs font-medium text-muted-foreground"
+						>
+							{m.dashboardPatientFilterBySpecialty({}, { locale })}
+						</label>
+						<Select
+							value={specialtyFilter}
+							onValueChange={(v) => {
+								setSpecialtyFilter(!v || v === '__all__' ? '' : v);
+								setBooking((prev) => ({
+									...prev,
+									medicoId: '',
+									fecha: '',
+									slot: '',
+								}));
+							}}
+						>
+							<SelectTrigger id={specialtySelectId} className="w-full">
+								<SelectValue
+									placeholder={m.dashboardPatientAllSpecialties({}, { locale })}
+								>
+									{specialtyFilter
+										? specialtyLabel(Number(specialtyFilter), locale)
+										: m.dashboardPatientAllSpecialties({}, { locale })}
+								</SelectValue>
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="__all__">
+									{m.dashboardPatientAllSpecialties({}, { locale })}
+								</SelectItem>
+								{availableSpecialties.map(([id, label]) => (
+									<SelectItem key={id} value={String(id)}>
+										{label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+
+					{/* Paso 1b: seleccionar médico */}
 					<div className="space-y-2">
 						<label
 							htmlFor={doctorSelectId}
@@ -961,7 +1153,7 @@ export function PatientDashboardView({
 						</label>
 						<Select
 							value={booking.medicoId}
-							disabled={loading || doctors.length === 0}
+							disabled={loading || filteredDoctors.length === 0}
 							onValueChange={(v) =>
 								setBooking((prev) => ({
 									...prev,
@@ -977,7 +1169,7 @@ export function PatientDashboardView({
 								aria-describedby={
 									selectedDoctor
 										? doctorHelpId
-										: !loading && doctors.length === 0
+										: !loading && filteredDoctors.length === 0
 											? doctorEmptyStateId
 											: undefined
 								}
@@ -992,7 +1184,7 @@ export function PatientDashboardView({
 								</SelectValue>
 							</SelectTrigger>
 							<SelectContent className="w-[min(94vw,36rem)]">
-								{doctors.map((d) => {
+								{filteredDoctors.map((d) => {
 									const label = doctorDisplayLabel(d, locale);
 									return (
 										<SelectItem
@@ -1025,7 +1217,7 @@ export function PatientDashboardView({
 								{doctorDisplayLabel(selectedDoctor, locale)}
 							</p>
 						)}
-						{!loading && doctors.length === 0 && (
+						{!loading && filteredDoctors.length === 0 && (
 							<p
 								id={doctorEmptyStateId}
 								className="text-xs text-muted-foreground"
@@ -1645,6 +1837,173 @@ export function PatientDashboardView({
 			)}
 
 			{showAi && <PatientAiSection locale={locale} />}
+
+			{showMedicines && (
+				<section aria-label={m.dashboardSidebarMedicines({}, { locale })}>
+					<Card className="border-border/70">
+						<CardHeader className="pb-2">
+							<CardTitle className="text-base">
+								{m.dashboardPatientMedicinesTitle({}, { locale })}
+							</CardTitle>
+							<CardDescription>
+								{m.dashboardPatientMedicinesSubtitle({}, { locale })}
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							{/* Buscador de medicamentos */}
+							<div className="flex gap-2">
+								<Input
+									id="patient-medicine-search"
+									value={medicineSearch}
+									onChange={(e) => setMedicineSearch(e.target.value)}
+									placeholder={m.dashboardPatientMedicinesSearchPlaceholder(
+										{},
+										{ locale },
+									)}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter')
+											void handleSearchMedicines(medicineSearch);
+									}}
+								/>
+								<Button
+									type="button"
+									onClick={() => void handleSearchMedicines(medicineSearch)}
+									disabled={medicinesLoading}
+								>
+									{medicinesLoading
+										? m.dashboardActionSaving({}, { locale })
+										: m.dashboardPatientMedicinesSearchAction({}, { locale })}
+								</Button>
+							</div>
+
+							{/* Lista de medicamentos */}
+							{medicinesList.length > 0 && (
+								<div className="space-y-2">
+									{medicinesList.map((med) => {
+										const isSelected = selectedMedicineId === med.id;
+										return (
+											<div key={med.id}>
+												<button
+													type="button"
+													onClick={() => void handleSelectMedicine(med.id)}
+													className={`w-full rounded-xl border p-3 text-left transition-colors ${
+														isSelected
+															? 'border-primary bg-primary/5'
+															: 'border-border/70 hover:bg-muted/30'
+													}`}
+												>
+													<div className="flex flex-wrap items-center justify-between gap-2">
+														<div className="space-y-0.5">
+															<p className="text-sm font-medium">
+																{med.nombreComercial}
+															</p>
+															{med.nombreGenerico && (
+																<p className="text-xs text-muted-foreground">
+																	{med.nombreGenerico}
+																</p>
+															)}
+														</div>
+														<div className="flex gap-2">
+															{med.presentacion && (
+																<Badge variant="outline">
+																	{med.presentacion}
+																</Badge>
+															)}
+															{med.requiereReceta && (
+																<Badge variant="secondary">
+																	{m.dashboardMedicinesFieldRequiresPrescription(
+																		{},
+																		{ locale },
+																	)}
+																</Badge>
+															)}
+														</div>
+													</div>
+												</button>
+
+												{/* Disponibilidad por sede */}
+												{isSelected && selectedMedicineInventory.length > 0 && (
+													<div className="mt-2 ml-4 space-y-1.5">
+														{selectedMedicineInventory.map((inv) => {
+															const sede = sedes.find(
+																(s) => s.id === inv.sedeId,
+															);
+															return (
+																<div
+																	key={inv.id}
+																	className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/20 p-2.5"
+																>
+																	<div>
+																		<p className="text-sm font-medium">
+																			{sede?.nombre ?? `Sede #${inv.sedeId}`}
+																		</p>
+																		{sede?.direccion && (
+																			<p className="text-xs text-muted-foreground">
+																				{sede.direccion}
+																				{sede.ciudad ? ` — ${sede.ciudad}` : ''}
+																			</p>
+																		)}
+																	</div>
+																	<div className="flex items-center gap-2">
+																		<Badge
+																			variant={
+																				inv.disponibilidad === 'DISPONIBLE'
+																					? 'default'
+																					: inv.disponibilidad === 'STOCK_BAJO'
+																						? 'secondary'
+																						: 'destructive'
+																			}
+																		>
+																			{inv.disponibilidad === 'DISPONIBLE'
+																				? m.dashboardPatientMedicineAvailable(
+																						{},
+																						{ locale },
+																					)
+																				: inv.disponibilidad === 'STOCK_BAJO'
+																					? m.dashboardPatientMedicineLowStock(
+																							{},
+																							{ locale },
+																						)
+																					: m.dashboardPatientMedicineOutOfStock(
+																							{},
+																							{ locale },
+																						)}
+																		</Badge>
+																		{inv.precio && (
+																			<span className="text-xs font-medium text-foreground">
+																				${inv.precio}
+																			</span>
+																		)}
+																	</div>
+																</div>
+															);
+														})}
+													</div>
+												)}
+												{isSelected &&
+													selectedMedicineInventory.length === 0 && (
+														<p className="mt-2 ml-4 text-xs text-muted-foreground">
+															{m.dashboardPatientMedicinesNoStock(
+																{},
+																{ locale },
+															)}
+														</p>
+													)}
+											</div>
+										);
+									})}
+								</div>
+							)}
+
+							{medicinesList.length === 0 && !medicinesLoading && (
+								<p className="text-sm text-muted-foreground">
+									{m.dashboardPatientMedicinesEmpty({}, { locale })}
+								</p>
+							)}
+						</CardContent>
+					</Card>
+				</section>
+			)}
 		</RoleDashboardShell>
 	);
 }

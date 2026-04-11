@@ -65,6 +65,7 @@ const PATIENT_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
 	'appointments',
 	'historial',
+	'medicines',
 	'queue',
 	'ai',
 	'settings',
@@ -80,9 +81,10 @@ const ADMIN_SIDEBAR_SECTIONS: NavSection[] = [
 	'userManagement',
 	'settings',
 ];
-// Médico: ve sus citas, gestiona disponibilidad y registra historial
+// Médico: ve sus citas, pacientes del hospital, gestiona disponibilidad y registra historial
 const DOCTOR_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
+	'patients',
 	'appointments',
 	'queue',
 	'disponibilidad',
@@ -115,6 +117,8 @@ function isNavSection(value: string | null): value is NavSection {
 		value === 'medicines' ||
 		value === 'doctors' ||
 		value === 'userManagement' ||
+		value === 'disponibilidad' ||
+		value === 'historial' ||
 		value === 'settings'
 	);
 }

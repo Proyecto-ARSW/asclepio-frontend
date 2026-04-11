@@ -79,6 +79,10 @@ interface PatientOption {
 	id: string;
 	nombre: string;
 	apellido: string;
+	email?: string;
+	tipoSangre?: string | null;
+	eps?: string | null;
+	numeroDocumento?: string | null;
 }
 
 interface Turno {
@@ -162,6 +166,10 @@ const DOCTOR_PATIENTS_QUERY = `
 			id
 			nombre
 			apellido
+			email
+			tipoSangre
+			eps
+			numeroDocumento
 		}
 	}
 `;
@@ -487,6 +495,7 @@ export function DoctorDashboardView({
 	const [actionLoading, setActionLoading] = useState<string | null>(null);
 	const [successMsg, setSuccessMsg] = useState('');
 	const [consultorioInput, setConsultorioInput] = useState('');
+	const [patientSearch, setPatientSearch] = useState('');
 
 	// ── Formulario de disponibilidad ──
 	const [newSlot, setNewSlot] = useState({
@@ -625,7 +634,9 @@ export function DoctorDashboardView({
 					? loadDisponibilidad(profile.id)
 					: Promise.resolve(),
 				section === 'historial' ? loadHistorial(profile.id) : Promise.resolve(),
-				section === 'historial' ? loadPatients() : Promise.resolve(),
+				section === 'historial' || section === 'patients'
+					? loadPatients()
+					: Promise.resolve(),
 			]);
 		} catch (err) {
 			setError(
@@ -983,6 +994,8 @@ export function DoctorDashboardView({
 		switch (sec) {
 			case 'overview':
 				return OverviewSection();
+			case 'patients':
+				return PatientsSection();
 			case 'appointments':
 				return AppointmentsSection();
 			case 'queue':
@@ -1067,6 +1080,83 @@ export function DoctorDashboardView({
 						)}
 					</CardContent>
 				</Card>
+			</div>
+		);
+	}
+
+	// ── Sección de pacientes del hospital ──
+	function PatientsSection() {
+		const filtered = patientSearch.trim()
+			? patients.filter((p) => {
+					const q = patientSearch.toLowerCase();
+					return (
+						p.nombre.toLowerCase().includes(q) ||
+						p.apellido.toLowerCase().includes(q) ||
+						(p.email?.toLowerCase().includes(q) ?? false) ||
+						(p.numeroDocumento?.toLowerCase().includes(q) ?? false)
+					);
+				})
+			: patients;
+
+		return (
+			<div className="space-y-3">
+				<div className="space-y-1">
+					<label
+						htmlFor="doctor-patient-search"
+						className="text-xs font-medium text-muted-foreground"
+					>
+						{m.dashboardAdminSearchPlaceholder({}, { locale })}
+					</label>
+					<Input
+						id="doctor-patient-search"
+						value={patientSearch}
+						onChange={(e) => setPatientSearch(e.target.value)}
+						placeholder={m.dashboardAdminSearchPlaceholder({}, { locale })}
+					/>
+				</div>
+				{loading ? (
+					[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)
+				) : filtered.length === 0 ? (
+					<p className="text-sm text-muted-foreground">
+						{m.dashboardPatientsEmptyDescription({}, { locale })}
+					</p>
+				) : (
+					filtered.map((p) => (
+						<Card key={p.id} className="border-border/70">
+							<CardContent className="p-4">
+								<div className="flex flex-wrap items-start justify-between gap-3">
+									<div className="space-y-1">
+										<p className="text-sm font-semibold text-foreground">
+											{p.nombre} {p.apellido}
+										</p>
+										{p.email && (
+											<p className="text-xs text-muted-foreground">{p.email}</p>
+										)}
+										{p.numeroDocumento && (
+											<p className="text-xs text-muted-foreground">
+												{m.dashboardPatientsHeaderDocument({}, { locale })}:{' '}
+												{p.numeroDocumento}
+											</p>
+										)}
+									</div>
+									<div className="flex flex-wrap gap-2">
+										{p.tipoSangre && (
+											<Badge variant="outline">
+												{m.dashboardPatientsHeaderBlood({}, { locale })}:{' '}
+												{p.tipoSangre}
+											</Badge>
+										)}
+										{p.eps && (
+											<Badge variant="secondary">
+												{m.dashboardPatientsHeaderEps({}, { locale })}: {p.eps}
+											</Badge>
+										)}
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					))
+				)}
 			</div>
 		);
 	}
@@ -1734,6 +1824,7 @@ export function DoctorDashboardView({
 
 	const sectionTitles: Partial<Record<DashboardSection, string>> = {
 		overview: m.dashboardDoctorOverviewTitle({}, { locale }),
+		patients: m.dashboardSidebarPatients({}, { locale }),
 		appointments: m.dashboardSidebarAppointments({}, { locale }),
 		queue: m.dashboardSidebarQueue({}, { locale }),
 		disponibilidad: m.dashboardDoctorDisponibilidadTitle({}, { locale }),

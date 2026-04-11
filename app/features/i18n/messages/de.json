@@ -629,5 +629,18 @@
 	"homeLandingServicesBuiltEyebrow": "What we built",
 	"homeLandingServicesBuiltTitle": "Real Asclepio capabilities",
 	"homeLandingServicesBuiltDescription": "A complete hospital platform: 5 coordinated roles, integrated AI, an interactive waiting room, and real-time resource orchestration.",
-	"homeLandingServicesIncludedLabel": "Included in the platform"
+	"homeLandingServicesIncludedLabel": "Included in the platform",
+	"dashboardPatientFilterBySpecialty": "Nach Fachgebiet filtern",
+	"dashboardPatientAllSpecialties": "Alle Fachgebiete",
+	"dashboardPatientMedicinesTitle": "Medikamente suchen",
+	"dashboardPatientMedicinesSubtitle": "Überprüfen Sie die Verfügbarkeit von Medikamenten an den Standorten",
+	"dashboardPatientMedicinesSearchPlaceholder": "Medikamentenname...",
+	"dashboardPatientMedicinesSearchAction": "Suchen",
+	"dashboardPatientMedicineAvailable": "Verfügbar",
+	"dashboardPatientMedicineLowStock": "Niedriger Bestand",
+	"dashboardPatientMedicineOutOfStock": "Ausverkauft",
+	"dashboardPatientMedicinesNoStock": "Dieses Medikament hat keinen registrierten Bestand an einem Standort.",
+	"dashboardPatientMedicinesEmpty": "Suchen Sie ein Medikament, um seine Verfügbarkeit an jedem Standort zu sehen.",
+	"dashboardAdminDeleteUserConfirm": "Sind Sie sicher, dass Sie das Konto von {name} löschen möchten? Dies wird den Benutzer deaktivieren.",
+	"dashboardAdminDeleteUserAction": "Konto löschen"
 }

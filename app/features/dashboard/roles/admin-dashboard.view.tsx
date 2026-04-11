@@ -272,6 +272,15 @@ const CANCEL_APPOINTMENT = `
 	}
 `;
 
+const REMOVE_USER = `
+	mutation AdminRemoveUser($id: ID!) {
+		removeUser(id: $id) {
+			id
+			activo
+		}
+	}
+`;
+
 const REMOVE_MEDICINE = `
 	mutation AdminRemoveMedicine($id: Int!) {
 		removeMedicine(id: $id) {
@@ -768,6 +777,22 @@ export function AdminDashboardView({
 		}
 	}
 
+	async function handleDeleteUser(targetUser: AdminGqlData['users'][number]) {
+		setSavingUserId(targetUser.id);
+		setError('');
+		try {
+			await gqlMutation(REMOVE_USER, { id: targetUser.id });
+			await loadData();
+			flash(m.dashboardActionSuccess({}, { locale }));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setSavingUserId(null);
+		}
+	}
+
 	async function handleCallNextTurn() {
 		setSectionActionLoading('call-next');
 		setError('');
@@ -1047,24 +1072,47 @@ export function AdminDashboardView({
 				</div>
 			) : filteredUsers.length ? (
 				<div className="space-y-3">
-					{pagedUsers.map((user) => (
-						<AdminRoleRowForm
-							key={user.id}
-							user={user}
-							locale={locale}
-							doctorProfile={doctorProfileByUserId.get(user.id)}
-							nurseProfile={nurseProfileByUserId.get(user.id)}
-							doctorProfilesCount={data?.doctors.length ?? 0}
-							nurseProfilesCount={data?.nurses.length ?? 0}
-							specialties={specialtyOptions}
-							saving={savingUserId === user.id}
-							lastUpdatedAt={
-								lastRoleChange?.userId === user.id
-									? lastRoleChange.timestamp
-									: undefined
-							}
-							onSubmit={(payload) => handleRoleUpdate(user, payload)}
-						/>
+					{pagedUsers.map((u) => (
+						<div key={u.id} className="space-y-1">
+							<AdminRoleRowForm
+								user={u}
+								locale={locale}
+								doctorProfile={doctorProfileByUserId.get(u.id)}
+								nurseProfile={nurseProfileByUserId.get(u.id)}
+								doctorProfilesCount={data?.doctors.length ?? 0}
+								nurseProfilesCount={data?.nurses.length ?? 0}
+								specialties={specialtyOptions}
+								saving={savingUserId === u.id}
+								lastUpdatedAt={
+									lastRoleChange?.userId === u.id
+										? lastRoleChange.timestamp
+										: undefined
+								}
+								onSubmit={(payload) => handleRoleUpdate(u, payload)}
+							/>
+							<Button
+								type="button"
+								variant="destructive"
+								size="sm"
+								disabled={savingUserId === u.id || u.id === user.id}
+								onClick={() => {
+									if (
+										window.confirm(
+											m.dashboardAdminDeleteUserConfirm(
+												{ name: `${u.nombre} ${u.apellido}` },
+												{ locale },
+											),
+										)
+									) {
+										void handleDeleteUser(u);
+									}
+								}}
+								className="gap-1 text-xs"
+							>
+								<TrashIcon className="h-3.5 w-3.5" />
+								{m.dashboardAdminDeleteUserAction({}, { locale })}
+							</Button>
+						</div>
 					))}
 					{totalPages > 1 && (
 						<div className="flex items-center justify-between gap-2 rounded-xl border border-border/70 bg-muted/20 p-2">

@@ -629,5 +629,18 @@
 	"a11yLandmarkSidebarNav": "Sidebar navigation",
 	"a11yLandmarkHero": "Hero section",
 	"a11yLandmarkServices": "Services section",
-	"a11yLandmarkAuth": "Authentication form"
+	"a11yLandmarkAuth": "Authentication form",
+	"dashboardPatientFilterBySpecialty": "Filter by specialty",
+	"dashboardPatientAllSpecialties": "All specialties",
+	"dashboardPatientMedicinesTitle": "Search medicines",
+	"dashboardPatientMedicinesSubtitle": "Check medicine availability across locations",
+	"dashboardPatientMedicinesSearchPlaceholder": "Medicine name...",
+	"dashboardPatientMedicinesSearchAction": "Search",
+	"dashboardPatientMedicineAvailable": "Available",
+	"dashboardPatientMedicineLowStock": "Low stock",
+	"dashboardPatientMedicineOutOfStock": "Out of stock",
+	"dashboardPatientMedicinesNoStock": "This medicine has no inventory registered at any location.",
+	"dashboardPatientMedicinesEmpty": "Search for a medicine to see its availability at each location.",
+	"dashboardAdminDeleteUserConfirm": "Are you sure you want to delete {name}'s account? This will deactivate the user.",
+	"dashboardAdminDeleteUserAction": "Delete account"
 }

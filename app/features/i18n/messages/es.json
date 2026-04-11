@@ -629,5 +629,18 @@
 	"a11yLandmarkSidebarNav": "Navegacion lateral",
 	"a11yLandmarkHero": "Seccion principal",
 	"a11yLandmarkServices": "Seccion de servicios",
-	"a11yLandmarkAuth": "Formulario de autenticacion"
+	"a11yLandmarkAuth": "Formulario de autenticacion",
+	"dashboardPatientFilterBySpecialty": "Filtrar por especialidad",
+	"dashboardPatientAllSpecialties": "Todas las especialidades",
+	"dashboardPatientMedicinesTitle": "Buscar medicamentos",
+	"dashboardPatientMedicinesSubtitle": "Consulta la disponibilidad de medicamentos en las sedes",
+	"dashboardPatientMedicinesSearchPlaceholder": "Nombre del medicamento...",
+	"dashboardPatientMedicinesSearchAction": "Buscar",
+	"dashboardPatientMedicineAvailable": "Disponible",
+	"dashboardPatientMedicineLowStock": "Stock bajo",
+	"dashboardPatientMedicineOutOfStock": "Agotado",
+	"dashboardPatientMedicinesNoStock": "Este medicamento no tiene inventario registrado en ninguna sede.",
+	"dashboardPatientMedicinesEmpty": "Busca un medicamento para ver su disponibilidad en las sedes.",
+	"dashboardAdminDeleteUserConfirm": "¿Estás seguro de que deseas eliminar la cuenta de {name}? Esta acción desactivará al usuario.",
+	"dashboardAdminDeleteUserAction": "Eliminar cuenta"
 }

@@ -160,7 +160,25 @@ const DOCTOR_HISTORIAL_QUERY = `
 	}
 `;
 
+// patientsByHospital filtra pacientes vinculados al hospital del médico
+// a través de la tabla hospital_usuario, evitando mostrar pacientes
+// de otros hospitales o usuarios con roles no-paciente.
 const DOCTOR_PATIENTS_QUERY = `
+	query DoctorPatientsByHospital($hospitalId: Int!) {
+		patientsByHospital(hospitalId: $hospitalId) {
+			id
+			nombre
+			apellido
+			email
+			tipoSangre
+			eps
+			numeroDocumento
+		}
+	}
+`;
+
+// Fallback: si el backend aún no soporta patientsByHospital, usa patients
+const DOCTOR_PATIENTS_QUERY_FALLBACK = `
 	query DoctorPatients {
 		patients {
 			id
@@ -565,11 +583,24 @@ export function DoctorDashboardView({
 	}, []);
 
 	const loadPatients = useCallback(async () => {
+		if (selectedHospitalId) {
+			try {
+				// Intenta usar patientsByHospital para mostrar solo pacientes del hospital
+				const res = await gqlQuery<{ patientsByHospital: PatientOption[] }>(
+					DOCTOR_PATIENTS_QUERY,
+					{ hospitalId: selectedHospitalId },
+				);
+				setPatients(res.patientsByHospital);
+				return;
+			} catch {
+				// Si el backend no soporta patientsByHospital aún, cae al fallback
+			}
+		}
 		const res = await gqlQuery<{ patients: PatientOption[] }>(
-			DOCTOR_PATIENTS_QUERY,
+			DOCTOR_PATIENTS_QUERY_FALLBACK,
 		);
 		setPatients(res.patients);
-	}, []);
+	}, [selectedHospitalId]);
 
 	const loadTurns = useCallback(async () => {
 		let turnosPorHospital: Turno[] = [];

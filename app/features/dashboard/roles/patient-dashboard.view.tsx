@@ -303,6 +303,19 @@ const CANCEL_APPOINTMENT = `
 	}
 `;
 
+// Mutation para que el usuario actualice su propio perfil (nombre, apellido, teléfono).
+// Usa el mutation updateMyProfile que valida el JWT para editar solo el registro propio.
+const UPDATE_MY_PROFILE = `
+	mutation UpdateMyProfile($input: UpdateMyProfileInput!) {
+		updateMyProfile(input: $input) {
+			id
+			nombre
+			apellido
+			telefono
+		}
+	}
+`;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function statusVariant(
@@ -500,6 +513,14 @@ export function PatientDashboardView({
 		null,
 	);
 	const [medicinesLoading, setMedicinesLoading] = useState(false);
+
+	// Estado del formulario de perfil personal
+	const [profileForm, setProfileForm] = useState({
+		nombre: user.nombre,
+		apellido: user.apellido,
+		telefono: '',
+	});
+	const [profileLoading, setProfileLoading] = useState(false);
 
 	// Formulario de agendar cita
 	const [booking, setBooking] = useState({
@@ -928,6 +949,35 @@ export function PatientDashboardView({
 		}
 	}
 
+	// ── Acción: actualizar perfil personal ──
+	async function handleUpdateProfile() {
+		setProfileLoading(true);
+		setError('');
+		try {
+			const input: Record<string, string> = {};
+			if (profileForm.nombre.trim() && profileForm.nombre !== user.nombre)
+				input.nombre = profileForm.nombre.trim();
+			if (profileForm.apellido.trim() && profileForm.apellido !== user.apellido)
+				input.apellido = profileForm.apellido.trim();
+			if (profileForm.telefono.trim())
+				input.telefono = profileForm.telefono.trim();
+
+			if (Object.keys(input).length === 0) {
+				setProfileLoading(false);
+				return;
+			}
+
+			await gqlMutation(UPDATE_MY_PROFILE, { input });
+			flash(m.dashboardActionSuccess({}, { locale }));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setProfileLoading(false);
+		}
+	}
+
 	// ── Acción: cancelar mi turno en espera ──
 	async function handleCancelMyTurn(turnId: string) {
 		setActionLoading('cancel-my-turn');
@@ -1036,6 +1086,7 @@ export function PatientDashboardView({
 	const showGame = section === 'queue' && isWaitingRoomOpen;
 	const showHistorial = section === 'historial';
 	const showMedicines = section === 'medicines';
+	const showProfile = section === 'profile';
 	const _showQueueList = showQueue && !(section === 'queue' && showGame);
 	const headerSubtitle =
 		section === 'ai'
@@ -1549,6 +1600,124 @@ export function PatientDashboardView({
 				<Alert>
 					<AlertDescription>{successMsg}</AlertDescription>
 				</Alert>
+			)}
+
+			{/* ── Perfil personal ── */}
+			{showProfile && (
+				<section aria-label={m.dashboardSidebarProfile({}, { locale })}>
+					<Card className="border-border/70">
+						<CardHeader className="pb-2">
+							<CardTitle className="text-base">
+								{locale === 'es'
+									? 'Información personal'
+									: 'Personal information'}
+							</CardTitle>
+							<CardDescription>
+								{locale === 'es'
+									? 'Actualiza tu nombre, apellido y teléfono de contacto.'
+									: 'Update your name, last name and phone number.'}
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							{/* Grid responsivo: 2 columnas en escritorio, 1 en móvil */}
+							<div className="grid gap-4 sm:grid-cols-2">
+								<div className="space-y-1">
+									<label
+										htmlFor="profile-nombre"
+										className="text-xs font-medium text-muted-foreground"
+									>
+										{m.authRegisterLabelNombre({}, { locale })}
+									</label>
+									<Input
+										id="profile-nombre"
+										value={profileForm.nombre}
+										onChange={(e) =>
+											setProfileForm((prev) => ({
+												...prev,
+												nombre: e.target.value,
+											}))
+										}
+										placeholder={user.nombre}
+									/>
+								</div>
+								<div className="space-y-1">
+									<label
+										htmlFor="profile-apellido"
+										className="text-xs font-medium text-muted-foreground"
+									>
+										{m.authRegisterLabelApellido({}, { locale })}
+									</label>
+									<Input
+										id="profile-apellido"
+										value={profileForm.apellido}
+										onChange={(e) =>
+											setProfileForm((prev) => ({
+												...prev,
+												apellido: e.target.value,
+											}))
+										}
+										placeholder={user.apellido}
+									/>
+								</div>
+							</div>
+							<div className="space-y-1">
+								<label
+									htmlFor="profile-telefono"
+									className="text-xs font-medium text-muted-foreground"
+								>
+									{m.authRegisterLabelTelefono({}, { locale })}
+								</label>
+								<Input
+									id="profile-telefono"
+									type="tel"
+									value={profileForm.telefono}
+									onChange={(e) =>
+										setProfileForm((prev) => ({
+											...prev,
+											telefono: e.target.value,
+										}))
+									}
+									placeholder={
+										locale === 'es' ? '+57 300 123 4567' : '+1 555 123 4567'
+									}
+								/>
+							</div>
+
+							{/* Info de solo lectura: email y rol */}
+							<div className="grid gap-4 sm:grid-cols-2">
+								<div className="space-y-1">
+									<p className="text-xs font-medium text-muted-foreground">
+										{m.authRegisterLabelEmail({}, { locale })}
+									</p>
+									<p className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+										{user.email}
+									</p>
+								</div>
+								<div className="space-y-1">
+									<p className="text-xs font-medium text-muted-foreground">
+										{m.authRegisterLabelRol({}, { locale })}
+									</p>
+									<p className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+										{user.rol}
+									</p>
+								</div>
+							</div>
+
+							<Button
+								type="button"
+								onClick={handleUpdateProfile}
+								disabled={profileLoading}
+								className="gap-2"
+							>
+								{profileLoading
+									? m.dashboardActionSaving({}, { locale })
+									: locale === 'es'
+										? 'Guardar cambios'
+										: 'Save changes'}
+							</Button>
+						</CardContent>
+					</Card>
+				</section>
 			)}
 
 			{/* ── Historial médico ── */}

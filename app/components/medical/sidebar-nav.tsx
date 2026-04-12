@@ -47,6 +47,7 @@ export type NavSection =
 	| 'userManagement'
 	| 'disponibilidad'
 	| 'historial'
+	| 'profile'
 	| 'settings';
 
 interface NavItem {
@@ -89,6 +90,8 @@ const navItems: NavItem[] = [
 		icon: ClipboardDocumentListIcon,
 		iconActive: ClipboardDocumentListIconSolid,
 	},
+	// Perfil personal del paciente
+	{ key: 'profile', icon: UserIcon, iconActive: UserIconSolid },
 	{ key: 'settings', icon: Cog6ToothIcon, iconActive: Cog6ToothIconSolid },
 ];
 
@@ -122,6 +125,7 @@ const defaultSectionLabels: Record<NavSection, string> = {
 	userManagement: '',
 	disponibilidad: '',
 	historial: '',
+	profile: '',
 	settings: '',
 };
 
@@ -150,6 +154,7 @@ function SidebarContent({
 		userManagement: m.dashboardSidebarUserManagement({}, { locale }),
 		disponibilidad: m.dashboardSidebarDisponibilidad({}, { locale }),
 		historial: m.dashboardSidebarHistorial({}, { locale }),
+		profile: m.dashboardSidebarProfile({}, { locale }),
 		settings: m.dashboardSidebarSettings({}, { locale }),
 		...labels?.sections,
 	};

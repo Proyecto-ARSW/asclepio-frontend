@@ -154,6 +154,7 @@ export function getDashboardContent(
 				userManagement: m.dashboardSidebarUserManagement({}, options),
 				disponibilidad: m.dashboardSidebarDisponibilidad({}, options),
 				historial: m.dashboardSidebarHistorial({}, options),
+				profile: m.dashboardSidebarProfile({}, options),
 				settings: m.dashboardSidebarSettings({}, options),
 			},
 		},

@@ -63,6 +63,7 @@ import type { Route } from './+types/dashboard.page';
 const DASHBOARD_SECTION_STORAGE_KEY = 'asclepio-dashboard-active-section';
 const PATIENT_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
+	'profile',
 	'appointments',
 	'historial',
 	'medicines',
@@ -91,10 +92,11 @@ const DOCTOR_SIDEBAR_SECTIONS: NavSection[] = [
 	'historial',
 	'settings',
 ];
-// Enfermero: ve su disponibilidad y gestiona la cola de turnos
+// Enfermero: ve su disponibilidad, gestiona la cola de turnos y el inventario de medicamentos
 const NURSE_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
 	'disponibilidad',
+	'medicines',
 	'queue',
 	'settings',
 ];
@@ -119,6 +121,7 @@ function isNavSection(value: string | null): value is NavSection {
 		value === 'userManagement' ||
 		value === 'disponibilidad' ||
 		value === 'historial' ||
+		value === 'profile' ||
 		value === 'settings'
 	);
 }

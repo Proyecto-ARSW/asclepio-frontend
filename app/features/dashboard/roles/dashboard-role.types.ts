@@ -19,6 +19,7 @@ export type DashboardSection =
 	| 'userManagement'
 	| 'disponibilidad'
 	| 'historial'
+	| 'profile'
 	| 'settings';
 
 export type OverviewBlockKey =

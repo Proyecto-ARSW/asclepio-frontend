@@ -1166,6 +1166,7 @@ export function AdminDashboardView({
 		// Admin no usa estas secciones pero el tipo las requiere por exhaustividad
 		disponibilidad: m.dashboardSidebarDisponibilidad({}, { locale }),
 		historial: m.dashboardSidebarHistorial({}, { locale }),
+		profile: m.dashboardSidebarProfile({}, { locale }),
 	} as const satisfies Record<Exclude<DashboardSection, 'settings'>, string>;
 
 	function sectionListItem(

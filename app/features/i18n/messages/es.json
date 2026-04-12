@@ -13,6 +13,8 @@
 	"dashboardSidebarUserManagement": "Gestión de usuarios y roles",
 	"dashboardSidebarDisponibilidad": "Disponibilidad",
 	"dashboardSidebarHistorial": "Historial médico",
+	"dashboardSidebarConsentimientos": "Consentimientos",
+	"dashboardSidebarRecetas": "Recetas médicas",
 	"dashboardSidebarProfile": "Mi Perfil",
 	"dashboardSidebarSettings": "Configuración",
 	"dashboardDoctorOverviewTitle": "Resumen del médico",

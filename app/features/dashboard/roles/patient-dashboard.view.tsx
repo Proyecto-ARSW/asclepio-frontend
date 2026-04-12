@@ -113,6 +113,26 @@ interface SedeItem {
 	ciudad?: string;
 }
 
+interface ConsentimientoPatient {
+	id: number;
+	pacienteId: string;
+	tipoConsentimiento: string;
+	consentimientoOtorgado: boolean;
+	fechaConsentimiento: string;
+	revocado: boolean;
+	fechaRevocacion: string | null;
+}
+
+interface RecetaPatient {
+	id: number;
+	historialId: string;
+	medicamentoId: number;
+	dosis: string | null;
+	frecuencia: string | null;
+	duracionDias: number | null;
+	observaciones: string | null;
+}
+
 // ─── Queries & Mutations ──────────────────────────────────────────────────────
 
 // myPatientProfile usa @CurrentUser() en el backend: el paciente solo accede a
@@ -293,6 +313,33 @@ const SEDES_QUERY = `
 			direccion
 			ciudad
 		}
+	}
+`;
+
+// ── Consentimientos informados del paciente (solo lectura) ──
+// Ley 23/1981 Art. 15 Colombia: el paciente tiene derecho a conocer los
+// consentimientos que ha otorgado y su estado (vigente/revocado).
+const MY_CONSENTIMIENTOS_QUERY = `
+	query MisConsentimientos($pacienteId: ID!) {
+		consentimientosByPaciente(pacienteId: $pacienteId) {
+			id pacienteId tipoConsentimiento consentimientoOtorgado
+			fechaConsentimiento revocado fechaRevocacion
+		}
+	}
+`;
+
+// ── Recetas del paciente (a través de su historial) ──
+const RECETAS_BY_HISTORIAL_QUERY = `
+	query RecetasPaciente($historialId: ID!) {
+		recetasByHistorial(historialId: $historialId) {
+			id historialId medicamentoId dosis frecuencia duracionDias observaciones
+		}
+	}
+`;
+
+const MEDICINES_CATALOG_QUERY = `
+	query MedicinesCatalog {
+		medicines { id nombreComercial nombreGenerico presentacion requiereReceta }
 	}
 `;
 
@@ -514,6 +561,13 @@ export function PatientDashboardView({
 	);
 	const [medicinesLoading, setMedicinesLoading] = useState(false);
 
+	// ── Estado de consentimientos y recetas del paciente ──
+	const [myConsentimientos, setMyConsentimientos] = useState<
+		ConsentimientoPatient[]
+	>([]);
+	const [myRecetas, setMyRecetas] = useState<RecetaPatient[]>([]);
+	const [medicineCatalog, setMedicineCatalog] = useState<MedicineItem[]>([]);
+
 	// Estado del formulario de perfil personal
 	const [profileForm, setProfileForm] = useState({
 		nombre: user.nombre,
@@ -722,6 +776,57 @@ export function PatientDashboardView({
 	useEffect(() => {
 		if (section !== 'queue') setIsWaitingRoomOpen(false);
 	}, [section]);
+
+	// Cargador de consentimientos — se usa como efecto dentro de la sección.
+	// Componente inline que dispara la carga al montarse (patrón "loader component").
+	function ConsentimientosLoader({
+		patientId: pid,
+	}: {
+		patientId: string | null;
+	}) {
+		useEffect(() => {
+			if (!pid) return;
+			gqlQuery<{ consentimientosByPaciente: ConsentimientoPatient[] }>(
+				MY_CONSENTIMIENTOS_QUERY,
+				{ pacienteId: pid },
+			)
+				.then((res) => setMyConsentimientos(res.consentimientosByPaciente))
+				.catch(() => {});
+		}, [pid]);
+		return null;
+	}
+
+	// Cargador de recetas — recorre todos los historiales del paciente
+	function RecetasLoader({ patientId: pid }: { patientId: string | null }) {
+		useEffect(() => {
+			if (!pid || historial.length === 0) return;
+			// Cargar catálogo de medicamentos para mostrar nombres
+			const loadCatalog =
+				medicineCatalog.length === 0
+					? gqlQuery<{ medicines: MedicineItem[] }>(
+							MEDICINES_CATALOG_QUERY,
+						).then((res) => {
+							setMedicineCatalog(res.medicines);
+							return res.medicines;
+						})
+					: Promise.resolve(medicineCatalog);
+
+			// Cargar recetas de todos los historiales del paciente
+			void loadCatalog.then(() => {
+				Promise.all(
+					historial.map((h) =>
+						gqlQuery<{ recetasByHistorial: RecetaPatient[] }>(
+							RECETAS_BY_HISTORIAL_QUERY,
+							{ historialId: h.id },
+						).then((res) => res.recetasByHistorial),
+					),
+				)
+					.then((results) => setMyRecetas(results.flat()))
+					.catch(() => {});
+			});
+		}, [pid]); // eslint-disable-line react-hooks/exhaustive-deps
+		return null;
+	}
 
 	function flash(msg: string) {
 		setSuccessMsg(msg);
@@ -1086,6 +1191,8 @@ export function PatientDashboardView({
 	const showGame = section === 'queue' && isWaitingRoomOpen;
 	const showHistorial = section === 'historial';
 	const showMedicines = section === 'medicines';
+	const showConsentimientos = section === 'consentimientos';
+	const showRecetas = section === 'recetas';
 	const showProfile = section === 'profile';
 	const _showQueueList = showQueue && !(section === 'queue' && showGame);
 	const headerSubtitle =
@@ -1600,6 +1707,158 @@ export function PatientDashboardView({
 				<Alert>
 					<AlertDescription>{successMsg}</AlertDescription>
 				</Alert>
+			)}
+
+			{/* ── Consentimientos informados (solo lectura) ── */}
+			{showConsentimientos && (
+				<section aria-label={m.dashboardSidebarConsentimientos({}, { locale })}>
+					<Card className="border-border/70">
+						<CardHeader className="pb-2">
+							<CardTitle className="text-base">
+								{locale === 'es'
+									? 'Mis consentimientos informados'
+									: 'My informed consents'}
+							</CardTitle>
+							<CardDescription>
+								{locale === 'es'
+									? 'Registro de autorizaciones otorgadas para procedimientos y tratamientos (Ley 23/1981).'
+									: 'Record of authorizations granted for procedures and treatments.'}
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-2">
+							{/* Cargar consentimientos al montar */}
+							<ConsentimientosLoader patientId={patientId} />
+							{myConsentimientos.length === 0 ? (
+								<p className="text-sm text-muted-foreground">
+									{locale === 'es'
+										? 'No tienes consentimientos registrados.'
+										: 'You have no registered consents.'}
+								</p>
+							) : (
+								myConsentimientos.map((c) => (
+									<div
+										key={c.id}
+										className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/90 p-3"
+									>
+										<div className="min-w-0 flex-1">
+											<p className="text-sm font-medium text-foreground">
+												{c.tipoConsentimiento}
+											</p>
+											<p className="text-xs text-muted-foreground">
+												{new Date(c.fechaConsentimiento).toLocaleDateString(
+													locale,
+													{
+														day: '2-digit',
+														month: 'long',
+														year: 'numeric',
+													},
+												)}
+											</p>
+										</div>
+										<Badge
+											variant={
+												c.revocado
+													? 'destructive'
+													: c.consentimientoOtorgado
+														? 'default'
+														: 'secondary'
+											}
+										>
+											{c.revocado
+												? locale === 'es'
+													? 'Revocado'
+													: 'Revoked'
+												: c.consentimientoOtorgado
+													? locale === 'es'
+														? 'Otorgado'
+														: 'Granted'
+													: locale === 'es'
+														? 'Denegado'
+														: 'Denied'}
+										</Badge>
+									</div>
+								))
+							)}
+						</CardContent>
+					</Card>
+				</section>
+			)}
+
+			{/* ── Recetas médicas del paciente ── */}
+			{showRecetas && (
+				<section aria-label={m.dashboardSidebarRecetas({}, { locale })}>
+					<Card className="border-border/70">
+						<CardHeader className="pb-2">
+							<CardTitle className="text-base">
+								{locale === 'es' ? 'Mis recetas médicas' : 'My prescriptions'}
+							</CardTitle>
+							<CardDescription>
+								{locale === 'es'
+									? 'Recetas prescritas por tus médicos vinculadas a tu historial clínico.'
+									: 'Prescriptions written by your doctors linked to your medical history.'}
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-2">
+							<RecetasLoader patientId={patientId} />
+							{myRecetas.length === 0 ? (
+								<p className="text-sm text-muted-foreground">
+									{locale === 'es'
+										? 'No tienes recetas médicas registradas.'
+										: 'You have no registered prescriptions.'}
+								</p>
+							) : (
+								myRecetas.map((r) => {
+									const med = medicineCatalog.find(
+										(m2) => m2.id === r.medicamentoId,
+									);
+									return (
+										<div
+											key={r.id}
+											className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/90 p-3"
+										>
+											<div className="min-w-0 flex-1">
+												<p className="text-sm font-semibold text-foreground">
+													{med?.nombreComercial ?? `#${r.medicamentoId}`}
+												</p>
+												<div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+													{r.dosis && (
+														<span>
+															{locale === 'es' ? 'Dosis' : 'Dose'}: {r.dosis}
+														</span>
+													)}
+													{r.frecuencia && (
+														<span>
+															{locale === 'es' ? 'Frecuencia' : 'Frequency'}:{' '}
+															{r.frecuencia}
+														</span>
+													)}
+													{r.duracionDias && (
+														<span>
+															{r.duracionDias}{' '}
+															{locale === 'es' ? 'días' : 'days'}
+														</span>
+													)}
+												</div>
+												{r.observaciones && (
+													<p className="mt-1 text-xs text-muted-foreground/80">
+														{r.observaciones}
+													</p>
+												)}
+											</div>
+											{med?.requiereReceta && (
+												<Badge variant="secondary" className="text-[10px]">
+													{locale === 'es'
+														? 'Requiere receta'
+														: 'Prescription required'}
+												</Badge>
+											)}
+										</div>
+									);
+								})
+							)}
+						</CardContent>
+					</Card>
+				</section>
 			)}
 
 			{/* ── Perfil personal ── */}

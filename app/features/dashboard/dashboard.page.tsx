@@ -5,6 +5,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
 import { Link, redirect, useLocation, useNavigate } from 'react-router';
+import { NotificationBell } from '@/components/medical/notification-bell';
 import { SidebarNav } from '@/components/medical/sidebar-nav';
 import { Badge } from '@/components/ui/badge/badge.component';
 import {
@@ -66,6 +67,8 @@ const PATIENT_SIDEBAR_SECTIONS: NavSection[] = [
 	'profile',
 	'appointments',
 	'historial',
+	'consentimientos',
+	'recetas',
 	'medicines',
 	'queue',
 	'ai',
@@ -82,7 +85,7 @@ const ADMIN_SIDEBAR_SECTIONS: NavSection[] = [
 	'userManagement',
 	'settings',
 ];
-// Médico: ve sus citas, pacientes del hospital, gestiona disponibilidad y registra historial
+// Médico: citas, pacientes, disponibilidad, historial, consentimientos y recetas
 const DOCTOR_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
 	'patients',
@@ -90,6 +93,8 @@ const DOCTOR_SIDEBAR_SECTIONS: NavSection[] = [
 	'queue',
 	'disponibilidad',
 	'historial',
+	'consentimientos',
+	'recetas',
 	'settings',
 ];
 // Enfermero: ve su disponibilidad, gestiona la cola de turnos y el inventario de medicamentos
@@ -121,6 +126,8 @@ function isNavSection(value: string | null): value is NavSection {
 		value === 'userManagement' ||
 		value === 'disponibilidad' ||
 		value === 'historial' ||
+		value === 'consentimientos' ||
+		value === 'recetas' ||
 		value === 'profile' ||
 		value === 'settings'
 	);
@@ -314,6 +321,8 @@ export default function DashboardPage() {
 					</div>
 
 					<div className="flex flex-wrap items-center gap-2">
+						{/* Campana de notificaciones — accesible para todos los roles */}
+						<NotificationBell locale={locale} />
 						<Button
 							type="button"
 							variant="outline"

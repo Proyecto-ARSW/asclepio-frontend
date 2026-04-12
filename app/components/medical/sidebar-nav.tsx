@@ -7,6 +7,8 @@ import {
 	ClipboardDocumentListIcon,
 	ClockIcon,
 	Cog6ToothIcon,
+	DocumentCheckIcon,
+	DocumentTextIcon,
 	HomeIcon,
 	IdentificationIcon,
 	QueueListIcon,
@@ -22,6 +24,8 @@ import {
 	ClipboardDocumentListIcon as ClipboardDocumentListIconSolid,
 	ClockIcon as ClockIconSolid,
 	Cog6ToothIcon as Cog6ToothIconSolid,
+	DocumentCheckIcon as DocumentCheckIconSolid,
+	DocumentTextIcon as DocumentTextIconSolid,
 	HomeIcon as HomeIconSolid,
 	IdentificationIcon as IdentificationIconSolid,
 	QueueListIcon as QueueListIconSolid,
@@ -47,6 +51,8 @@ export type NavSection =
 	| 'userManagement'
 	| 'disponibilidad'
 	| 'historial'
+	| 'consentimientos'
+	| 'recetas'
 	| 'profile'
 	| 'settings';
 
@@ -90,6 +96,18 @@ const navItems: NavItem[] = [
 		icon: ClipboardDocumentListIcon,
 		iconActive: ClipboardDocumentListIconSolid,
 	},
+	// Consentimientos informados (Ley 23/1981 Colombia)
+	{
+		key: 'consentimientos',
+		icon: DocumentCheckIcon,
+		iconActive: DocumentCheckIconSolid,
+	},
+	// Recetas médicas
+	{
+		key: 'recetas',
+		icon: DocumentTextIcon,
+		iconActive: DocumentTextIconSolid,
+	},
 	// Perfil personal del paciente
 	{ key: 'profile', icon: UserIcon, iconActive: UserIconSolid },
 	{ key: 'settings', icon: Cog6ToothIcon, iconActive: Cog6ToothIconSolid },
@@ -125,6 +143,8 @@ const defaultSectionLabels: Record<NavSection, string> = {
 	userManagement: '',
 	disponibilidad: '',
 	historial: '',
+	consentimientos: '',
+	recetas: '',
 	profile: '',
 	settings: '',
 };
@@ -154,6 +174,8 @@ function SidebarContent({
 		userManagement: m.dashboardSidebarUserManagement({}, { locale }),
 		disponibilidad: m.dashboardSidebarDisponibilidad({}, { locale }),
 		historial: m.dashboardSidebarHistorial({}, { locale }),
+		consentimientos: m.dashboardSidebarConsentimientos({}, { locale }),
+		recetas: m.dashboardSidebarRecetas({}, { locale }),
 		profile: m.dashboardSidebarProfile({}, { locale }),
 		settings: m.dashboardSidebarSettings({}, { locale }),
 		...labels?.sections,

@@ -19,6 +19,8 @@ export type DashboardSection =
 	| 'userManagement'
 	| 'disponibilidad'
 	| 'historial'
+	| 'consentimientos'
+	| 'recetas'
 	| 'profile'
 	| 'settings';
 

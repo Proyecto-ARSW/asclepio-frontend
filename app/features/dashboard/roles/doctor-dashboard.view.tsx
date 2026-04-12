@@ -95,6 +95,37 @@ interface Turno {
 	hospitalId?: number | null;
 }
 
+// ── Consentimiento informado (Ley 23/1981, Resolución 2003/2014 Colombia) ──
+interface Consentimiento {
+	id: number;
+	pacienteId: string;
+	tipoConsentimiento: string;
+	consentimientoOtorgado: boolean;
+	fechaConsentimiento: string;
+	revocado: boolean;
+	fechaRevocacion: string | null;
+	documentoFirmado: string | null;
+}
+
+// ── Receta médica ──
+interface Receta {
+	id: number;
+	historialId: string;
+	medicamentoId: number;
+	dosis: string | null;
+	frecuencia: string | null;
+	duracionDias: number | null;
+	observaciones: string | null;
+}
+
+interface MedicineOption {
+	id: number;
+	nombreComercial: string;
+	nombreGenerico?: string;
+	presentacion?: string;
+	requiereReceta: boolean;
+}
+
 // ─── Queries & Mutations ──────────────────────────────────────────────────────
 
 const DOCTOR_PROFILE_QUERY = `
@@ -321,6 +352,60 @@ const ATTEND_TURN = `
 	}
 `;
 
+// ── Consentimientos (cumplimiento Ley 23/1981 y Resolución 2003/2014) ────────
+// El consentimiento informado es obligatorio antes de cualquier procedimiento
+// quirúrgico, diagnóstico invasivo o tratamiento de alto riesgo en Colombia.
+
+const CONSENTIMIENTOS_BY_PACIENTE = `
+	query ConsentimientosByPaciente($pacienteId: ID!) {
+		consentimientosByPaciente(pacienteId: $pacienteId) {
+			id pacienteId tipoConsentimiento consentimientoOtorgado
+			fechaConsentimiento revocado fechaRevocacion documentoFirmado
+		}
+	}
+`;
+
+const CREATE_CONSENTIMIENTO = `
+	mutation CreateConsentimiento($input: CreateConsentimientoInput!) {
+		createConsentimiento(input: $input) {
+			id pacienteId tipoConsentimiento consentimientoOtorgado
+			fechaConsentimiento revocado
+		}
+	}
+`;
+
+const REVOCAR_CONSENTIMIENTO = `
+	mutation RevocarConsentimiento($id: Int!) {
+		revocarConsentimiento(id: $id) {
+			id revocado fechaRevocacion
+		}
+	}
+`;
+
+// ── Recetas médicas ─────────────────────────────────────────────────────────
+
+const RECETAS_BY_HISTORIAL = `
+	query RecetasByHistorial($historialId: ID!) {
+		recetasByHistorial(historialId: $historialId) {
+			id historialId medicamentoId dosis frecuencia duracionDias observaciones
+		}
+	}
+`;
+
+const CREATE_RECETA = `
+	mutation CreateReceta($input: CreateRecetaInput!) {
+		createReceta(input: $input) {
+			id historialId medicamentoId dosis frecuencia duracionDias observaciones
+		}
+	}
+`;
+
+const MEDICINES_FOR_RECETA = `
+	query MedicinesForReceta {
+		medicines { id nombreComercial nombreGenerico presentacion requiereReceta }
+	}
+`;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const DAYS_ES = [
@@ -514,6 +599,24 @@ export function DoctorDashboardView({
 	const [successMsg, setSuccessMsg] = useState('');
 	const [consultorioInput, setConsultorioInput] = useState('');
 	const [patientSearch, setPatientSearch] = useState('');
+
+	// ── Consentimientos y recetas ──
+	const [consentimientos, setConsentimientos] = useState<Consentimiento[]>([]);
+	const [consentimientoPacienteId, setConsentimientoPacienteId] = useState('');
+	const [newConsentimiento, setNewConsentimiento] = useState({
+		tipoConsentimiento: '',
+		consentimientoOtorgado: true,
+	});
+	const [recetas, setRecetas] = useState<Receta[]>([]);
+	const [recetaHistorialId, setRecetaHistorialId] = useState('');
+	const [medicineOptions, setMedicineOptions] = useState<MedicineOption[]>([]);
+	const [newReceta, setNewReceta] = useState({
+		medicamentoId: 0,
+		dosis: '',
+		frecuencia: '',
+		duracionDias: 0,
+		observaciones: '',
+	});
 
 	// ── Formulario de disponibilidad ──
 	const [newSlot, setNewSlot] = useState({
@@ -1013,6 +1116,138 @@ export function DoctorDashboardView({
 		}
 	}
 
+	// ── Consentimientos: carga, creación y revocación ──
+
+	async function loadConsentimientos(pacienteId: string) {
+		try {
+			const res = await gqlQuery<{
+				consentimientosByPaciente: Consentimiento[];
+			}>(CONSENTIMIENTOS_BY_PACIENTE, { pacienteId });
+			setConsentimientos(res.consentimientosByPaciente);
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		}
+	}
+
+	async function handleCreateConsentimiento() {
+		if (!consentimientoPacienteId || !newConsentimiento.tipoConsentimiento)
+			return;
+		setActionLoading('create-consent');
+		setError('');
+		try {
+			const res = await gqlMutation<{
+				createConsentimiento: Consentimiento;
+			}>(CREATE_CONSENTIMIENTO, {
+				input: {
+					pacienteId: consentimientoPacienteId,
+					tipoConsentimiento: newConsentimiento.tipoConsentimiento,
+					consentimientoOtorgado: newConsentimiento.consentimientoOtorgado,
+				},
+			});
+			setConsentimientos((prev) => [res.createConsentimiento, ...prev]);
+			setNewConsentimiento({
+				tipoConsentimiento: '',
+				consentimientoOtorgado: true,
+			});
+			flash(m.dashboardActionSuccess({}, { locale }));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setActionLoading(null);
+		}
+	}
+
+	async function handleRevocarConsentimiento(id: number) {
+		setActionLoading(`revoke-${id}`);
+		setError('');
+		try {
+			const res = await gqlMutation<{
+				revocarConsentimiento: {
+					id: number;
+					revocado: boolean;
+					fechaRevocacion: string;
+				};
+			}>(REVOCAR_CONSENTIMIENTO, { id });
+			setConsentimientos((prev) =>
+				prev.map((c) =>
+					c.id === id
+						? {
+								...c,
+								revocado: true,
+								fechaRevocacion: res.revocarConsentimiento.fechaRevocacion,
+							}
+						: c,
+				),
+			);
+			flash(m.dashboardActionSuccess({}, { locale }));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setActionLoading(null);
+		}
+	}
+
+	// ── Recetas: carga y creación ──
+
+	async function loadRecetas(historialId: string) {
+		try {
+			const [recetasRes, medsRes] = await Promise.all([
+				gqlQuery<{ recetasByHistorial: Receta[] }>(RECETAS_BY_HISTORIAL, {
+					historialId,
+				}),
+				medicineOptions.length === 0
+					? gqlQuery<{ medicines: MedicineOption[] }>(MEDICINES_FOR_RECETA)
+					: Promise.resolve({ medicines: medicineOptions }),
+			]);
+			setRecetas(recetasRes.recetasByHistorial);
+			if (medsRes.medicines !== medicineOptions)
+				setMedicineOptions(medsRes.medicines);
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		}
+	}
+
+	async function handleCreateReceta() {
+		if (!recetaHistorialId || !newReceta.medicamentoId) return;
+		setActionLoading('create-receta');
+		setError('');
+		try {
+			const res = await gqlMutation<{ createReceta: Receta }>(CREATE_RECETA, {
+				input: {
+					historialId: recetaHistorialId,
+					medicamentoId: newReceta.medicamentoId,
+					dosis: newReceta.dosis || undefined,
+					frecuencia: newReceta.frecuencia || undefined,
+					duracionDias: newReceta.duracionDias || undefined,
+					observaciones: newReceta.observaciones || undefined,
+				},
+			});
+			setRecetas((prev) => [...prev, res.createReceta]);
+			setNewReceta({
+				medicamentoId: 0,
+				dosis: '',
+				frecuencia: '',
+				duracionDias: 0,
+				observaciones: '',
+			});
+			flash(m.dashboardActionSuccess({}, { locale }));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setActionLoading(null);
+		}
+	}
+
 	// Muestra un mensaje de éxito temporal
 	function flash(msg: string) {
 		setSuccessMsg(msg);
@@ -1035,9 +1270,521 @@ export function DoctorDashboardView({
 				return DisponibilidadSection();
 			case 'historial':
 				return HistorialSection();
+			case 'consentimientos':
+				return ConsentimientosSection();
+			case 'recetas':
+				return RecetasSection();
 			default:
 				return null;
 		}
+	}
+
+	// ── Sección de consentimientos informados ─────────────────────────────────
+	// Ley 23 de 1981 Art. 15 y Resolución 2003 de 2014 Colombia:
+	// El médico debe obtener consentimiento informado del paciente antes de
+	// cualquier procedimiento, tratamiento o estudio diagnóstico invasivo.
+	function ConsentimientosSection() {
+		// Tipos comunes de consentimiento según normativa colombiana
+		const tiposConsentimiento = [
+			locale === 'es' ? 'Procedimiento quirúrgico' : 'Surgical procedure',
+			locale === 'es' ? 'Anestesia' : 'Anesthesia',
+			locale === 'es'
+				? 'Tratamiento farmacológico'
+				: 'Pharmacological treatment',
+			locale === 'es'
+				? 'Estudio diagnóstico invasivo'
+				: 'Invasive diagnostic study',
+			locale === 'es' ? 'Transfusión sanguínea' : 'Blood transfusion',
+			locale === 'es'
+				? 'Tratamiento de datos personales'
+				: 'Personal data processing',
+		];
+
+		return (
+			<div className="space-y-4">
+				{/* Formulario para registrar consentimiento */}
+				<Card className="border-border/70">
+					<CardHeader className="pb-2">
+						<CardTitle className="text-base">
+							{locale === 'es'
+								? 'Registrar consentimiento informado'
+								: 'Register informed consent'}
+						</CardTitle>
+						<CardDescription>
+							{locale === 'es'
+								? 'Ley 23/1981 Art. 15: El médico debe obtener autorización expresa del paciente.'
+								: 'The physician must obtain express authorization from the patient.'}
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						<div className="grid gap-3 sm:grid-cols-2">
+							<div className="space-y-1">
+								<label
+									htmlFor="consent-patient"
+									className="text-xs font-medium text-muted-foreground"
+								>
+									{m.dashboardSidebarPatients({}, { locale })}
+								</label>
+								<Select
+									value={consentimientoPacienteId}
+									onValueChange={(v) => {
+										setConsentimientoPacienteId(v ?? '');
+										if (v) void loadConsentimientos(v);
+									}}
+								>
+									<SelectTrigger id="consent-patient" className="w-full">
+										<SelectValue
+											placeholder={
+												locale === 'es'
+													? 'Seleccionar paciente'
+													: 'Select patient'
+											}
+										/>
+									</SelectTrigger>
+									<SelectContent>
+										{patients.map((p) => (
+											<SelectItem key={p.id} value={p.id}>
+												{p.nombre} {p.apellido}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+							<div className="space-y-1">
+								<label
+									htmlFor="consent-type"
+									className="text-xs font-medium text-muted-foreground"
+								>
+									{locale === 'es' ? 'Tipo de consentimiento' : 'Consent type'}
+								</label>
+								<Select
+									value={newConsentimiento.tipoConsentimiento}
+									onValueChange={(v) =>
+										setNewConsentimiento((prev) => ({
+											...prev,
+											tipoConsentimiento: v ?? '',
+										}))
+									}
+								>
+									<SelectTrigger id="consent-type" className="w-full">
+										<SelectValue
+											placeholder={
+												locale === 'es' ? 'Seleccionar...' : 'Select...'
+											}
+										/>
+									</SelectTrigger>
+									<SelectContent>
+										{tiposConsentimiento.map((tipo) => (
+											<SelectItem key={tipo} value={tipo}>
+												{tipo}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+						<div className="flex items-center gap-2">
+							<input
+								type="checkbox"
+								id="consent-granted"
+								checked={newConsentimiento.consentimientoOtorgado}
+								onChange={(e) =>
+									setNewConsentimiento((prev) => ({
+										...prev,
+										consentimientoOtorgado: e.target.checked,
+									}))
+								}
+								className="h-4 w-4 rounded border-border"
+							/>
+							<label
+								htmlFor="consent-granted"
+								className="text-sm text-foreground"
+							>
+								{locale === 'es'
+									? 'Paciente otorga consentimiento'
+									: 'Patient grants consent'}
+							</label>
+						</div>
+						<Button
+							type="button"
+							onClick={handleCreateConsentimiento}
+							disabled={
+								!consentimientoPacienteId ||
+								!newConsentimiento.tipoConsentimiento ||
+								actionLoading === 'create-consent'
+							}
+							className="gap-2"
+						>
+							{actionLoading === 'create-consent'
+								? m.dashboardActionSaving({}, { locale })
+								: locale === 'es'
+									? 'Registrar consentimiento'
+									: 'Register consent'}
+						</Button>
+					</CardContent>
+				</Card>
+
+				{/* Lista de consentimientos del paciente seleccionado */}
+				{consentimientoPacienteId && (
+					<Card className="border-border/70">
+						<CardHeader className="pb-2">
+							<CardTitle className="text-base">
+								{locale === 'es'
+									? 'Consentimientos registrados'
+									: 'Registered consents'}
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-2">
+							{consentimientos.length === 0 ? (
+								<p className="text-sm text-muted-foreground">
+									{locale === 'es'
+										? 'No hay consentimientos registrados para este paciente.'
+										: 'No consents registered for this patient.'}
+								</p>
+							) : (
+								consentimientos.map((c) => (
+									<div
+										key={c.id}
+										className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/90 p-3"
+									>
+										<div className="min-w-0 flex-1">
+											<p className="text-sm font-medium text-foreground">
+												{c.tipoConsentimiento}
+											</p>
+											<p className="text-xs text-muted-foreground">
+												{new Date(c.fechaConsentimiento).toLocaleDateString(
+													locale,
+													{
+														day: '2-digit',
+														month: 'long',
+														year: 'numeric',
+													},
+												)}
+											</p>
+										</div>
+										<div className="flex items-center gap-2">
+											<Badge
+												variant={
+													c.revocado
+														? 'destructive'
+														: c.consentimientoOtorgado
+															? 'default'
+															: 'secondary'
+												}
+											>
+												{c.revocado
+													? locale === 'es'
+														? 'Revocado'
+														: 'Revoked'
+													: c.consentimientoOtorgado
+														? locale === 'es'
+															? 'Otorgado'
+															: 'Granted'
+														: locale === 'es'
+															? 'Denegado'
+															: 'Denied'}
+											</Badge>
+											{!c.revocado && c.consentimientoOtorgado && (
+												<Button
+													type="button"
+													size="sm"
+													variant="destructive"
+													onClick={() => handleRevocarConsentimiento(c.id)}
+													disabled={actionLoading === `revoke-${c.id}`}
+													className="text-xs"
+												>
+													{actionLoading === `revoke-${c.id}`
+														? '...'
+														: locale === 'es'
+															? 'Revocar'
+															: 'Revoke'}
+												</Button>
+											)}
+										</div>
+									</div>
+								))
+							)}
+						</CardContent>
+					</Card>
+				)}
+			</div>
+		);
+	}
+
+	// ── Sección de recetas médicas ────────────────────────────────────────────
+	// Las recetas se vinculan a un historial médico existente.
+	// El médico selecciona el historial, el medicamento del catálogo y prescribe
+	// dosis, frecuencia y duración según la normativa farmacéutica colombiana.
+	function RecetasSection() {
+		// Cargar medicamentos al montar la sección
+		useEffect(() => {
+			if (medicineOptions.length === 0) {
+				gqlQuery<{ medicines: MedicineOption[] }>(MEDICINES_FOR_RECETA)
+					.then((res) => setMedicineOptions(res.medicines))
+					.catch(() => {});
+			}
+		}, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+		return (
+			<div className="space-y-4">
+				{/* Selector de historial para ver/crear recetas */}
+				<Card className="border-border/70">
+					<CardHeader className="pb-2">
+						<CardTitle className="text-base">
+							{locale === 'es'
+								? 'Prescribir receta médica'
+								: 'Write prescription'}
+						</CardTitle>
+						<CardDescription>
+							{locale === 'es'
+								? 'Seleccione un historial médico y prescriba el medicamento con dosis y frecuencia.'
+								: 'Select a medical history entry and prescribe the medication with dose and frequency.'}
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						{/* Selector de historial */}
+						<div className="space-y-1">
+							<label
+								htmlFor="receta-historial"
+								className="text-xs font-medium text-muted-foreground"
+							>
+								{m.dashboardSidebarHistorial({}, { locale })}
+							</label>
+							<Select
+								value={recetaHistorialId}
+								onValueChange={(v) => {
+									setRecetaHistorialId(v ?? '');
+									if (v) void loadRecetas(v);
+								}}
+							>
+								<SelectTrigger id="receta-historial" className="w-full">
+									<SelectValue
+										placeholder={
+											locale === 'es'
+												? 'Seleccionar historial...'
+												: 'Select history entry...'
+										}
+									/>
+								</SelectTrigger>
+								<SelectContent>
+									{historial.map((h) => (
+										<SelectItem key={h.id} value={h.id}>
+											{h.diagnostico
+												? `${h.diagnostico.slice(0, 50)}${h.diagnostico.length > 50 ? '...' : ''}`
+												: `#${h.id.slice(0, 8)}`}{' '}
+											— {new Date(h.creadoEn).toLocaleDateString(locale)}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						{recetaHistorialId && (
+							<>
+								<div className="grid gap-3 sm:grid-cols-2">
+									<div className="space-y-1">
+										<label
+											htmlFor="receta-med"
+											className="text-xs font-medium text-muted-foreground"
+										>
+											{locale === 'es' ? 'Medicamento' : 'Medicine'}
+										</label>
+										<Select
+											value={
+												newReceta.medicamentoId
+													? String(newReceta.medicamentoId)
+													: ''
+											}
+											onValueChange={(v) =>
+												setNewReceta((prev) => ({
+													...prev,
+													medicamentoId: Number(v),
+												}))
+											}
+										>
+											<SelectTrigger id="receta-med" className="w-full">
+												<SelectValue
+													placeholder={
+														locale === 'es' ? 'Seleccionar...' : 'Select...'
+													}
+												/>
+											</SelectTrigger>
+											<SelectContent>
+												{medicineOptions.map((med) => (
+													<SelectItem key={med.id} value={String(med.id)}>
+														{med.nombreComercial}
+														{med.nombreGenerico
+															? ` (${med.nombreGenerico})`
+															: ''}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+									<div className="space-y-1">
+										<label
+											htmlFor="receta-dosis"
+											className="text-xs font-medium text-muted-foreground"
+										>
+											{locale === 'es' ? 'Dosis' : 'Dose'}
+										</label>
+										<Input
+											id="receta-dosis"
+											value={newReceta.dosis}
+											onChange={(e) =>
+												setNewReceta((prev) => ({
+													...prev,
+													dosis: e.target.value,
+												}))
+											}
+											placeholder="500mg"
+										/>
+									</div>
+								</div>
+								<div className="grid gap-3 sm:grid-cols-3">
+									<div className="space-y-1">
+										<label
+											htmlFor="receta-freq"
+											className="text-xs font-medium text-muted-foreground"
+										>
+											{locale === 'es' ? 'Frecuencia' : 'Frequency'}
+										</label>
+										<Input
+											id="receta-freq"
+											value={newReceta.frecuencia}
+											onChange={(e) =>
+												setNewReceta((prev) => ({
+													...prev,
+													frecuencia: e.target.value,
+												}))
+											}
+											placeholder={
+												locale === 'es' ? 'Cada 8 horas' : 'Every 8 hours'
+											}
+										/>
+									</div>
+									<div className="space-y-1">
+										<label
+											htmlFor="receta-days"
+											className="text-xs font-medium text-muted-foreground"
+										>
+											{locale === 'es' ? 'Duración (días)' : 'Duration (days)'}
+										</label>
+										<Input
+											id="receta-days"
+											type="number"
+											min={1}
+											value={newReceta.duracionDias || ''}
+											onChange={(e) =>
+												setNewReceta((prev) => ({
+													...prev,
+													duracionDias: Number(e.target.value),
+												}))
+											}
+										/>
+									</div>
+									<div className="space-y-1">
+										<label
+											htmlFor="receta-obs"
+											className="text-xs font-medium text-muted-foreground"
+										>
+											{locale === 'es' ? 'Observaciones' : 'Observations'}
+										</label>
+										<Input
+											id="receta-obs"
+											value={newReceta.observaciones}
+											onChange={(e) =>
+												setNewReceta((prev) => ({
+													...prev,
+													observaciones: e.target.value,
+												}))
+											}
+										/>
+									</div>
+								</div>
+								<Button
+									type="button"
+									onClick={handleCreateReceta}
+									disabled={
+										!newReceta.medicamentoId ||
+										actionLoading === 'create-receta'
+									}
+									className="gap-2"
+								>
+									{actionLoading === 'create-receta'
+										? m.dashboardActionSaving({}, { locale })
+										: locale === 'es'
+											? 'Prescribir receta'
+											: 'Write prescription'}
+								</Button>
+							</>
+						)}
+					</CardContent>
+				</Card>
+
+				{/* Lista de recetas del historial seleccionado */}
+				{recetaHistorialId && recetas.length > 0 && (
+					<Card className="border-border/70">
+						<CardHeader className="pb-2">
+							<CardTitle className="text-base">
+								{locale === 'es'
+									? 'Recetas del historial'
+									: 'History prescriptions'}
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-2">
+							{recetas.map((r) => {
+								const med = medicineOptions.find(
+									(m2) => m2.id === r.medicamentoId,
+								);
+								return (
+									<div
+										key={r.id}
+										className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/90 p-3"
+									>
+										<div className="min-w-0 flex-1">
+											<p className="text-sm font-semibold text-foreground">
+												{med?.nombreComercial ?? `#${r.medicamentoId}`}
+											</p>
+											<div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+												{r.dosis && (
+													<span>
+														{locale === 'es' ? 'Dosis' : 'Dose'}: {r.dosis}
+													</span>
+												)}
+												{r.frecuencia && (
+													<span>
+														{locale === 'es' ? 'Frecuencia' : 'Frequency'}:{' '}
+														{r.frecuencia}
+													</span>
+												)}
+												{r.duracionDias && (
+													<span>
+														{r.duracionDias} {locale === 'es' ? 'días' : 'days'}
+													</span>
+												)}
+											</div>
+											{r.observaciones && (
+												<p className="mt-1 text-xs text-muted-foreground/80">
+													{r.observaciones}
+												</p>
+											)}
+										</div>
+										{med?.requiereReceta && (
+											<Badge variant="secondary" className="text-[10px]">
+												{locale === 'es'
+													? 'Requiere receta'
+													: 'Prescription required'}
+											</Badge>
+										)}
+									</div>
+								);
+							})}
+						</CardContent>
+					</Card>
+				)}
+			</div>
+		);
 	}
 
 	// ── Overview: KPIs + vista rápida de citas y disponibilidad ──

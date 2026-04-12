@@ -796,6 +796,21 @@ export function DoctorDashboardView({
 		void loadData();
 	}, [loadData]);
 
+	// Precargar medicamentos al entrar en la sección de recetas.
+	// Este useEffect vivía dentro de RecetasSection(), pero como renderSection()
+	// invoca las secciones como funciones (no como JSX), los hooks dentro de ellas
+	// se ejecutan condicionalmente y violan la regla de hooks de React
+	// ("Rendered more hooks than during the previous render").
+	// Al moverlo al cuerpo del componente padre se ejecuta siempre, respetando
+	// la regla, y la guarda `section === 'recetas'` evita trabajo innecesario.
+	useEffect(() => {
+		if (section !== 'recetas') return;
+		if (medicineOptions.length > 0) return;
+		gqlQuery<{ medicines: MedicineOption[] }>(MEDICINES_FOR_RECETA)
+			.then((res) => setMedicineOptions(res.medicines))
+			.catch(() => {});
+	}, [section, medicineOptions.length]);
+
 	useEffect(() => {
 		if (!(section === 'queue' || section === 'overview')) return;
 
@@ -1516,15 +1531,6 @@ export function DoctorDashboardView({
 	// El médico selecciona el historial, el medicamento del catálogo y prescribe
 	// dosis, frecuencia y duración según la normativa farmacéutica colombiana.
 	function RecetasSection() {
-		// Cargar medicamentos al montar la sección
-		useEffect(() => {
-			if (medicineOptions.length === 0) {
-				gqlQuery<{ medicines: MedicineOption[] }>(MEDICINES_FOR_RECETA)
-					.then((res) => setMedicineOptions(res.medicines))
-					.catch(() => {});
-			}
-		}, []); // eslint-disable-line react-hooks/exhaustive-deps
-
 		return (
 			<div className="space-y-4">
 				{/* Selector de historial para ver/crear recetas */}

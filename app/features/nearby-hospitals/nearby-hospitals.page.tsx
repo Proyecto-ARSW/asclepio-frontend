@@ -6,16 +6,21 @@ import {
 	MoonIcon,
 	SunIcon,
 } from '@heroicons/react/24/outline';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import {
+	lazy,
+	Suspense,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react';
 import { Link, useLocation } from 'react-router';
 import { Badge } from '@/components/ui/badge/badge.component';
 import {
-	buttonVariants,
 	Button,
+	buttonVariants,
 } from '@/components/ui/button/button.component';
 import { Card, CardContent } from '@/components/ui/card/card.component';
 import { LanguageSwitcher } from '@/features/i18n/language-switcher';
@@ -33,16 +38,14 @@ import {
 } from '@/features/preferences/ui-preferences';
 import { MAPS_API_URL } from '@/lib/env';
 import { cn } from '@/lib/utils';
+import type { HospitalResult } from './nearby-hospitals-map.client';
+
+// ── Lazy-load del mapa ─────────────────────────────────────────────────────
+// Leaflet accede a `window` al importarse, lo que rompe SSR.
+// React.lazy + import() garantiza que el módulo solo se carga en el navegador.
+const NearbyHospitalsMap = lazy(() => import('./nearby-hospitals-map.client'));
 
 // ── Types ──────────────────────────────────────────────────────────────────
-
-/** Respuesta del microservicio Maps (Spring Boot, puerto 8081) */
-interface HospitalResult {
-	name: string;
-	latitude: number;
-	longitude: number;
-	distanceMeters: number;
-}
 
 type GeoState =
 	| { status: 'idle' }
@@ -50,64 +53,6 @@ type GeoState =
 	| { status: 'denied' }
 	| { status: 'error'; message: string }
 	| { status: 'ready'; lat: number; lng: number };
-
-// ── Leaflet icon fix ───────────────────────────────────────────────────────
-// Leaflet espera archivos de ícono en rutas relativas que Vite no resuelve.
-// Creamos íconos inline con divIcon para no depender de archivos estáticos.
-
-const hospitalIcon = L.divIcon({
-	html: `<div style="background:#0d9488;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.3)">
-		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M12 2L2 7v1h20V7L12 2zm-1 9H8v2h3v3h2v-3h3v-2h-3V8h-2v3zM2 22h20v-2H2v2zm2-3h16v-7H4v7z"/></svg>
-	</div>`,
-	className: '',
-	iconSize: [32, 32],
-	iconAnchor: [16, 32],
-	popupAnchor: [0, -34],
-});
-
-const userIcon = L.divIcon({
-	html: `<div style="background:#3b82f6;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 3px rgba(59,130,246,.4),0 2px 8px rgba(0,0,0,.3)"></div>`,
-	className: '',
-	iconSize: [20, 20],
-	iconAnchor: [10, 10],
-});
-
-// ── Map helpers ────────────────────────────────────────────────────────────
-
-/** Componente auxiliar: centra el mapa cuando cambian las coordenadas del usuario */
-function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
-	const map = useMap();
-	useEffect(() => {
-		map.setView([lat, lng], 14, { animate: true });
-	}, [map, lat, lng]);
-	return null;
-}
-
-/** Componente auxiliar: ajusta el mapa para que quepan todos los markers */
-function FitBoundsToMarkers({
-	hospitals,
-	userLat,
-	userLng,
-}: {
-	hospitals: HospitalResult[];
-	userLat: number;
-	userLng: number;
-}) {
-	const map = useMap();
-	useEffect(() => {
-		if (hospitals.length === 0) return;
-		const points: L.LatLngExpression[] = [
-			[userLat, userLng],
-			...hospitals.map(
-				(h) => [h.latitude, h.longitude] as L.LatLngExpression,
-			),
-		];
-		// fitBounds con padding para que los markers no queden pegados al borde
-		const bounds = L.latLngBounds(points);
-		map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
-	}, [map, hospitals, userLat, userLng]);
-	return null;
-}
 
 // ── Distance formatter ─────────────────────────────────────────────────────
 
@@ -121,6 +66,22 @@ function formatDistance(meters: number): string {
 export function meta() {
 	const locale = currentLocale();
 	return [{ title: m.nearbyHospitalsMetaTitle({}, { locale }) }];
+}
+
+// ── Map skeleton ───────────────────────────────────────────────────────────
+// Fallback visual mientras se carga el chunk de Leaflet (~175KB).
+// Evita un layout shift y da feedback inmediato al usuario.
+
+function MapSkeleton() {
+	return (
+		<div className="flex h-[50vh] min-h-[360px] items-center justify-center rounded-2xl bg-muted/30 lg:h-[70vh]">
+			<motion.div
+				className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent"
+				animate={{ rotate: 360 }}
+				transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+			/>
+		</div>
+	);
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
@@ -162,6 +123,7 @@ export default function NearbyHospitalsPage() {
 	// navigator.geolocation es la API estándar del navegador para obtener
 	// la ubicación del usuario. Requiere HTTPS en producción (localhost es excepción).
 	const requestLocation = useCallback(() => {
+		if (typeof window === 'undefined') return;
 		if (!navigator.geolocation) {
 			setGeo({
 				status: 'error',
@@ -241,11 +203,6 @@ export default function NearbyHospitalsPage() {
 	const userLat = isReady ? geo.lat : 0;
 	const userLng = isReady ? geo.lng : 0;
 
-	// Tile URL que respeta dark mode — usamos CartoDB tiles que tienen variante oscura
-	const tileUrl = isDarkMode
-		? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-		: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-
 	// Radio options para el selector
 	const radiusOptions = useMemo(
 		() => [
@@ -258,6 +215,14 @@ export default function NearbyHospitalsPage() {
 		],
 		[],
 	);
+
+	// Handler para clicks en markers del mapa — scroll a la tarjeta correspondiente
+	const handleHospitalMapClick = useCallback((index: number) => {
+		setSelectedHospitalIdx(index);
+		listRef.current
+			?.querySelector(`[data-idx="${index}"]`)
+			?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+	}, []);
 
 	return (
 		<main className="relative min-h-dvh bg-background text-foreground">
@@ -332,7 +297,10 @@ export default function NearbyHospitalsPage() {
 									<div className="relative">
 										<motion.div
 											className="h-16 w-16 rounded-full bg-primary/20"
-											animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+											animate={{
+												scale: [1, 1.4, 1],
+												opacity: [0.6, 0, 0.6],
+											}}
 											transition={{
 												duration: 2,
 												repeat: Infinity,
@@ -420,105 +388,30 @@ export default function NearbyHospitalsPage() {
 
 						{/* Grid: mapa a la izquierda, lista a la derecha en desktop */}
 						<div className="grid gap-4 lg:grid-cols-[1fr_400px]">
-							{/* Map container */}
+							{/* Map container — lazy-loaded para evitar SSR crash */}
 							<Card className="overflow-hidden rounded-2xl">
-								<div className="relative h-[50vh] min-h-[360px] lg:h-[70vh]">
-									{/* MapContainer solo se renderiza en cliente (SSR-safe
-									    porque Leaflet accede a window). React-Leaflet envuelve
-									    Leaflet imperativo en componentes declarativos. */}
-									<MapContainer
-										center={[userLat, userLng]}
-										zoom={14}
-										className="h-full w-full"
-										zoomControl={false}
-										attributionControl={false}
-									>
-										<TileLayer
-											url={tileUrl}
-											attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://osm.org/">OSM</a>'
-										/>
-										<RecenterMap lat={userLat} lng={userLng} />
-										{hospitals.length > 0 && (
-											<FitBoundsToMarkers
-												hospitals={hospitals}
-												userLat={userLat}
-												userLng={userLng}
-											/>
+								<Suspense fallback={<MapSkeleton />}>
+									<NearbyHospitalsMap
+										userLat={userLat}
+										userLng={userLng}
+										hospitals={hospitals}
+										isDarkMode={isDarkMode}
+										fetchingHospitals={fetchingHospitals}
+										searchingLabel={m.nearbyHospitalsSearching({}, { locale })}
+										yourLocationLabel={m.nearbyHospitalsYourLocation(
+											{},
+											{ locale },
 										)}
-
-										{/* Marker del usuario */}
-										<Marker position={[userLat, userLng]} icon={userIcon}>
-											<Popup>
-												<span className="text-xs font-semibold">
-													{m.nearbyHospitalsYourLocation({}, { locale })}
-												</span>
-											</Popup>
-										</Marker>
-
-										{/* Markers de hospitales */}
-										{hospitals.map((h, i) => (
-											<Marker
-												key={`${h.latitude}-${h.longitude}-${h.name}`}
-												position={[h.latitude, h.longitude]}
-												icon={hospitalIcon}
-												eventHandlers={{
-													click: () => {
-														setSelectedHospitalIdx(i);
-														// Scroll al item correspondiente en la lista
-														listRef.current
-															?.querySelector(`[data-idx="${i}"]`)
-															?.scrollIntoView({
-																behavior: 'smooth',
-																block: 'nearest',
-															});
-													},
-												}}
-											>
-												<Popup>
-													<div className="max-w-[200px]">
-														<p className="text-xs font-semibold">{h.name}</p>
-														<p className="mt-1 text-[10px] text-gray-500">
-															{formatDistance(h.distanceMeters)}
-														</p>
-													</div>
-												</Popup>
-											</Marker>
-										))}
-									</MapContainer>
-
-									{/* Overlay: loading hospitales */}
-									<AnimatePresence>
-										{fetchingHospitals && (
-											<motion.div
-												initial={{ opacity: 0 }}
-												animate={{ opacity: 1 }}
-												exit={{ opacity: 0 }}
-												className="absolute inset-0 z-[1000] flex items-center justify-center bg-background/60 backdrop-blur-sm"
-											>
-												<div className="flex items-center gap-2 rounded-full bg-card px-4 py-2 shadow-md">
-													<motion.div
-														className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent"
-														animate={{ rotate: 360 }}
-														transition={{
-															duration: 0.8,
-															repeat: Infinity,
-															ease: 'linear',
-														}}
-													/>
-													<span className="text-xs font-medium">
-														{m.nearbyHospitalsSearching({}, { locale })}
-													</span>
-												</div>
-											</motion.div>
-										)}
-									</AnimatePresence>
-								</div>
+										onHospitalClick={handleHospitalMapClick}
+										formatDistance={formatDistance}
+									/>
+								</Suspense>
 							</Card>
 
 							{/* Hospital list */}
 							<div
 								ref={listRef}
-								className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto rounded-2xl pr-1 scrollbar-thin"
+								className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto rounded-2xl pr-1"
 							>
 								{/* Results header */}
 								<div className="sticky top-0 z-10 flex items-center justify-between rounded-xl bg-background/90 px-1 py-2 backdrop-blur">
@@ -528,12 +421,10 @@ export default function NearbyHospitalsPage() {
 											{ locale },
 										)}
 									</p>
-									{isReady && (
-										<Badge variant="outline" className="rounded-full text-[10px]">
-											<MapPinIcon className="mr-1 h-3 w-3" />
-											{userLat.toFixed(4)}, {userLng.toFixed(4)}
-										</Badge>
-									)}
+									<Badge variant="outline" className="rounded-full text-[10px]">
+										<MapPinIcon className="mr-1 h-3 w-3" />
+										{userLat.toFixed(4)}, {userLng.toFixed(4)}
+									</Badge>
 								</div>
 
 								{/* Error state */}
@@ -554,8 +445,7 @@ export default function NearbyHospitalsPage() {
 								{/* Empty state */}
 								{!fetchingHospitals &&
 									!fetchError &&
-									hospitals.length === 0 &&
-									isReady && (
+									hospitals.length === 0 && (
 										<motion.div
 											initial={{ opacity: 0 }}
 											animate={{ opacity: 1 }}
@@ -576,9 +466,7 @@ export default function NearbyHospitalsPage() {
 										type="button"
 										onClick={() => setSelectedHospitalIdx(i)}
 										initial={
-											prefersReduced
-												? { opacity: 1 }
-												: { opacity: 0, y: 12 }
+											prefersReduced ? { opacity: 1 } : { opacity: 0, y: 12 }
 										}
 										animate={{ opacity: 1, y: 0 }}
 										transition={{
@@ -587,9 +475,7 @@ export default function NearbyHospitalsPage() {
 											ease: 'easeOut',
 										}}
 										whileHover={prefersReduced ? undefined : { scale: 1.01 }}
-										className={cn(
-											'w-full rounded-xl text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-										)}
+										className="w-full rounded-xl text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
 									>
 										<Card
 											className={cn(
@@ -602,8 +488,7 @@ export default function NearbyHospitalsPage() {
 											<CardContent className="p-4">
 												<div className="flex items-start justify-between gap-3">
 													<div className="flex items-start gap-3">
-														{/* Número de orden: muestra la posición en el ranking
-														    de cercanía — feedback visual inmediato. */}
+														{/* Número de orden: posición en ranking de cercanía */}
 														<div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
 															{i + 1}
 														</div>

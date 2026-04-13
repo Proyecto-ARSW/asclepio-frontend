@@ -69,4 +69,12 @@ export const AI_API_URL = (
 	import.meta.env.VITE_AI_API_URL ?? 'http://localhost:8000'
 ).replace(/\/$/, '');
 
+/**
+ * URL del microservicio de Maps (Spring Boot).
+ * Busca hospitales cercanos via Nominatim/OSM + Haversine.
+ */
+export const MAPS_API_URL = (
+	import.meta.env.VITE_MAPS_API_URL ?? 'http://localhost:8081'
+).replace(/\/$/, '');
+
 // Daniel Useche

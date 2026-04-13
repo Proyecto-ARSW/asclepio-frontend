@@ -15,6 +15,7 @@ import {
 	DocumentTextIcon,
 	LinkIcon,
 	ListBulletIcon,
+	MapPinIcon,
 	MoonIcon,
 	PlayCircleIcon,
 	PuzzlePieceIcon,
@@ -1280,16 +1281,30 @@ export default function HomePage() {
 							</div>
 						</div>
 
-						<Link
-							to={localePath('/register', locale)}
-							className={cn(
-								buttonVariants({ size: 'lg' }),
-								'inline-flex rounded-full px-5 transition-all duration-300 hover:-translate-y-0.5',
-							)}
-						>
-							{m.homeLandingHeroCta({}, { locale })}
-							<ArrowRightIcon className="h-4 w-4" />
-						</Link>
+						<div className="flex flex-wrap gap-3">
+							<Link
+								to={localePath('/register', locale)}
+								className={cn(
+									buttonVariants({ size: 'lg' }),
+									'inline-flex rounded-full px-5 transition-all duration-300 hover:-translate-y-0.5',
+								)}
+							>
+								{m.homeLandingHeroCta({}, { locale })}
+								<ArrowRightIcon className="h-4 w-4" />
+							</Link>
+							{/* Botón de acceso rápido a hospitales cercanos — usa variant outline
+							    para jerarquía visual secundaria respecto al CTA principal. */}
+							<Link
+								to={localePath('/nearby-hospitals', locale)}
+								className={cn(
+									buttonVariants({ variant: 'outline', size: 'lg' }),
+									'inline-flex gap-2 rounded-full px-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/60 hover:text-primary',
+								)}
+							>
+								<MapPinIcon className="h-4 w-4" />
+								{m.nearbyHospitalsQuickAccess({}, { locale })}
+							</Link>
+						</div>
 					</RevealSection>
 
 					{/* Columna derecha — desliza desde la derecha */}

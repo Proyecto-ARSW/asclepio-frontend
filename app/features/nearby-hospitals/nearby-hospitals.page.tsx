@@ -22,7 +22,7 @@ import {
 	Button,
 	buttonVariants,
 } from '@/components/ui/button/button.component';
-import { Card, CardContent } from '@/components/ui/card/card.component';
+import { ScrollArea } from '@/components/ui/scroll-area/scroll-area.component';
 import { LanguageSwitcher } from '@/features/i18n/language-switcher';
 import {
 	type AppLocale,
@@ -69,18 +69,125 @@ export function meta() {
 }
 
 // ── Map skeleton ───────────────────────────────────────────────────────────
-// Fallback visual mientras se carga el chunk de Leaflet (~175KB).
-// Evita un layout shift y da feedback inmediato al usuario.
+// Fallback mientras carga el chunk de Leaflet. Llena todo el contenedor padre.
 
 function MapSkeleton() {
 	return (
-		<div className="flex h-[50vh] min-h-[360px] items-center justify-center rounded-2xl bg-muted/30 lg:h-[70vh]">
+		<div className="flex h-full w-full items-center justify-center bg-muted/20">
 			<motion.div
 				className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent"
 				animate={{ rotate: 360 }}
-				transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+				transition={{
+					duration: 0.8,
+					repeat: Number.POSITIVE_INFINITY,
+					ease: 'linear',
+				}}
 			/>
 		</div>
+	);
+}
+
+// ── Geo status overlay ────────────────────────────────────────────────────
+// Se muestra centrado sobre todo el viewport cuando no tenemos ubicación.
+
+function GeoStatusOverlay({
+	geo,
+	locale,
+	onRetry,
+}: {
+	geo: GeoState;
+	locale: AppLocale;
+	onRetry: () => void;
+}) {
+	if (geo.status === 'ready') return null;
+
+	return (
+		<motion.div
+			key="geo-overlay"
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
+			exit={{ opacity: 0 }}
+			transition={{ duration: 0.3 }}
+			className="absolute inset-0 z-30 flex items-center justify-center bg-background"
+		>
+			<div className="flex flex-col items-center gap-5 px-6 text-center">
+				{geo.status === 'idle' || geo.status === 'loading' ? (
+					<>
+						{/* Pulso animado — indica que estamos buscando la ubicación GPS */}
+						<div className="relative flex items-center justify-center">
+							<motion.div
+								className="absolute h-20 w-20 rounded-full bg-primary/15"
+								animate={{
+									scale: [1, 1.6, 1],
+									opacity: [0.5, 0, 0.5],
+								}}
+								transition={{
+									duration: 2,
+									repeat: Number.POSITIVE_INFINITY,
+									ease: 'easeInOut',
+								}}
+							/>
+							<motion.div
+								className="absolute h-14 w-14 rounded-full bg-primary/20"
+								animate={{
+									scale: [1, 1.3, 1],
+									opacity: [0.7, 0.1, 0.7],
+								}}
+								transition={{
+									duration: 2,
+									delay: 0.3,
+									repeat: Number.POSITIVE_INFINITY,
+									ease: 'easeInOut',
+								}}
+							/>
+							<MapPinIcon className="relative z-10 h-8 w-8 text-primary" />
+						</div>
+						<p className="text-sm font-medium text-muted-foreground">
+							{m.nearbyHospitalsLocating({}, { locale })}
+						</p>
+					</>
+				) : geo.status === 'denied' ? (
+					<>
+						<div className="grid h-16 w-16 place-items-center rounded-2xl bg-destructive/10">
+							<ExclamationTriangleIcon className="h-8 w-8 text-destructive" />
+						</div>
+						<div className="space-y-1.5">
+							<p className="text-base font-semibold text-foreground">
+								{m.nearbyHospitalsGeoDeniedTitle({}, { locale })}
+							</p>
+							<p className="max-w-sm text-sm text-muted-foreground">
+								{m.nearbyHospitalsGeoDeniedDesc({}, { locale })}
+							</p>
+						</div>
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={onRetry}
+							className="mt-1 rounded-full"
+						>
+							{m.nearbyHospitalsRetry({}, { locale })}
+						</Button>
+					</>
+				) : (
+					<>
+						<div className="grid h-16 w-16 place-items-center rounded-2xl bg-destructive/10">
+							<ExclamationTriangleIcon className="h-8 w-8 text-destructive" />
+						</div>
+						<p className="text-sm text-muted-foreground">
+							{geo.status === 'error' ? geo.message : ''}
+						</p>
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={onRetry}
+							className="mt-1 rounded-full"
+						>
+							{m.nearbyHospitalsRetry({}, { locale })}
+						</Button>
+					</>
+				)}
+			</div>
+		</motion.div>
 	);
 }
 
@@ -162,7 +269,7 @@ export default function NearbyHospitalsPage() {
 		);
 	}, [locale]);
 
-	// Solicitar ubicación al montar el componente
+	// Solicitar ubicación al montar
 	useEffect(() => {
 		requestLocation();
 	}, [requestLocation]);
@@ -171,11 +278,12 @@ export default function NearbyHospitalsPage() {
 	useEffect(() => {
 		if (geo.status !== 'ready') return;
 
+		// AbortController permite cancelar la petición fetch si el componente
+		// se desmonta o las dependencias cambian — evita memory leaks y race conditions.
 		const controller = new AbortController();
 		setFetchingHospitals(true);
 		setFetchError(null);
 
-		// El servicio Maps en Spring Boot responde en /api/hospitals?lat=X&lng=Y&radius=Z
 		fetch(
 			`${MAPS_API_URL}/api/hospitals?lat=${geo.lat}&lng=${geo.lng}&radius=${radius}`,
 			{ signal: controller.signal },
@@ -194,7 +302,6 @@ export default function NearbyHospitalsPage() {
 			})
 			.finally(() => setFetchingHospitals(false));
 
-		// Cleanup: aborta petición si el componente se desmonta o las deps cambian
 		return () => controller.abort();
 	}, [geo, radius, locale]);
 
@@ -203,7 +310,6 @@ export default function NearbyHospitalsPage() {
 	const userLat = isReady ? geo.lat : 0;
 	const userLng = isReady ? geo.lng : 0;
 
-	// Radio options para el selector
 	const radiusOptions = useMemo(
 		() => [
 			{ value: 1000, label: '1 km' },
@@ -216,7 +322,7 @@ export default function NearbyHospitalsPage() {
 		[],
 	);
 
-	// Handler para clicks en markers del mapa — scroll a la tarjeta correspondiente
+	// Scroll a la tarjeta correspondiente al hacer click en un marker del mapa
 	const handleHospitalMapClick = useCallback((index: number) => {
 		setSelectedHospitalIdx(index);
 		listRef.current
@@ -224,311 +330,297 @@ export default function NearbyHospitalsPage() {
 			?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 	}, []);
 
-	return (
-		<main className="relative min-h-dvh bg-background text-foreground">
-			{/* ── Background ── */}
-			<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_10%,color-mix(in_oklch,var(--color-primary)_12%,transparent),transparent_40%),radial-gradient(circle_at_80%_90%,color-mix(in_oklch,var(--color-secondary)_18%,transparent),transparent_35%)]" />
+	// Categoría de distancia para color-coding visual
+	function distanceCategory(meters: number) {
+		if (meters < 1000) return 'very-close';
+		if (meters < 3000) return 'close';
+		return 'far';
+	}
 
-			{/* ── Top bar ── */}
-			<header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 px-4 py-3 backdrop-blur-xl sm:px-6">
-				<div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-					<div className="flex items-center gap-3">
-						<Link
-							to={localePath('/', locale)}
-							className={cn(
-								buttonVariants({ variant: 'ghost', size: 'sm' }),
-								'h-8 w-8 rounded-full px-0',
-							)}
-							aria-label={m.nearbyHospitalsBackHome({}, { locale })}
-						>
-							<ArrowLeftIcon className="h-4 w-4" />
-						</Link>
-						<div className="flex items-center gap-2">
-							<img
-								src="/favicon.png"
-								alt="Asclepio"
-								className="h-8 w-8 rounded-full border border-border/70 bg-card object-contain"
-							/>
-							<h1 className="text-sm font-semibold tracking-tight">
-								{m.nearbyHospitalsTitle({}, { locale })}
-							</h1>
-						</div>
-					</div>
+	return (
+		<main className="flex h-dvh flex-col bg-background text-foreground">
+			{/* ── Header — thin, glass, stays above everything ── */}
+			<header className="relative z-40 flex h-12 shrink-0 items-center justify-between border-b border-border/40 bg-background/80 px-3 backdrop-blur-xl sm:px-4">
+				<div className="flex items-center gap-2.5">
+					<Link
+						to={localePath('/', locale)}
+						className={cn(
+							buttonVariants({ variant: 'ghost', size: 'sm' }),
+							'h-8 w-8 rounded-full px-0',
+						)}
+						aria-label={m.nearbyHospitalsBackHome({}, { locale })}
+					>
+						<ArrowLeftIcon className="h-4 w-4" />
+					</Link>
 					<div className="flex items-center gap-2">
-						<button
-							type="button"
-							onClick={handleThemeToggle}
-							aria-label={m.homeLandingThemeToggle({}, { locale })}
-							className={cn(
-								buttonVariants({ variant: 'outline', size: 'sm' }),
-								'h-8 w-8 shrink-0 rounded-full px-0',
-							)}
-						>
-							{isDarkMode ? (
-								<SunIcon className="h-4 w-4" />
-							) : (
-								<MoonIcon className="h-4 w-4" />
-							)}
-						</button>
-						<LanguageSwitcher
-							locale={locale}
-							triggerClassName="h-8 shrink-0 rounded-full bg-card/90 px-2.5 text-xs font-semibold backdrop-blur"
+						<img
+							src="/favicon.png"
+							alt="Asclepio"
+							className="h-7 w-7 rounded-full border border-border/50 bg-card object-contain"
 						/>
+						<h1 className="text-sm font-semibold tracking-tight">
+							{m.nearbyHospitalsTitle({}, { locale })}
+						</h1>
 					</div>
+				</div>
+				<div className="flex items-center gap-1.5">
+					<button
+						type="button"
+						onClick={handleThemeToggle}
+						aria-label={m.homeLandingThemeToggle({}, { locale })}
+						className={cn(
+							buttonVariants({ variant: 'ghost', size: 'sm' }),
+							'h-8 w-8 shrink-0 rounded-full px-0',
+						)}
+					>
+						{isDarkMode ? (
+							<SunIcon className="h-4 w-4" />
+						) : (
+							<MoonIcon className="h-4 w-4" />
+						)}
+					</button>
+					<LanguageSwitcher
+						locale={locale}
+						triggerClassName="h-8 shrink-0 rounded-full bg-transparent px-2 text-xs font-semibold"
+					/>
 				</div>
 			</header>
 
-			{/* ── Content ── */}
-			<div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-				{/* Geo status: loading / denied / error */}
+			{/* ── Content — fills remaining viewport ── */}
+			<div className="relative flex-1 overflow-hidden">
+				{/* Geo status overlay (loading / denied / error) */}
 				<AnimatePresence mode="wait">
-					{geo.status !== 'ready' && (
-						<motion.div
-							key="geo-status"
-							initial={{ opacity: 0, y: 12 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -12 }}
-							transition={{ duration: 0.3 }}
-							className="flex flex-col items-center justify-center gap-4 py-20 text-center"
-						>
-							{geo.status === 'idle' || geo.status === 'loading' ? (
-								<>
-									{/* Pulso animado mientras se obtiene la ubicación */}
-									<div className="relative">
-										<motion.div
-											className="h-16 w-16 rounded-full bg-primary/20"
-											animate={{
-												scale: [1, 1.4, 1],
-												opacity: [0.6, 0, 0.6],
-											}}
-											transition={{
-												duration: 2,
-												repeat: Infinity,
-												ease: 'easeInOut',
-											}}
-										/>
-										<MapPinIcon className="absolute inset-0 m-auto h-8 w-8 text-primary" />
-									</div>
-									<p className="text-sm text-muted-foreground">
-										{m.nearbyHospitalsLocating({}, { locale })}
-									</p>
-								</>
-							) : geo.status === 'denied' ? (
-								<>
-									<div className="grid h-16 w-16 place-items-center rounded-full bg-destructive/10">
-										<ExclamationTriangleIcon className="h-8 w-8 text-destructive" />
-									</div>
-									<div className="space-y-2">
-										<p className="text-sm font-semibold text-foreground">
-											{m.nearbyHospitalsGeoDeniedTitle({}, { locale })}
-										</p>
-										<p className="max-w-md text-xs text-muted-foreground">
-											{m.nearbyHospitalsGeoDeniedDesc({}, { locale })}
-										</p>
-									</div>
-									<Button
-										size="sm"
-										variant="outline"
-										onClick={requestLocation}
-										className="rounded-full"
-									>
-										{m.nearbyHospitalsRetry({}, { locale })}
-									</Button>
-								</>
-							) : (
-								<>
-									<div className="grid h-16 w-16 place-items-center rounded-full bg-destructive/10">
-										<ExclamationTriangleIcon className="h-8 w-8 text-destructive" />
-									</div>
-									<p className="text-sm text-muted-foreground">
-										{geo.status === 'error' ? geo.message : ''}
-									</p>
-									<Button
-										size="sm"
-										variant="outline"
-										onClick={requestLocation}
-										className="rounded-full"
-									>
-										{m.nearbyHospitalsRetry({}, { locale })}
-									</Button>
-								</>
-							)}
-						</motion.div>
+					{!isReady && (
+						<GeoStatusOverlay
+							geo={geo}
+							locale={locale}
+							onRetry={requestLocation}
+						/>
 					)}
 				</AnimatePresence>
 
-				{/* Map + List layout */}
+				{/* Map + Panel layout — visible when location is ready */}
 				{isReady && (
 					<motion.div
-						initial={prefersReduced ? { opacity: 1 } : { opacity: 0, y: 16 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.4, ease: 'easeOut' }}
+						initial={prefersReduced ? undefined : { opacity: 0 }}
+						animate={{ opacity: 1 }}
+						transition={{ duration: 0.4 }}
+						className="flex h-full flex-col lg:relative lg:block"
 					>
-						{/* Radius selector */}
-						<div className="mb-4 flex flex-wrap items-center gap-2">
-							<span className="text-xs font-semibold text-muted-foreground">
-								{m.nearbyHospitalsRadius({}, { locale })}:
-							</span>
-							{radiusOptions.map((opt) => (
-								<button
-									key={opt.value}
-									type="button"
-									onClick={() => setRadius(opt.value)}
-									className={cn(
-										'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-										radius === opt.value
-											? 'bg-primary text-primary-foreground'
-											: 'bg-muted text-muted-foreground hover:bg-muted/80',
+						{/* ── Map container ──
+						    Mobile: toma 45% del viewport disponible
+						    Desktop: llena TODO el espacio (el panel flota encima) */}
+						<div className="relative h-[45vh] shrink-0 lg:absolute lg:inset-0 lg:h-auto">
+							<Suspense fallback={<MapSkeleton />}>
+								<NearbyHospitalsMap
+									userLat={userLat}
+									userLng={userLng}
+									hospitals={hospitals}
+									isDarkMode={isDarkMode}
+									fetchingHospitals={fetchingHospitals}
+									searchingLabel={m.nearbyHospitalsSearching({}, { locale })}
+									yourLocationLabel={m.nearbyHospitalsYourLocation(
+										{},
+										{ locale },
 									)}
-								>
-									{opt.label}
-								</button>
-							))}
+									onHospitalClick={handleHospitalMapClick}
+									formatDistance={formatDistance}
+								/>
+							</Suspense>
+
+							{/* ── Floating radius selector ──
+							    Se posiciona sobre el mapa como control flotante.
+							    En mobile: abajo del mapa. En desktop: arriba-izquierda. */}
+							<div className="absolute bottom-3 left-3 right-3 z-[1001] lg:bottom-auto lg:right-auto lg:top-3">
+								<div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border/40 bg-background/85 px-3 py-2 shadow-lg backdrop-blur-xl">
+									<span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+										{m.nearbyHospitalsRadius({}, { locale })}
+									</span>
+									{radiusOptions.map((opt) => (
+										<button
+											key={opt.value}
+											type="button"
+											onClick={() => setRadius(opt.value)}
+											className={cn(
+												'rounded-lg px-2.5 py-1 text-xs font-medium transition-all duration-200',
+												radius === opt.value
+													? 'bg-primary text-primary-foreground shadow-sm'
+													: 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+											)}
+										>
+											{opt.label}
+										</button>
+									))}
+								</div>
+							</div>
 						</div>
 
-						{/* Grid: mapa a la izquierda, lista a la derecha en desktop */}
-						<div className="grid gap-4 lg:grid-cols-[1fr_400px]">
-							{/* Map container — lazy-loaded para evitar SSR crash */}
-							<Card className="overflow-hidden rounded-2xl">
-								<Suspense fallback={<MapSkeleton />}>
-									<NearbyHospitalsMap
-										userLat={userLat}
-										userLng={userLng}
-										hospitals={hospitals}
-										isDarkMode={isDarkMode}
-										fetchingHospitals={fetchingHospitals}
-										searchingLabel={m.nearbyHospitalsSearching({}, { locale })}
-										yourLocationLabel={m.nearbyHospitalsYourLocation(
-											{},
-											{ locale },
-										)}
-										onHospitalClick={handleHospitalMapClick}
-										formatDistance={formatDistance}
-									/>
-								</Suspense>
-							</Card>
-
-							{/* Hospital list */}
-							<div
-								ref={listRef}
-								className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto rounded-2xl pr-1"
-							>
-								{/* Results header */}
-								<div className="sticky top-0 z-10 flex items-center justify-between rounded-xl bg-background/90 px-1 py-2 backdrop-blur">
-									<p className="text-xs font-semibold text-muted-foreground">
+						{/* ── Hospital panel ──
+						    Mobile: ocupa el espacio restante debajo del mapa, scrollable.
+						    Desktop: flota como overlay a la derecha con efecto glassmorphism.
+						    El z-[1001] lo pone por encima de los controles internos de Leaflet. */}
+						<div
+							className={cn(
+								'flex flex-1 flex-col overflow-hidden border-t border-border/40 bg-background',
+								'lg:absolute lg:inset-y-0 lg:right-0 lg:w-[400px] lg:border-l lg:border-t-0',
+								'lg:bg-background/80 lg:backdrop-blur-xl lg:z-[1001]',
+							)}
+						>
+							{/* Panel header */}
+							<div className="flex shrink-0 items-center justify-between border-b border-border/30 px-4 py-2.5">
+								<div className="flex items-center gap-2">
+									<BuildingOffice2Icon className="h-4 w-4 text-primary" />
+									<span className="text-xs font-semibold text-foreground">
 										{m.nearbyHospitalsResultsCount(
 											{ count: String(hospitals.length) },
 											{ locale },
 										)}
-									</p>
-									<Badge variant="outline" className="rounded-full text-[10px]">
-										<MapPinIcon className="mr-1 h-3 w-3" />
-										{userLat.toFixed(4)}, {userLng.toFixed(4)}
-									</Badge>
+									</span>
 								</div>
+								<Badge
+									variant="outline"
+									className="rounded-full text-[10px] font-mono"
+								>
+									{userLat.toFixed(4)}, {userLng.toFixed(4)}
+								</Badge>
+							</div>
 
-								{/* Error state */}
-								{fetchError && (
-									<div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-center">
-										<p className="text-xs text-destructive">{fetchError}</p>
-										<Button
-											size="sm"
-											variant="outline"
-											onClick={requestLocation}
-											className="mt-2 rounded-full"
-										>
-											{m.nearbyHospitalsRetry({}, { locale })}
-										</Button>
-									</div>
-								)}
-
-								{/* Empty state */}
-								{!fetchingHospitals &&
-									!fetchError &&
-									hospitals.length === 0 && (
-										<motion.div
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											className="flex flex-col items-center gap-3 py-12 text-center"
-										>
-											<BuildingOffice2Icon className="h-12 w-12 text-muted-foreground/40" />
-											<p className="text-sm text-muted-foreground">
-												{m.nearbyHospitalsEmpty({}, { locale })}
-											</p>
-										</motion.div>
+							{/* Scrollable hospital list */}
+							<ScrollArea className="flex-1">
+								<div ref={listRef} className="space-y-1.5 p-3">
+									{/* Error state */}
+									{fetchError && (
+										<div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-center">
+											<ExclamationTriangleIcon className="mx-auto mb-2 h-6 w-6 text-destructive/60" />
+											<p className="text-xs text-destructive">{fetchError}</p>
+											<Button
+												size="sm"
+												variant="outline"
+												onClick={requestLocation}
+												className="mt-3 rounded-full"
+											>
+												{m.nearbyHospitalsRetry({}, { locale })}
+											</Button>
+										</div>
 									)}
 
-								{/* Hospital cards */}
-								{hospitals.map((hospital, i) => (
-									<motion.button
-										key={`${hospital.latitude}-${hospital.longitude}-${hospital.name}`}
-										data-idx={i}
-										type="button"
-										onClick={() => setSelectedHospitalIdx(i)}
-										initial={
-											prefersReduced ? { opacity: 1 } : { opacity: 0, y: 12 }
-										}
-										animate={{ opacity: 1, y: 0 }}
-										transition={{
-											duration: 0.3,
-											delay: Math.min(i * 0.04, 0.4),
-											ease: 'easeOut',
-										}}
-										whileHover={prefersReduced ? undefined : { scale: 1.01 }}
-										className="w-full rounded-xl text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
-									>
-										<Card
-											className={cn(
-												'transition-all duration-200',
-												selectedHospitalIdx === i
-													? 'border-primary ring-2 ring-primary/25'
-													: 'hover:bg-muted/30',
-											)}
-										>
-											<CardContent className="p-4">
-												<div className="flex items-start justify-between gap-3">
-													<div className="flex items-start gap-3">
-														{/* Número de orden: posición en ranking de cercanía */}
-														<div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
-															{i + 1}
-														</div>
-														<div className="min-w-0">
-															<h3 className="text-sm font-semibold leading-tight text-foreground">
-																{hospital.name}
-															</h3>
-															<p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-																<MapPinIcon className="h-3 w-3 shrink-0" />
+									{/* Empty state */}
+									{!fetchingHospitals &&
+										!fetchError &&
+										hospitals.length === 0 && (
+											<motion.div
+												initial={{ opacity: 0 }}
+												animate={{ opacity: 1 }}
+												className="flex flex-col items-center gap-3 py-16 text-center"
+											>
+												<div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted/50">
+													<BuildingOffice2Icon className="h-7 w-7 text-muted-foreground/50" />
+												</div>
+												<p className="max-w-[200px] text-sm text-muted-foreground">
+													{m.nearbyHospitalsEmpty({}, { locale })}
+												</p>
+											</motion.div>
+										)}
+
+									{/* Hospital cards */}
+									{hospitals.map((hospital, i) => {
+										const cat = distanceCategory(hospital.distanceMeters);
+										const isSelected = selectedHospitalIdx === i;
+
+										return (
+											<motion.button
+												key={`${hospital.latitude}-${hospital.longitude}-${hospital.name}`}
+												data-idx={i}
+												type="button"
+												onClick={() => setSelectedHospitalIdx(i)}
+												initial={
+													prefersReduced
+														? { opacity: 1 }
+														: { opacity: 0, x: 16 }
+												}
+												animate={{ opacity: 1, x: 0 }}
+												transition={{
+													duration: 0.3,
+													delay: Math.min(i * 0.04, 0.5),
+													ease: 'easeOut',
+												}}
+												whileHover={
+													prefersReduced ? undefined : { scale: 1.01 }
+												}
+												className={cn(
+													'group w-full rounded-xl text-left outline-none transition-all duration-200',
+													'focus-visible:ring-2 focus-visible:ring-ring',
+													isSelected
+														? 'bg-primary/8 ring-1 ring-primary/30'
+														: 'hover:bg-muted/40',
+												)}
+											>
+												<div className="flex items-center gap-3 p-3">
+													{/* Ranking badge — posición ordinal de cercanía */}
+													<div
+														className={cn(
+															'grid h-9 w-9 shrink-0 place-items-center rounded-lg text-xs font-bold transition-colors',
+															isSelected
+																? 'bg-primary text-primary-foreground'
+																: 'bg-muted/60 text-muted-foreground group-hover:bg-muted',
+														)}
+													>
+														{i + 1}
+													</div>
+
+													{/* Info */}
+													<div className="min-w-0 flex-1">
+														<h3 className="truncate text-[13px] font-semibold leading-tight text-foreground">
+															{hospital.name}
+														</h3>
+														<div className="mt-1 flex items-center gap-2">
+															<span
+																className={cn(
+																	'text-xs font-semibold tabular-nums',
+																	cat === 'very-close' &&
+																		'text-emerald-600 dark:text-emerald-400',
+																	cat === 'close' &&
+																		'text-amber-600 dark:text-amber-400',
+																	cat === 'far' && 'text-muted-foreground',
+																)}
+															>
 																{formatDistance(hospital.distanceMeters)}
-															</p>
+															</span>
+															<span className="text-[10px] text-muted-foreground/60">
+																&middot;
+															</span>
+															<Badge
+																variant={
+																	cat === 'very-close' ? 'default' : 'secondary'
+																}
+																className="h-4 rounded-md px-1.5 text-[9px] font-medium"
+															>
+																{cat === 'very-close'
+																	? m.nearbyHospitalsVeryClose({}, { locale })
+																	: cat === 'close'
+																		? m.nearbyHospitalsClose({}, { locale })
+																		: m.nearbyHospitalsFar({}, { locale })}
+															</Badge>
 														</div>
 													</div>
-													{/* Badge de distancia con color según cercanía */}
-													<Badge
-														variant={
-															hospital.distanceMeters < 2000
-																? 'default'
-																: 'secondary'
-														}
-														className="shrink-0 rounded-full text-[10px]"
-													>
-														{hospital.distanceMeters < 1000
-															? m.nearbyHospitalsVeryClose({}, { locale })
-															: hospital.distanceMeters < 3000
-																? m.nearbyHospitalsClose({}, { locale })
-																: m.nearbyHospitalsFar({}, { locale })}
-													</Badge>
+
+													{/* Distance indicator — barra visual proporcional */}
+													<div className="flex shrink-0 flex-col items-end gap-1">
+														<div
+															className={cn(
+																'h-1.5 rounded-full transition-all',
+																cat === 'very-close' && 'w-8 bg-emerald-500/60',
+																cat === 'close' && 'w-5 bg-amber-500/50',
+																cat === 'far' && 'w-3 bg-muted-foreground/30',
+															)}
+														/>
+													</div>
 												</div>
-												<div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-													<span>
-														{hospital.latitude.toFixed(5)},{' '}
-														{hospital.longitude.toFixed(5)}
-													</span>
-												</div>
-											</CardContent>
-										</Card>
-									</motion.button>
-								))}
-							</div>
+											</motion.button>
+										);
+									})}
+								</div>
+							</ScrollArea>
 						</div>
 					</motion.div>
 				)}

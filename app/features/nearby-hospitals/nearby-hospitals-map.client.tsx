@@ -108,7 +108,9 @@ export default function NearbyHospitalsMap({
 		: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 
 	return (
-		<div className="relative h-[50vh] min-h-[360px] lg:h-[70vh]">
+		<div className="relative h-full w-full">
+			{/* MapContainer llena su padre — el padre controla el tamaño.
+			    zoomControl y attributionControl desactivados para UI limpia. */}
 			<MapContainer
 				center={[userLat, userLng]}
 				zoom={14}

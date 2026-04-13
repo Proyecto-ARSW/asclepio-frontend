@@ -82,6 +82,7 @@ const ADMIN_SIDEBAR_SECTIONS: NavSection[] = [
 	'queue',
 	'medicines',
 	'doctors',
+	'disponibilidad',
 	'userManagement',
 	'settings',
 ];

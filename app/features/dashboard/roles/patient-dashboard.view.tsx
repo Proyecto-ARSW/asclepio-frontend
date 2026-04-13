@@ -328,6 +328,16 @@ const MY_CONSENTIMIENTOS_QUERY = `
 	}
 `;
 
+// Mutation para que el paciente otorgue o deniegue un consentimiento.
+// revocarConsentimiento marca el consentimiento como revocado (denegado).
+const REVOCAR_CONSENTIMIENTO = `
+	mutation RevocarConsentimientoPaciente($id: Int!) {
+		revocarConsentimiento(id: $id) {
+			id revocado fechaRevocacion
+		}
+	}
+`;
+
 // ── Recetas del paciente (a través de su historial) ──
 const RECETAS_BY_HISTORIAL_QUERY = `
 	query RecetasPaciente($historialId: ID!) {
@@ -1709,7 +1719,7 @@ export function PatientDashboardView({
 				</Alert>
 			)}
 
-			{/* ── Consentimientos informados (solo lectura) ── */}
+			{/* ── Consentimientos informados ── */}
 			{showConsentimientos && (
 				<section aria-label={m.dashboardSidebarConsentimientos({}, { locale })}>
 					<Card className="border-border/70">
@@ -1726,7 +1736,9 @@ export function PatientDashboardView({
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-2">
-							{/* Cargar consentimientos al montar */}
+							{/* ConsentimientosLoader dispara la carga al montarse como componente JSX.
+							    Esto evita el problema de hooks condicionales: React lo trata como
+							    componente independiente con su propio useEffect. */}
 							<ConsentimientosLoader patientId={patientId} />
 							{myConsentimientos.length === 0 ? (
 								<p className="text-sm text-muted-foreground">
@@ -1755,27 +1767,70 @@ export function PatientDashboardView({
 												)}
 											</p>
 										</div>
-										<Badge
-											variant={
-												c.revocado
-													? 'destructive'
+										<div className="flex items-center gap-2">
+											<Badge
+												variant={
+													c.revocado
+														? 'destructive'
+														: c.consentimientoOtorgado
+															? 'default'
+															: 'secondary'
+												}
+											>
+												{c.revocado
+													? m.consentimientoRevoked({}, { locale })
 													: c.consentimientoOtorgado
-														? 'default'
-														: 'secondary'
-											}
-										>
-											{c.revocado
-												? locale === 'es'
-													? 'Revocado'
-													: 'Revoked'
-												: c.consentimientoOtorgado
-													? locale === 'es'
-														? 'Otorgado'
-														: 'Granted'
-													: locale === 'es'
-														? 'Denegado'
-														: 'Denied'}
-										</Badge>
+														? m.consentimientoGranted({}, { locale })
+														: m.consentimientoDenied({}, { locale })}
+											</Badge>
+											{/* El paciente puede revocar (denegar) un consentimiento vigente.
+											    Una vez revocado el estado es irreversible desde el frontend
+											    (Ley 23/1981 Art. 15: revocación queda en historial). */}
+											{!c.revocado && c.consentimientoOtorgado && (
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													disabled={actionLoading === `revoke-${c.id}`}
+													onClick={async () => {
+														setActionLoading(`revoke-${c.id}`);
+														try {
+															const res = await gqlMutation<{
+																revocarConsentimiento: {
+																	id: number;
+																	revocado: boolean;
+																	fechaRevocacion: string;
+																};
+															}>(REVOCAR_CONSENTIMIENTO, { id: c.id });
+															setMyConsentimientos((prev) =>
+																prev.map((item) =>
+																	item.id === c.id
+																		? {
+																				...item,
+																				revocado: true,
+																				fechaRevocacion:
+																					res.revocarConsentimiento
+																						.fechaRevocacion,
+																			}
+																		: item,
+																),
+															);
+															flash(
+																m.consentimientoUpdateSuccess({}, { locale }),
+															);
+														} catch {
+															setError(
+																m.consentimientoUpdateError({}, { locale }),
+															);
+														} finally {
+															setActionLoading(null);
+														}
+													}}
+												>
+													{m.consentimientoDeny({}, { locale })}
+												</Button>
+											)}
+										</div>
 									</div>
 								))
 							)}

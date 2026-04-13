@@ -10,6 +10,10 @@ import {
 	XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+	type AvailabilitySlot,
+	AvailabilityWeekView,
+} from '@/components/medical/availability-week-view';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Button } from '@/components/ui/button/button.component';
@@ -406,6 +410,41 @@ const MEDICINES_FOR_RECETA = `
 	}
 `;
 
+// El backend expone `nurses` (sin filtro de hospital) — los campos nombre/apellido
+// están aplanados directamente en la entidad Nurse, no en un sub-objeto `usuario`.
+const ALL_NURSES_QUERY = `
+	query AllNurses {
+		nurses {
+			id usuarioId nombre apellido numeroRegistro nivelFormacion
+		}
+	}
+`;
+
+const NURSE_DISPONIBILIDAD_QUERY = `
+	query NurseDisponibilidad($enfermeroId: ID!) {
+		disponibilidadesByNurse(enfermeroId: $enfermeroId) {
+			id diaSemana horaInicio horaFin activo
+		}
+	}
+`;
+
+interface NurseForLookup {
+	id: string;
+	usuarioId: string;
+	nombre: string;
+	apellido: string;
+	numeroRegistro: string;
+	nivelFormacion: number;
+}
+
+interface NurseAvailSlot {
+	id: number;
+	diaSemana: number;
+	horaInicio: string;
+	horaFin: string;
+	activo: boolean;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const DAYS_ES = [
@@ -599,6 +638,13 @@ export function DoctorDashboardView({
 	const [successMsg, setSuccessMsg] = useState('');
 	const [consultorioInput, setConsultorioInput] = useState('');
 	const [patientSearch, setPatientSearch] = useState('');
+
+	// ── Búsqueda de disponibilidad de enfermeros ──
+	const [hospitalNurses, setHospitalNurses] = useState<NurseForLookup[]>([]);
+	const [nurseSearch, setNurseSearch] = useState('');
+	const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
+	const [nurseSlots, setNurseSlots] = useState<NurseAvailSlot[]>([]);
+	const [nurseSlotsLoading, setNurseSlotsLoading] = useState(false);
 
 	// ── Consentimientos y recetas ──
 	const [consentimientos, setConsentimientos] = useState<Consentimiento[]>([]);
@@ -810,6 +856,33 @@ export function DoctorDashboardView({
 			.then((res) => setMedicineOptions(res.medicines))
 			.catch(() => {});
 	}, [section, medicineOptions.length]);
+
+	// Cargar enfermeros al entrar en disponibilidad.
+	// El backend solo expone `nurses` (sin filtro de hospital), así que cargamos
+	// todos y filtramos en cliente si es necesario.
+	useEffect(() => {
+		if (section !== 'disponibilidad') return;
+		if (hospitalNurses.length > 0) return;
+		gqlQuery<{ nurses: NurseForLookup[] }>(ALL_NURSES_QUERY)
+			.then((res) => setHospitalNurses(res.nurses))
+			.catch(() => {});
+	}, [section, hospitalNurses.length]);
+
+	// Cargar disponibilidad del enfermero seleccionado
+	useEffect(() => {
+		if (!selectedNurseId) {
+			setNurseSlots([]);
+			return;
+		}
+		setNurseSlotsLoading(true);
+		gqlQuery<{ disponibilidadesByNurse: NurseAvailSlot[] }>(
+			NURSE_DISPONIBILIDAD_QUERY,
+			{ enfermeroId: selectedNurseId },
+		)
+			.then((res) => setNurseSlots(res.disponibilidadesByNurse))
+			.catch(() => setNurseSlots([]))
+			.finally(() => setNurseSlotsLoading(false));
+	}, [selectedNurseId]);
 
 	useEffect(() => {
 		if (!(section === 'queue' || section === 'overview')) return;
@@ -2230,6 +2303,91 @@ export function DoctorDashboardView({
 						))
 					)}
 				</div>
+
+				{/* Vista de disponibilidad de enfermeros del hospital */}
+				<Card className="border-border/70">
+					<CardHeader className="pb-2">
+						<CardTitle className="text-base">
+							{m.availabilityViewNurseTitle({}, { locale })}
+						</CardTitle>
+						<CardDescription>
+							{m.availabilityViewNurseSubtitle({}, { locale })}
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						<Input
+							type="search"
+							placeholder={m.availabilitySearchPlaceholder({}, { locale })}
+							value={nurseSearch}
+							onChange={(e) => {
+								setNurseSearch(e.target.value);
+								setSelectedNurseId(null);
+							}}
+						/>
+						{(() => {
+							const q = nurseSearch.toLowerCase().trim();
+							const filtered = q
+								? hospitalNurses.filter(
+										(n) =>
+											n.nombre.toLowerCase().includes(q) ||
+											n.apellido.toLowerCase().includes(q),
+									)
+								: hospitalNurses;
+
+							if (hospitalNurses.length === 0) {
+								return (
+									<p className="py-2 text-center text-sm text-muted-foreground">
+										{m.availabilitySearchEmpty({}, { locale })}
+									</p>
+								);
+							}
+
+							return (
+								<div className="space-y-2">
+									<div className="flex flex-wrap gap-1.5">
+										{filtered.map((n) => {
+											const active = selectedNurseId === n.id;
+											return (
+												<Button
+													key={n.id}
+													type="button"
+													variant={active ? 'default' : 'outline'}
+													size="sm"
+													onClick={() =>
+														setSelectedNurseId(active ? null : n.id)
+													}
+												>
+													{n.nombre} {n.apellido}
+												</Button>
+											);
+										})}
+										{filtered.length === 0 && (
+											<p className="py-2 text-sm text-muted-foreground">
+												{m.availabilitySearchEmpty({}, { locale })}
+											</p>
+										)}
+									</div>
+									{selectedNurseId &&
+										(nurseSlotsLoading ? (
+											<Skeleton className="h-32 rounded-lg" />
+										) : (
+											<AvailabilityWeekView
+												slots={nurseSlots as AvailabilitySlot[]}
+												locale={locale}
+												personName={(() => {
+													const n = hospitalNurses.find(
+														(item) => item.id === selectedNurseId,
+													);
+													return n ? `${n.nombre} ${n.apellido}` : '';
+												})()}
+												personRole={m.availabilityNurseLabel({}, { locale })}
+											/>
+										))}
+								</div>
+							);
+						})()}
+					</CardContent>
+				</Card>
 			</div>
 		);
 	}

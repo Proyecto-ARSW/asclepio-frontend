@@ -14,6 +14,10 @@ import {
 } from '@heroicons/react/24/outline';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+	type AvailabilitySlot,
+	AvailabilityWeekView,
+} from '@/components/medical/availability-week-view';
 import { CreateHospitalModal } from '@/components/medical/create-hospital-modal';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
@@ -303,6 +307,49 @@ const CREATE_MEDICINE = `
 	}
 `;
 
+// El backend expone `doctors(hospitalId: Int)` y `nurses` (sin filtro).
+// Los campos nombre/apellido están aplanados directamente en la entidad,
+// no dentro de un sub-objeto `usuario`.
+const ADMIN_DOCTORS_BY_HOSPITAL_QUERY = `
+	query AdminDoctorsByHospital($hospitalId: Int!) {
+		doctors(hospitalId: $hospitalId) {
+			id usuarioId nombre apellido numeroRegistro especialidadId consultorio
+		}
+	}
+`;
+
+const ADMIN_ALL_NURSES_QUERY = `
+	query AdminAllNurses {
+		nurses {
+			id usuarioId nombre apellido numeroRegistro nivelFormacion
+		}
+	}
+`;
+
+const DOCTOR_DISPONIBILIDAD_QUERY = `
+	query AdminDoctorDisponibilidad($medicoId: ID!) {
+		disponibilidadesByDoctor(medicoId: $medicoId) {
+			id diaSemana horaInicio horaFin duracionCita activo
+		}
+	}
+`;
+
+const NURSE_DISPONIBILIDAD_QUERY = `
+	query AdminNurseDisponibilidad($enfermeroId: ID!) {
+		disponibilidadesByNurse(enfermeroId: $enfermeroId) {
+			id diaSemana horaInicio horaFin activo
+		}
+	}
+`;
+
+interface StaffMember {
+	id: string;
+	usuarioId: string;
+	type: 'doctor' | 'nurse';
+	nombre: string;
+	apellido: string;
+}
+
 export function AdminDashboardView({
 	user,
 	locale,
@@ -343,6 +390,20 @@ export function AdminDashboardView({
 		timestamp: string;
 	} | null>(null);
 
+	// ── Estado para la sección de disponibilidad del personal ──
+	const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+	const [staffSearch, setStaffSearch] = useState('');
+	const [staffFilter, setStaffFilter] = useState<'all' | 'doctor' | 'nurse'>(
+		'all',
+	);
+	const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
+	const [selectedStaffType, setSelectedStaffType] = useState<
+		'doctor' | 'nurse' | null
+	>(null);
+	const [staffSlots, setStaffSlots] = useState<AvailabilitySlot[]>([]);
+	const [staffSlotsLoading, setStaffSlotsLoading] = useState(false);
+	const [staffLoaded, setStaffLoaded] = useState(false);
+
 	const loadData = useCallback(async () => {
 		setLoading(true);
 		setError('');
@@ -367,6 +428,79 @@ export function AdminDashboardView({
 	useEffect(() => {
 		void loadData();
 	}, [loadData]);
+
+	// Cargar médicos y enfermeros al entrar en disponibilidad.
+	// doctors(hospitalId) filtra por hospital; nurses no soporta filtro.
+	useEffect(() => {
+		if (section !== 'disponibilidad') return;
+		if (!selectedHospitalId || staffLoaded) return;
+		setStaffLoaded(true);
+
+		Promise.all([
+			gqlQuery<{
+				doctors: Array<{
+					id: string;
+					usuarioId: string;
+					nombre: string;
+					apellido: string;
+				}>;
+			}>(ADMIN_DOCTORS_BY_HOSPITAL_QUERY, {
+				hospitalId: selectedHospitalId,
+			}),
+			gqlQuery<{
+				nurses: Array<{
+					id: string;
+					usuarioId: string;
+					nombre: string;
+					apellido: string;
+				}>;
+			}>(ADMIN_ALL_NURSES_QUERY),
+		])
+			.then(([docRes, nurseRes]) => {
+				const docs: StaffMember[] = docRes.doctors.map((d) => ({
+					id: d.id,
+					usuarioId: d.usuarioId,
+					type: 'doctor',
+					nombre: d.nombre,
+					apellido: d.apellido,
+				}));
+				const nurses: StaffMember[] = nurseRes.nurses.map((n) => ({
+					id: n.id,
+					usuarioId: n.usuarioId,
+					type: 'nurse',
+					nombre: n.nombre,
+					apellido: n.apellido,
+				}));
+				setStaffMembers([...docs, ...nurses]);
+			})
+			.catch(() => {});
+	}, [section, selectedHospitalId, staffLoaded]);
+
+	// Cargar disponibilidad del staff seleccionado
+	useEffect(() => {
+		if (!selectedStaffId || !selectedStaffType) {
+			setStaffSlots([]);
+			return;
+		}
+		setStaffSlotsLoading(true);
+		const query =
+			selectedStaffType === 'doctor'
+				? DOCTOR_DISPONIBILIDAD_QUERY
+				: NURSE_DISPONIBILIDAD_QUERY;
+		const variables =
+			selectedStaffType === 'doctor'
+				? { medicoId: selectedStaffId }
+				: { enfermeroId: selectedStaffId };
+		const dataKey =
+			selectedStaffType === 'doctor'
+				? 'disponibilidadesByDoctor'
+				: 'disponibilidadesByNurse';
+
+		gqlQuery<Record<string, AvailabilitySlot[]>>(query, variables)
+			.then((res) => setStaffSlots(res[dataKey] ?? []))
+			.catch(() => setStaffSlots([]))
+			.finally(() => setStaffSlotsLoading(false));
+	}, [selectedStaffId, selectedStaffType]);
 
 	const counts = useMemo(
 		() => ({
@@ -1685,6 +1819,148 @@ export function AdminDashboardView({
 				);
 			case 'userManagement':
 				return roleManagementSection;
+			case 'disponibilidad':
+				return (
+					<div className="space-y-4">
+						<Card className="border-border/70">
+							<CardHeader className="pb-2">
+								<CardTitle className="text-base">
+									{m.availabilityStaffTitle({}, { locale })}
+								</CardTitle>
+								<CardDescription>
+									{m.availabilityStaffSubtitle({}, { locale })}
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-3">
+								{/* Filtro por tipo y búsqueda por nombre */}
+								<div className="flex flex-wrap gap-2">
+									<div className="flex gap-1 rounded-lg border border-border/60 p-0.5">
+										{(['all', 'doctor', 'nurse'] as const).map((f) => (
+											<Button
+												key={f}
+												type="button"
+												variant={staffFilter === f ? 'default' : 'ghost'}
+												size="sm"
+												onClick={() => {
+													setStaffFilter(f);
+													setSelectedStaffId(null);
+													setSelectedStaffType(null);
+												}}
+											>
+												{f === 'all'
+													? m.availabilityAllLabel({}, { locale })
+													: f === 'doctor'
+														? m.availabilityDoctorLabel({}, { locale })
+														: m.availabilityNurseLabel({}, { locale })}
+											</Button>
+										))}
+									</div>
+									<Input
+										type="search"
+										placeholder={m.availabilitySearchPlaceholder(
+											{},
+											{ locale },
+										)}
+										value={staffSearch}
+										onChange={(e) => {
+											setStaffSearch(e.target.value);
+											setSelectedStaffId(null);
+											setSelectedStaffType(null);
+										}}
+										className="max-w-xs"
+									/>
+								</div>
+
+								{(() => {
+									const q = staffSearch.toLowerCase().trim();
+									const filtered = staffMembers.filter((s) => {
+										if (staffFilter !== 'all' && s.type !== staffFilter)
+											return false;
+										if (!q) return true;
+										return (
+											s.nombre.toLowerCase().includes(q) ||
+											s.apellido.toLowerCase().includes(q)
+										);
+									});
+
+									if (staffMembers.length === 0) {
+										return loading ? (
+											<Skeleton className="h-20 rounded-lg" />
+										) : (
+											<p className="py-4 text-center text-sm text-muted-foreground">
+												{m.availabilitySearchEmpty({}, { locale })}
+											</p>
+										);
+									}
+
+									return (
+										<div className="space-y-3">
+											<div className="flex flex-wrap gap-1.5">
+												{filtered.map((s) => {
+													const active = selectedStaffId === s.id;
+													return (
+														<Button
+															key={`${s.type}-${s.id}`}
+															type="button"
+															variant={active ? 'default' : 'outline'}
+															size="sm"
+															onClick={() => {
+																if (active) {
+																	setSelectedStaffId(null);
+																	setSelectedStaffType(null);
+																} else {
+																	setSelectedStaffId(s.id);
+																	setSelectedStaffType(s.type);
+																}
+															}}
+															className="gap-1.5"
+														>
+															<Badge
+																variant="secondary"
+																className="px-1 py-0 text-[9px]"
+															>
+																{s.type === 'doctor'
+																	? m.availabilityDoctorLabel({}, { locale })
+																	: m.availabilityNurseLabel({}, { locale })}
+															</Badge>
+															{s.nombre} {s.apellido}
+														</Button>
+													);
+												})}
+												{filtered.length === 0 && (
+													<p className="py-2 text-sm text-muted-foreground">
+														{m.availabilitySearchEmpty({}, { locale })}
+													</p>
+												)}
+											</div>
+											{selectedStaffId &&
+												selectedStaffType &&
+												(staffSlotsLoading ? (
+													<Skeleton className="h-32 rounded-lg" />
+												) : (
+													<AvailabilityWeekView
+														slots={staffSlots}
+														locale={locale}
+														personName={(() => {
+															const s = staffMembers.find(
+																(item) => item.id === selectedStaffId,
+															);
+															return s ? `${s.nombre} ${s.apellido}` : '';
+														})()}
+														personRole={
+															selectedStaffType === 'doctor'
+																? m.availabilityDoctorLabel({}, { locale })
+																: m.availabilityNurseLabel({}, { locale })
+														}
+													/>
+												))}
+										</div>
+									);
+								})()}
+							</CardContent>
+						</Card>
+					</div>
+				);
 			default:
 				return null;
 		}

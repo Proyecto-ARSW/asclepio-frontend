@@ -1,6 +1,9 @@
 import {
 	ArrowLeftIcon,
 	BuildingOffice2Icon,
+	ChevronDownIcon,
+	ChevronLeftIcon,
+	ChevronRightIcon,
 	ExclamationTriangleIcon,
 	MapPinIcon,
 	MoonIcon,
@@ -52,7 +55,10 @@ type GeoState =
 	| { status: 'loading' }
 	| { status: 'denied' }
 	| { status: 'error'; message: string }
-	| { status: 'ready'; lat: number; lng: number };
+	| { status: 'ready'; lat: number; lng: number; accuracy: number };
+
+// Número de hospitales por página en el listado lateral
+const ITEMS_PER_PAGE = 8;
 
 // ── Distance formatter ─────────────────────────────────────────────────────
 
@@ -208,7 +214,10 @@ export default function NearbyHospitalsPage() {
 		null,
 	);
 	const [radius, setRadius] = useState(5000);
+	const [currentPage, setCurrentPage] = useState(0);
+	const [radiusExpanded, setRadiusExpanded] = useState(false);
 	const listRef = useRef<HTMLDivElement>(null);
+	const watchIdRef = useRef<number | null>(null);
 
 	// ── Theme ──
 	useEffect(() => {
@@ -227,8 +236,13 @@ export default function NearbyHospitalsPage() {
 	}
 
 	// ── Geolocation ──
-	// navigator.geolocation es la API estándar del navegador para obtener
-	// la ubicación del usuario. Requiere HTTPS en producción (localhost es excepción).
+	// watchPosition suscribe a actualizaciones continuas del GPS.
+	// A diferencia de getCurrentPosition (una sola lectura), permite que
+	// el sensor se "caliente" y entregue coordenadas progresivamente más
+	// precisas. La primera lectura suele venir de Wi-Fi/celular (~100-300m
+	// de error), las siguientes usan el GPS real del dispositivo (~5-15m).
+	const ACCURACY_THRESHOLD = 50; // metros — umbral de precisión aceptable
+
 	const requestLocation = useCallback(() => {
 		if (typeof window === 'undefined') return;
 		if (!navigator.geolocation) {
@@ -239,15 +253,32 @@ export default function NearbyHospitalsPage() {
 			return;
 		}
 
+		// Limpiar watcher anterior si existe (ej. al reintentar tras error)
+		if (watchIdRef.current !== null) {
+			navigator.geolocation.clearWatch(watchIdRef.current);
+		}
+
 		setGeo({ status: 'loading' });
 
-		navigator.geolocation.getCurrentPosition(
+		watchIdRef.current = navigator.geolocation.watchPosition(
 			(position) => {
-				setGeo({
-					status: 'ready',
-					lat: position.coords.latitude,
-					lng: position.coords.longitude,
+				const { latitude, longitude, accuracy } = position.coords;
+
+				setGeo((prev) => {
+					// Solo actualizar si es la primera lectura o si la nueva es más
+					// precisa. Evita re-renders innecesarios cuando el GPS entrega
+					// lecturas con igual o menor precisión que la actual.
+					if (prev.status === 'ready' && accuracy >= prev.accuracy) {
+						return prev;
+					}
+					return { status: 'ready', lat: latitude, lng: longitude, accuracy };
 				});
+
+				// Una vez bajo el umbral, dejar de monitorear para ahorrar batería
+				if (accuracy <= ACCURACY_THRESHOLD && watchIdRef.current !== null) {
+					navigator.geolocation.clearWatch(watchIdRef.current);
+					watchIdRef.current = null;
+				}
 			},
 			(error) => {
 				if (error.code === error.PERMISSION_DENIED) {
@@ -260,18 +291,25 @@ export default function NearbyHospitalsPage() {
 				}
 			},
 			{
-				// enableHighAccuracy usa GPS si está disponible — mejor precisión
-				// pero puede tardar más en dispositivos móviles
 				enableHighAccuracy: true,
 				timeout: 15000,
-				maximumAge: 60000,
+				// maximumAge: 0 fuerza una lectura fresca del sensor en lugar de
+				// usar una posición cacheada que podría tener minutos de antigüedad
+				maximumAge: 0,
 			},
 		);
 	}, [locale]);
 
-	// Solicitar ubicación al montar
+	// Solicitar ubicación al montar y limpiar watcher al desmontar.
+	// El return cleanup es crítico: sin él, el watcher seguiría activo
+	// consumiendo batería si el usuario navega a otra página.
 	useEffect(() => {
 		requestLocation();
+		return () => {
+			if (watchIdRef.current !== null) {
+				navigator.geolocation.clearWatch(watchIdRef.current);
+			}
+		};
 	}, [requestLocation]);
 
 	// ── Fetch hospitals from Maps microservice ──
@@ -295,6 +333,7 @@ export default function NearbyHospitalsPage() {
 			.then((data) => {
 				setHospitals(data);
 				setSelectedHospitalIdx(null);
+				setCurrentPage(0);
 			})
 			.catch((err) => {
 				if (err.name === 'AbortError') return;
@@ -309,6 +348,13 @@ export default function NearbyHospitalsPage() {
 	const isReady = geo.status === 'ready';
 	const userLat = isReady ? geo.lat : 0;
 	const userLng = isReady ? geo.lng : 0;
+
+	// Paginación: dividir la lista en páginas más manejables
+	const totalPages = Math.ceil(hospitals.length / ITEMS_PER_PAGE);
+	const paginatedHospitals = hospitals.slice(
+		currentPage * ITEMS_PER_PAGE,
+		(currentPage + 1) * ITEMS_PER_PAGE,
+	);
 
 	const radiusOptions = useMemo(
 		() => [
@@ -325,9 +371,16 @@ export default function NearbyHospitalsPage() {
 	// Scroll a la tarjeta correspondiente al hacer click en un marker del mapa
 	const handleHospitalMapClick = useCallback((index: number) => {
 		setSelectedHospitalIdx(index);
-		listRef.current
-			?.querySelector(`[data-idx="${index}"]`)
-			?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+		// Navegar a la página que contiene el hospital clickeado en el mapa
+		const targetPage = Math.floor(index / ITEMS_PER_PAGE);
+		setCurrentPage(targetPage);
+		// requestAnimationFrame espera al siguiente paint para que la tarjeta
+		// ya esté en el DOM antes de intentar el scroll
+		requestAnimationFrame(() => {
+			listRef.current
+				?.querySelector(`[data-idx="${index}"]`)
+				?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+		});
 	}, []);
 
 	// Categoría de distancia para color-coding visual
@@ -370,13 +423,13 @@ export default function NearbyHospitalsPage() {
 						aria-label={m.homeLandingThemeToggle({}, { locale })}
 						className={cn(
 							buttonVariants({ variant: 'ghost', size: 'sm' }),
-							'h-8 w-8 shrink-0 rounded-full px-0',
+							'h-9 w-9 shrink-0 rounded-full px-0',
 						)}
 					>
 						{isDarkMode ? (
-							<SunIcon className="h-4 w-4" />
+							<SunIcon className="h-5 w-5" />
 						) : (
-							<MoonIcon className="h-4 w-4" />
+							<MoonIcon className="h-5 w-5" />
 						)}
 					</button>
 					<LanguageSwitcher
@@ -415,6 +468,7 @@ export default function NearbyHospitalsPage() {
 								<NearbyHospitalsMap
 									userLat={userLat}
 									userLng={userLng}
+									accuracy={isReady ? geo.accuracy : 0}
 									hospitals={hospitals}
 									isDarkMode={isDarkMode}
 									fetchingHospitals={fetchingHospitals}
@@ -432,7 +486,8 @@ export default function NearbyHospitalsPage() {
 							    Se posiciona sobre el mapa como control flotante.
 							    En mobile: abajo del mapa. En desktop: arriba-izquierda. */}
 							<div className="absolute bottom-3 left-3 right-3 z-[1001] lg:bottom-auto lg:right-auto lg:top-3">
-								<div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border/40 bg-background/85 px-3 py-2 shadow-lg backdrop-blur-xl">
+								{/* Desktop: opciones de radio siempre visibles en línea */}
+								<div className="hidden lg:flex flex-wrap items-center gap-1.5 rounded-xl border border-border/40 bg-background/85 px-3 py-2 shadow-lg backdrop-blur-xl">
 									<span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
 										{m.nearbyHospitalsRadius({}, { locale })}
 									</span>
@@ -451,6 +506,62 @@ export default function NearbyHospitalsPage() {
 											{opt.label}
 										</button>
 									))}
+								</div>
+
+								{/* Mobile: botón compacto que expande opciones al pulsarlo.
+									 Patrón disclosure — reduce ruido visual en pantallas pequeñas
+									 mostrando el valor actual y expandiendo bajo demanda */}
+								<div className="lg:hidden">
+									<button
+										type="button"
+										onClick={() => setRadiusExpanded((v) => !v)}
+										className="flex items-center gap-2 rounded-xl border border-border/40 bg-background/85 px-3 py-2 shadow-lg backdrop-blur-xl"
+									>
+										<span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+											{m.nearbyHospitalsRadius({}, { locale })}
+										</span>
+										<span className="text-xs font-semibold text-primary">
+											{radiusOptions.find((o) => o.value === radius)?.label}
+										</span>
+										<ChevronDownIcon
+											className={cn(
+												'h-3.5 w-3.5 text-muted-foreground transition-transform duration-200',
+												radiusExpanded && 'rotate-180',
+											)}
+										/>
+									</button>
+									<AnimatePresence>
+										{radiusExpanded && (
+											<motion.div
+												initial={{ opacity: 0, height: 0 }}
+												animate={{ opacity: 1, height: 'auto' }}
+												exit={{ opacity: 0, height: 0 }}
+												transition={{ duration: 0.2 }}
+												className="overflow-hidden"
+											>
+												<div className="mt-1.5 flex flex-wrap gap-1.5 rounded-xl border border-border/40 bg-background/85 px-3 py-2 shadow-lg backdrop-blur-xl">
+													{radiusOptions.map((opt) => (
+														<button
+															key={opt.value}
+															type="button"
+															onClick={() => {
+																setRadius(opt.value);
+																setRadiusExpanded(false);
+															}}
+															className={cn(
+																'rounded-lg px-2.5 py-1 text-xs font-medium transition-all duration-200',
+																radius === opt.value
+																	? 'bg-primary text-primary-foreground shadow-sm'
+																	: 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+															)}
+														>
+															{opt.label}
+														</button>
+													))}
+												</div>
+											</motion.div>
+										)}
+									</AnimatePresence>
 								</div>
 							</div>
 						</div>
@@ -482,6 +593,11 @@ export default function NearbyHospitalsPage() {
 									className="rounded-full text-[10px] font-mono"
 								>
 									{userLat.toFixed(4)}, {userLng.toFixed(4)}
+									{isReady && (
+										<span className="ml-1 text-muted-foreground">
+											±{Math.round(geo.accuracy)}m
+										</span>
+									)}
 								</Badge>
 							</div>
 
@@ -522,8 +638,10 @@ export default function NearbyHospitalsPage() {
 											</motion.div>
 										)}
 
-									{/* Hospital cards */}
-									{hospitals.map((hospital, i) => {
+									{/* Hospital cards — pageIdx es el índice local (0..ITEMS_PER_PAGE-1),
+										 i es el índice global para mantener ranking y selección */}
+									{paginatedHospitals.map((hospital, pageIdx) => {
+										const i = currentPage * ITEMS_PER_PAGE + pageIdx;
 										const cat = distanceCategory(hospital.distanceMeters);
 										const isSelected = selectedHospitalIdx === i;
 
@@ -541,7 +659,7 @@ export default function NearbyHospitalsPage() {
 												animate={{ opacity: 1, x: 0 }}
 												transition={{
 													duration: 0.3,
-													delay: Math.min(i * 0.04, 0.5),
+													delay: Math.min(pageIdx * 0.04, 0.5),
 													ease: 'easeOut',
 												}}
 												whileHover={
@@ -621,6 +739,44 @@ export default function NearbyHospitalsPage() {
 									})}
 								</div>
 							</ScrollArea>
+
+							{/* Controles de paginación — fuera del ScrollArea
+								 para estar siempre visibles sin importar el scroll */}
+							{totalPages > 1 && (
+								<div className="flex shrink-0 items-center justify-center gap-3 border-t border-border/30 px-4 py-2.5">
+									<button
+										type="button"
+										disabled={currentPage === 0}
+										onClick={() => setCurrentPage((p) => p - 1)}
+										aria-label="Página anterior"
+										className={cn(
+											'grid h-8 w-8 place-items-center rounded-lg transition-colors',
+											currentPage === 0
+												? 'cursor-not-allowed text-muted-foreground/30'
+												: 'text-foreground hover:bg-muted',
+										)}
+									>
+										<ChevronLeftIcon className="h-4 w-4" />
+									</button>
+									<span className="text-xs font-medium tabular-nums text-muted-foreground">
+										{currentPage + 1} / {totalPages}
+									</span>
+									<button
+										type="button"
+										disabled={currentPage >= totalPages - 1}
+										onClick={() => setCurrentPage((p) => p + 1)}
+										aria-label="Página siguiente"
+										className={cn(
+											'grid h-8 w-8 place-items-center rounded-lg transition-colors',
+											currentPage >= totalPages - 1
+												? 'cursor-not-allowed text-muted-foreground/30'
+												: 'text-foreground hover:bg-muted',
+										)}
+									>
+										<ChevronRightIcon className="h-4 w-4" />
+									</button>
+								</div>
+							)}
 						</div>
 					</motion.div>
 				)}

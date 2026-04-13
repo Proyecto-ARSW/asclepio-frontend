@@ -10,7 +10,14 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect } from 'react';
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import {
+	Circle,
+	MapContainer,
+	Marker,
+	Popup,
+	TileLayer,
+	useMap,
+} from 'react-leaflet';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -24,6 +31,7 @@ export interface HospitalResult {
 interface NearbyHospitalsMapProps {
 	userLat: number;
 	userLng: number;
+	accuracy: number;
 	hospitals: HospitalResult[];
 	isDarkMode: boolean;
 	fetchingHospitals: boolean;
@@ -94,6 +102,7 @@ function FitBoundsToMarkers({
 export default function NearbyHospitalsMap({
 	userLat,
 	userLng,
+	accuracy,
 	hospitals,
 	isDarkMode,
 	fetchingHospitals,
@@ -128,6 +137,24 @@ export default function NearbyHospitalsMap({
 						hospitals={hospitals}
 						userLat={userLat}
 						userLng={userLng}
+					/>
+				)}
+
+				{/* Círculo de precisión — visualiza el margen de error del GPS.
+					 Radio grande = posición aproximada (Wi-Fi/celular),
+					 radio pequeño = buena precisión GPS.
+					 Se oculta cuando la precisión es muy alta (<10m) para no saturar */}
+				{accuracy > 10 && (
+					<Circle
+						center={[userLat, userLng]}
+						radius={accuracy}
+						pathOptions={{
+							color: '#3b82f6',
+							fillColor: '#3b82f6',
+							fillOpacity: 0.08,
+							weight: 1,
+							opacity: 0.3,
+						}}
 					/>
 				)}
 

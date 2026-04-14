@@ -664,5 +664,8 @@
 	"nearbyHospitalsVeryClose": "Muito perto",
 	"nearbyHospitalsClose": "Perto",
 	"nearbyHospitalsFar": "Longe",
-	"nearbyHospitalsQuickAccess": "Hospitais próximos"
+	"nearbyHospitalsQuickAccess": "Hospitais próximos",
+	"nearbyHospitalsLowAccuracy": "Sua localização pode ser imprecisa. Clique no mapa para definir sua posição exata.",
+	"nearbyHospitalsManualLocation": "Localização manual",
+	"nearbyHospitalsResetGPS": "Voltar ao GPS"
 }

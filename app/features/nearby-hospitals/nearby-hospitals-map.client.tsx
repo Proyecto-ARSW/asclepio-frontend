@@ -17,6 +17,7 @@ import {
 	Popup,
 	TileLayer,
 	useMap,
+	useMapEvents,
 } from 'react-leaflet';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -37,7 +38,10 @@ interface NearbyHospitalsMapProps {
 	fetchingHospitals: boolean;
 	searchingLabel: string;
 	yourLocationLabel: string;
+	manualLocationLabel: string;
 	onHospitalClick: (index: number) => void;
+	onManualLocationSet: (lat: number, lng: number) => void;
+	manualLocationActive: boolean;
 	formatDistance: (meters: number) => string;
 }
 
@@ -62,6 +66,15 @@ const userIcon = L.divIcon({
 	iconAnchor: [10, 10],
 });
 
+// Ícono ámbar para ubicación manual — color distinto al azul GPS para que
+// el usuario distinga fácilmente cuándo está en modo manual vs automático.
+const manualIcon = L.divIcon({
+	html: `<div style="background:#f59e0b;width:22px;height:22px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 3px rgba(245,158,11,.4),0 2px 8px rgba(0,0,0,.3)"></div>`,
+	className: '',
+	iconSize: [22, 22],
+	iconAnchor: [11, 11],
+});
+
 // ── Map helpers ────────────────────────────────────────────────────────────
 
 /** Centra el mapa cuando cambian las coordenadas del usuario */
@@ -70,6 +83,23 @@ function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
 	useEffect(() => {
 		map.setView([lat, lng], 14, { animate: true });
 	}, [map, lat, lng]);
+	return null;
+}
+
+/** Captura clics en el mapa para fijar ubicación manual.
+ *  useMapEvents es un hook de react-leaflet que suscribe a eventos nativos
+ *  de Leaflet. Al hacer clic, extraemos lat/lng del evento y notificamos
+ *  al componente padre para que actualice las coordenadas efectivas. */
+function MapClickHandler({
+	onMapClick,
+}: {
+	onMapClick: (lat: number, lng: number) => void;
+}) {
+	useMapEvents({
+		click(e) {
+			onMapClick(e.latlng.lat, e.latlng.lng);
+		},
+	});
 	return null;
 }
 
@@ -108,7 +138,10 @@ export default function NearbyHospitalsMap({
 	fetchingHospitals,
 	searchingLabel,
 	yourLocationLabel,
+	manualLocationLabel,
 	onHospitalClick,
+	onManualLocationSet,
+	manualLocationActive,
 	formatDistance,
 }: NearbyHospitalsMapProps) {
 	// Tile URL que respeta dark mode — CartoDB ofrece variante oscura
@@ -120,10 +153,12 @@ export default function NearbyHospitalsMap({
 		<div className="relative h-full w-full">
 			{/* MapContainer llena su padre — el padre controla el tamaño.
 			    zoomControl y attributionControl desactivados para UI limpia. */}
+			{/* cursor-crosshair indica visualmente que se puede hacer clic
+			    en el mapa para fijar la ubicación manual */}
 			<MapContainer
 				center={[userLat, userLng]}
 				zoom={14}
-				className="h-full w-full"
+				className="h-full w-full cursor-crosshair"
 				zoomControl={false}
 				attributionControl={false}
 			>
@@ -131,6 +166,7 @@ export default function NearbyHospitalsMap({
 					url={tileUrl}
 					attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://osm.org/">OSM</a>'
 				/>
+				<MapClickHandler onMapClick={onManualLocationSet} />
 				<RecenterMap lat={userLat} lng={userLng} />
 				{hospitals.length > 0 && (
 					<FitBoundsToMarkers
@@ -144,7 +180,7 @@ export default function NearbyHospitalsMap({
 					 Radio grande = posición aproximada (Wi-Fi/celular),
 					 radio pequeño = buena precisión GPS.
 					 Se oculta cuando la precisión es muy alta (<10m) para no saturar */}
-				{accuracy > 10 && (
+				{accuracy > 10 && !manualLocationActive && (
 					<Circle
 						center={[userLat, userLng]}
 						radius={accuracy}
@@ -158,10 +194,16 @@ export default function NearbyHospitalsMap({
 					/>
 				)}
 
-				{/* Marker del usuario */}
-				<Marker position={[userLat, userLng]} icon={userIcon}>
+				{/* Marker del usuario — ámbar cuando la ubicación es manual,
+				    azul cuando viene del GPS del dispositivo */}
+				<Marker
+					position={[userLat, userLng]}
+					icon={manualLocationActive ? manualIcon : userIcon}
+				>
 					<Popup>
-						<span className="text-xs font-semibold">{yourLocationLabel}</span>
+						<span className="text-xs font-semibold">
+							{manualLocationActive ? manualLocationLabel : yourLocationLabel}
+						</span>
 					</Popup>
 				</Marker>
 

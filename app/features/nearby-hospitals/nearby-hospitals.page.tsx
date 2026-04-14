@@ -216,6 +216,12 @@ export default function NearbyHospitalsPage() {
 	const [radius, setRadius] = useState(5000);
 	const [currentPage, setCurrentPage] = useState(0);
 	const [radiusExpanded, setRadiusExpanded] = useState(false);
+	// Ubicación manual — se activa al hacer clic en el mapa.
+	// Cuando es null, se usan las coordenadas del GPS del navegador.
+	const [manualLocation, setManualLocation] = useState<{
+		lat: number;
+		lng: number;
+	} | null>(null);
 	const listRef = useRef<HTMLDivElement>(null);
 	const watchIdRef = useRef<number | null>(null);
 
@@ -312,6 +318,13 @@ export default function NearbyHospitalsPage() {
 		};
 	}, [requestLocation]);
 
+	// ── Derived ──
+	const isReady = geo.status === 'ready';
+	// Coordenadas efectivas: si el usuario fijó posición manual, se usan esas;
+	// de lo contrario, las del GPS/navegador.
+	const userLat = manualLocation?.lat ?? (isReady ? geo.lat : 0);
+	const userLng = manualLocation?.lng ?? (isReady ? geo.lng : 0);
+
 	// ── Fetch hospitals from Maps microservice ──
 	useEffect(() => {
 		if (geo.status !== 'ready') return;
@@ -322,8 +335,11 @@ export default function NearbyHospitalsPage() {
 		setFetchingHospitals(true);
 		setFetchError(null);
 
+		// Usa coordenadas efectivas (manuales si el usuario hizo clic en el mapa,
+		// o del GPS si no). Esto permite que el fetch siempre use la posición
+		// que el usuario ve en pantalla como "su ubicación".
 		fetch(
-			`${MAPS_API_URL}/api/hospitals?lat=${geo.lat}&lng=${geo.lng}&radius=${radius}`,
+			`${MAPS_API_URL}/api/hospitals?lat=${userLat}&lng=${userLng}&radius=${radius}`,
 			{ signal: controller.signal },
 		)
 			.then((res) => {
@@ -342,12 +358,7 @@ export default function NearbyHospitalsPage() {
 			.finally(() => setFetchingHospitals(false));
 
 		return () => controller.abort();
-	}, [geo, radius, locale]);
-
-	// ── Derived ──
-	const isReady = geo.status === 'ready';
-	const userLat = isReady ? geo.lat : 0;
-	const userLng = isReady ? geo.lng : 0;
+	}, [geo.status, userLat, userLng, radius, locale]);
 
 	// Paginación: dividir la lista en páginas más manejables
 	const totalPages = Math.ceil(hospitals.length / ITEMS_PER_PAGE);
@@ -367,6 +378,14 @@ export default function NearbyHospitalsPage() {
 		],
 		[],
 	);
+
+	// Callback para fijar ubicación manual al hacer clic en el mapa.
+	// Resetea la página y selección para que el usuario vea resultados frescos.
+	const handleManualLocationSet = useCallback((lat: number, lng: number) => {
+		setManualLocation({ lat, lng });
+		setSelectedHospitalIdx(null);
+		setCurrentPage(0);
+	}, []);
 
 	// Scroll a la tarjeta correspondiente al hacer click en un marker del mapa
 	const handleHospitalMapClick = useCallback((index: number) => {
@@ -477,7 +496,13 @@ export default function NearbyHospitalsPage() {
 										{},
 										{ locale },
 									)}
+									manualLocationLabel={m.nearbyHospitalsManualLocation(
+										{},
+										{ locale },
+									)}
 									onHospitalClick={handleHospitalMapClick}
+									onManualLocationSet={handleManualLocationSet}
+									manualLocationActive={manualLocation !== null}
 									formatDistance={formatDistance}
 								/>
 							</Suspense>
@@ -588,18 +613,56 @@ export default function NearbyHospitalsPage() {
 										)}
 									</span>
 								</div>
-								<Badge
-									variant="outline"
-									className="rounded-full text-[10px] font-mono"
-								>
-									{userLat.toFixed(4)}, {userLng.toFixed(4)}
-									{isReady && (
-										<span className="ml-1 text-muted-foreground">
-											±{Math.round(geo.accuracy)}m
-										</span>
+								<div className="flex items-center gap-1.5">
+									{manualLocation && (
+										<button
+											type="button"
+											onClick={() => setManualLocation(null)}
+											className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600 transition-colors hover:bg-amber-500/20 dark:text-amber-400"
+										>
+											<MapPinIcon className="h-3 w-3" />
+											{m.nearbyHospitalsResetGPS({}, { locale })}
+										</button>
 									)}
-								</Badge>
+									<Badge
+										variant="outline"
+										className="rounded-full text-[10px] font-mono"
+									>
+										{userLat.toFixed(4)}, {userLng.toFixed(4)}
+										{isReady && !manualLocation && (
+											<span className="ml-1 text-muted-foreground">
+												±{Math.round(geo.accuracy)}m
+											</span>
+										)}
+										{manualLocation && (
+											<span className="ml-1 text-amber-500">
+												&#9679;
+											</span>
+										)}
+									</Badge>
+								</div>
 							</div>
+
+							{/* Banner de precisión baja — se muestra cuando la precisión
+							    del GPS supera 500m (típico de geolocalización por IP) y
+							    el usuario aún no ha fijado su posición manualmente.
+							    500m es el umbral porque: GPS real ~5-15m, WiFi ~20-100m,
+							    celular ~100-300m, IP ~1000-50000m */}
+							{isReady && geo.accuracy > 500 && !manualLocation && (
+								<motion.div
+									initial={{ opacity: 0, height: 0 }}
+									animate={{ opacity: 1, height: 'auto' }}
+									exit={{ opacity: 0, height: 0 }}
+									className="shrink-0 border-b border-amber-500/20 bg-amber-500/5 px-4 py-2.5"
+								>
+									<div className="flex items-start gap-2">
+										<ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+										<p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
+											{m.nearbyHospitalsLowAccuracy({}, { locale })}
+										</p>
+									</div>
+								</motion.div>
+							)}
 
 							{/* Scrollable hospital list */}
 							<ScrollArea className="flex-1">

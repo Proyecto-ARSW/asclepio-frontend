@@ -691,5 +691,8 @@
 	"nearbyHospitalsVeryClose": "Very close",
 	"nearbyHospitalsClose": "Close",
 	"nearbyHospitalsFar": "Far",
-	"nearbyHospitalsQuickAccess": "Nearby Hospitals"
+	"nearbyHospitalsQuickAccess": "Nearby Hospitals",
+	"nearbyHospitalsLowAccuracy": "Your location may be inaccurate. Click on the map to set your exact position.",
+	"nearbyHospitalsManualLocation": "Manual location",
+	"nearbyHospitalsResetGPS": "Reset to GPS"
 }

@@ -14,7 +14,6 @@ import {
 	type AvailabilitySlot,
 	AvailabilityWeekView,
 } from '@/components/medical/availability-week-view';
-import { Link } from 'react-router';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Button } from '@/components/ui/button/button.component';

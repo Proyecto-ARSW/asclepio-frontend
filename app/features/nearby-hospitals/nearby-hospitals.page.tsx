@@ -635,9 +635,7 @@ export default function NearbyHospitalsPage() {
 											</span>
 										)}
 										{manualLocation && (
-											<span className="ml-1 text-amber-500">
-												&#9679;
-											</span>
+											<span className="ml-1 text-amber-500">&#9679;</span>
 										)}
 									</Badge>
 								</div>

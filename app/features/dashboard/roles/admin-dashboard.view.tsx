@@ -1109,6 +1109,7 @@ export function AdminDashboardView({
 		overview: m.dashboardSidebarOverview({}, { locale }),
 		hospitals: m.dashboardSidebarHospitals({}, { locale }),
 		patients: m.dashboardSidebarPatients({}, { locale }),
+		triage: m.triageNewMenu({}, { locale }),
 		appointments: m.dashboardSidebarAppointments({}, { locale }),
 		queue: m.dashboardSidebarQueue({}, { locale }),
 		ai: m.dashboardSidebarAi({}, { locale }),
@@ -1144,6 +1145,12 @@ export function AdminDashboardView({
 
 	function sectionContent() {
 		switch (section) {
+			case 'triage':
+				return (
+					<p className="text-sm text-muted-foreground">
+						{m.dashboardComingSoonDescription({}, { locale })}
+					</p>
+				);
 			case 'hospitals':
 				return (
 					<div className="space-y-3">

@@ -16,5 +16,7 @@ export default [
 			'nearby-hospitals',
 			'features/nearby-hospitals/nearby-hospitals.page.tsx',
 		),
+		route('triage', 'features/triage/triage.page.tsx'),
+		route('triage/:procedureId', 'features/triage/triage-procedure.page.tsx'),
 	]),
 ] satisfies RouteConfig;

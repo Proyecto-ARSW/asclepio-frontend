@@ -43,6 +43,7 @@ export type NavSection =
 	| 'overview'
 	| 'hospitals'
 	| 'patients'
+	| 'triage'
 	| 'appointments'
 	| 'queue'
 	| 'ai'
@@ -70,6 +71,7 @@ const navItems: NavItem[] = [
 		iconActive: BuildingOffice2IconSolid,
 	},
 	{ key: 'patients', icon: UserGroupIcon, iconActive: UserGroupIconSolid },
+	{ key: 'triage', icon: BeakerIcon, iconActive: BeakerIconSolid },
 	{
 		key: 'appointments',
 		icon: CalendarDaysIcon,
@@ -135,6 +137,7 @@ const defaultSectionLabels: Record<NavSection, string> = {
 	overview: '',
 	hospitals: '',
 	patients: '',
+	triage: '',
 	appointments: '',
 	queue: '',
 	ai: '',
@@ -166,6 +169,7 @@ function SidebarContent({
 		overview: m.dashboardSidebarOverview({}, { locale }),
 		hospitals: m.dashboardSidebarHospitals({}, { locale }),
 		patients: m.dashboardSidebarPatients({}, { locale }),
+		triage: m.triageNewMenu({}, { locale }),
 		appointments: m.dashboardSidebarAppointments({}, { locale }),
 		queue: m.dashboardSidebarQueue({}, { locale }),
 		ai: m.dashboardSidebarAi({}, { locale }),

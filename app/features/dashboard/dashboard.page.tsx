@@ -65,6 +65,7 @@ const DASHBOARD_SECTION_STORAGE_KEY = 'asclepio-dashboard-active-section';
 const PATIENT_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
 	'profile',
+	'triage',
 	'appointments',
 	'historial',
 	'consentimientos',
@@ -119,6 +120,7 @@ function isNavSection(value: string | null): value is NavSection {
 		value === 'overview' ||
 		value === 'hospitals' ||
 		value === 'patients' ||
+		value === 'triage' ||
 		value === 'appointments' ||
 		value === 'queue' ||
 		value === 'ai' ||
@@ -242,6 +244,12 @@ export default function DashboardPage() {
 			setActiveSection(storedSection);
 		}
 	}, [hasSidebarNavigation, sidebarSections]);
+
+	useEffect(() => {
+		if (activeSection === 'triage') {
+			navigate(localePath('/triage', locale));
+		}
+	}, [activeSection, locale, navigate]);
 
 	if (!user) {
 		return null;

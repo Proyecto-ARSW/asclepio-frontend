@@ -11,6 +11,7 @@ export type DashboardSection =
 	| 'overview'
 	| 'hospitals'
 	| 'patients'
+	| 'triage'
 	| 'appointments'
 	| 'queue'
 	| 'ai'

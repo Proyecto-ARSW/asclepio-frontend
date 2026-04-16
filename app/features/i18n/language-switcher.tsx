@@ -1,5 +1,5 @@
 import { ChevronDownIcon, LanguageIcon } from '@heroicons/react/24/outline';
-import { Link, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
 import { buttonVariants } from '@/components/ui/button/button.component';
 import {
 	DropdownMenu,
@@ -33,6 +33,11 @@ interface LanguageSwitcherProps {
 	contentAlign?: 'start' | 'center' | 'end';
 }
 
+// Se usa <a> en lugar de <Link> porque cambiar de idioma requiere una
+// recarga completa de la página para que el servidor inicialice el locale
+// correcto. React Router <Link> intenta una navegación client-side que
+// dispara fetchAndApplyManifestPatches para rutas con prefijo de idioma
+// que no existen en el manifiesto, produciendo "Failed to fetch".
 export function LanguageSwitcher({
 	locale,
 	triggerClassName,
@@ -66,9 +71,9 @@ export function LanguageSwitcher({
 					const active = option === locale;
 
 					return (
-						<Link
+						<a
 							key={option}
-							to={targetPath}
+							href={targetPath}
 							aria-current={active ? 'true' : undefined}
 							className={cn(
 								'flex items-center justify-between rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none',
@@ -84,10 +89,11 @@ export function LanguageSwitcher({
 							>
 								{option.toUpperCase()}
 							</span>
-						</Link>
+						</a>
 					);
 				})}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
 }
+// Daniel Useche

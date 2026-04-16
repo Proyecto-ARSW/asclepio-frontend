@@ -382,7 +382,7 @@
 	"pageTitleTriage": "Asclepio - Clinical Triage",
 	"triageTitle": "Clinical Triage",
 	"triageSubtitle": "Clinical flow to capture, review, and close triage records by patient.",
-	"triageNewMenu": "New Triage",
+	"triageNewMenu": "Triage",
 	"triageModeText": "Text input",
 	"triageModeVoice": "Microphone input",
 	"triagePatientIdLabel": "Patient ID",

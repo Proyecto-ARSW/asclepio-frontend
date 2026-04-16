@@ -36,6 +36,7 @@ import {
 } from '@/lib/graphql-client';
 import type { RoleViewProps } from './dashboard-role.types';
 import { PatientAiSection } from './patient-ai.section';
+import { PatientTriageSection } from './patient-triage.section';
 import { RoleDashboardShell } from './role-dashboard-shell';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -1203,6 +1204,7 @@ export function PatientDashboardView({
 	const showMedicines = section === 'medicines';
 	const showConsentimientos = section === 'consentimientos';
 	const showRecetas = section === 'recetas';
+	const showTriage = section === 'triage';
 	const showProfile = section === 'profile';
 	const _showQueueList = showQueue && !(section === 'queue' && showGame);
 	const headerSubtitle =
@@ -2318,6 +2320,8 @@ export function PatientDashboardView({
 					</div>
 				</section>
 			)}
+
+			{showTriage && <PatientTriageSection locale={locale} />}
 
 			{showAi && <PatientAiSection locale={locale} />}
 

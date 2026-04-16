@@ -382,7 +382,7 @@
 	"pageTitleTriage": "Asclepio - Triage Clínico",
 	"triageTitle": "Triage Clínico",
 	"triageSubtitle": "Flujo clínico para captura, revisión y cierre de triaje por paciente.",
-	"triageNewMenu": "Nuevo Triage",
+	"triageNewMenu": "Triage",
 	"triageModeText": "Entrada por texto",
 	"triageModeVoice": "Entrada por micrófono",
 	"triagePatientIdLabel": "ID del paciente",

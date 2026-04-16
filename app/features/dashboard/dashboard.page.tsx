@@ -245,12 +245,6 @@ export default function DashboardPage() {
 		}
 	}, [hasSidebarNavigation, sidebarSections]);
 
-	useEffect(() => {
-		if (activeSection === 'triage') {
-			navigate(localePath('/triage', locale));
-		}
-	}, [activeSection, locale, navigate]);
-
 	if (!user) {
 		return null;
 	}

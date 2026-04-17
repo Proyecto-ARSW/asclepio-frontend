@@ -18,6 +18,8 @@ import {
 	ArrowPathIcon,
 	BoltIcon,
 	HeartIcon,
+	MagnifyingGlassMinusIcon,
+	MagnifyingGlassPlusIcon,
 	PauseIcon,
 	PlayIcon,
 	SparklesIcon,
@@ -268,6 +270,8 @@ function t(locale: AppLocale) {
 		autoRotateOn: 'Pausar rotación',
 		autoRotateOff: 'Rotar automáticamente',
 		resetView: 'Reiniciar vista',
+		zoomIn: 'Acercar',
+		zoomOut: 'Alejar',
 		loading: 'Cargando modelo 3D…',
 		sourceLabel: 'Archivo',
 		proTip: 'Consejo profesional',
@@ -287,6 +291,8 @@ function t(locale: AppLocale) {
 		autoRotateOn: 'Pause rotation',
 		autoRotateOff: 'Auto-rotate',
 		resetView: 'Reset view',
+		zoomIn: 'Zoom in',
+		zoomOut: 'Zoom out',
 		loading: 'Loading 3D model…',
 		sourceLabel: 'File',
 		proTip: 'Pro tip',
@@ -306,6 +312,8 @@ function t(locale: AppLocale) {
 		autoRotateOn: 'Pausar rotação',
 		autoRotateOff: 'Girar automaticamente',
 		resetView: 'Redefinir vista',
+		zoomIn: 'Aproximar',
+		zoomOut: 'Afastar',
 		loading: 'Carregando modelo 3D…',
 		sourceLabel: 'Arquivo',
 		proTip: 'Dica profissional',
@@ -325,6 +333,8 @@ function t(locale: AppLocale) {
 		autoRotateOn: 'Arrêter la rotation',
 		autoRotateOff: 'Rotation automatique',
 		resetView: 'Réinitialiser la vue',
+		zoomIn: 'Zoom avant',
+		zoomOut: 'Zoom arrière',
 		loading: 'Chargement du modèle 3D…',
 		sourceLabel: 'Fichier',
 		proTip: 'Astuce pro',
@@ -344,6 +354,8 @@ function t(locale: AppLocale) {
 		autoRotateOn: 'Rotation pausieren',
 		autoRotateOff: 'Automatisch drehen',
 		resetView: 'Ansicht zurücksetzen',
+		zoomIn: 'Heranzoomen',
+		zoomOut: 'Herauszoomen',
 		loading: 'Lade 3D-Modell…',
 		sourceLabel: 'Datei',
 		proTip: 'Profi-Tipp',
@@ -437,6 +449,11 @@ export function DoctorAnatomySection({
 	// `viewerKey` se cambia al pulsar "Reiniciar vista" — remonta el Canvas
 	// para restaurar la posición inicial de OrbitControls (no expone un reset API).
 	const [viewerKey, setViewerKey] = useState(0);
+	// Contadores: cada incremento dispara un paso de zoom en el Canvas.
+	// Usamos contadores en vez de booleans para que clics consecutivos en el
+	// mismo botón se registren como eventos distintos (state re-trigger).
+	const [zoomInTick, setZoomInTick] = useState(0);
+	const [zoomOutTick, setZoomOutTick] = useState(0);
 
 	const prefersReduced = useReducedMotion();
 	const { ref: headerRef, inView: headerInView } = useInView(0.25);
@@ -544,9 +561,13 @@ export function DoctorAnatomySection({
 					initial={initialMotion}
 					animate={viewerInView ? enterMotion : initialMotion}
 					transition={{ duration: 0.55, ease: 'easeOut' }}
-					className="lg:col-span-3"
+					className="lg:col-span-3 lg:flex"
 				>
-					<Card className="overflow-hidden border-border/70 bg-card/90 shadow-sm">
+					{/* Card en modo flex-column en desktop: el header queda fijo y
+					    CardContent crece con flex-1 para ocupar toda la altura de
+					    la fila del grid (que se estira al alto de la columna de
+					    explicación gracias al align-items: stretch por defecto). */}
+					<Card className="w-full overflow-hidden border-border/70 bg-card/90 shadow-sm lg:flex lg:h-full lg:flex-col">
 						<CardHeader className="flex-row items-center justify-between gap-2 pb-2">
 							<div className="min-w-0">
 								<CardTitle className="truncate text-sm sm:text-base">
@@ -561,6 +582,26 @@ export function DoctorAnatomySection({
 									type="button"
 									variant="outline"
 									size="sm"
+									onClick={() => setZoomInTick((n) => n + 1)}
+									title={i18n.zoomIn}
+									aria-label={i18n.zoomIn}
+								>
+									<MagnifyingGlassPlusIcon className="h-4 w-4" />
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => setZoomOutTick((n) => n + 1)}
+									title={i18n.zoomOut}
+									aria-label={i18n.zoomOut}
+								>
+									<MagnifyingGlassMinusIcon className="h-4 w-4" />
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
 									onClick={() => setAutoRotate((v) => !v)}
 									aria-pressed={autoRotate}
 									title={autoRotate ? i18n.autoRotateOn : i18n.autoRotateOff}
@@ -570,7 +611,7 @@ export function DoctorAnatomySection({
 									) : (
 										<PlayIcon className="h-4 w-4" />
 									)}
-									<span className="ml-1 hidden sm:inline">
+									<span className="ml-1 hidden md:inline">
 										{autoRotate ? i18n.autoRotateOn : i18n.autoRotateOff}
 									</span>
 								</Button>
@@ -582,18 +623,21 @@ export function DoctorAnatomySection({
 									title={i18n.resetView}
 								>
 									<ArrowPathIcon className="h-4 w-4" />
-									<span className="ml-1 hidden sm:inline">
+									<span className="ml-1 hidden md:inline">
 										{i18n.resetView}
 									</span>
 								</Button>
 							</div>
 						</CardHeader>
-						<CardContent className="p-0">
-							{/* aspect-[4/3] en móvil, aspect-video en desktop — mantiene
-							    el visor alto y cómodo sin pedir pantalla completa.
+						<CardContent className="p-0 lg:flex-1">
+							{/* Móvil: aspect-[4/3] → visor alto cómodo sin aplastarse.
+							    sm: aspect-video (16:9).
+							    lg: aspect-auto + h-full → el visor rellena toda la
+							    altura disponible en la fila del grid, aprovechando
+							    el espacio que deja la columna de explicación.
 							    AnimatePresence intercambia el viewer suavemente al
 							    cambiar de categoría para que no haya "salto". */}
-							<div className="relative aspect-[4/3] w-full overflow-hidden sm:aspect-video">
+							<div className="relative aspect-[4/3] w-full overflow-hidden sm:aspect-video lg:aspect-auto lg:h-full lg:min-h-[520px]">
 								<AnimatePresence mode="wait">
 									<motion.div
 										key={`${active.id}-${viewerKey}`}
@@ -610,6 +654,8 @@ export function DoctorAnatomySection({
 												modelUrl={active.modelUrl}
 												autoRotate={autoRotate}
 												isDark={isDark}
+												zoomInTick={zoomInTick}
+												zoomOutTick={zoomOutTick}
 											/>
 										</Suspense>
 									</motion.div>

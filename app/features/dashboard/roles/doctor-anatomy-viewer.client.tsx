@@ -12,15 +12,12 @@
  */
 import { Environment, OrbitControls, useGLTF } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import { Suspense } from 'react';
+import { Suspense, useLayoutEffect, useMemo, useRef } from 'react';
+import * as THREE from 'three';
 
 interface AnatomyViewerProps {
 	/** Ruta al archivo .glb dentro de /public (ej: /models/anatomy/Human-skeleton.glb) */
 	modelUrl: string;
-	/** Escala uniforme aplicada al modelo (los .glb traen escalas distintas). */
-	scale?: number;
-	/** Posición vertical para centrar visualmente modelos altos/bajos. */
-	yOffset?: number;
 	/** Activa rotación automática — útil para demos pasivas durante la consulta. */
 	autoRotate?: boolean;
 	/** Si el tema es oscuro; ajusta el color de fondo del canvas. */
@@ -28,29 +25,56 @@ interface AnatomyViewerProps {
 }
 
 /**
- * Carga el modelo GLB con suspense. useGLTF cachea internamente por URL,
- * así que volver a seleccionar una categoría ya vista es instantáneo.
+ * Auto-encuadre del modelo:
+ *   1. Calcula el bounding box tras cargar el .glb.
+ *   2. Normaliza la dimensión máxima a ~2 unidades (target size), así cada
+ *      modelo rellena el viewport sin importar las unidades con las que se
+ *      exportó (mm, cm, m…).
+ *   3. Recentra el grafo para que el centro geométrico caiga en el origen,
+ *      que es el punto al que mira OrbitControls.
+ * Evita tener que configurar `scale` / `yOffset` manualmente por modelo.
  */
-function Model({
-	modelUrl,
-	scale = 1,
-	yOffset = 0,
-}: {
-	modelUrl: string;
-	scale?: number;
-	yOffset?: number;
-}) {
+function Model({ modelUrl }: { modelUrl: string }) {
 	const { scene } = useGLTF(modelUrl);
-	// Clonamos la escena para permitir que el mismo modelo se reutilice en
-	// distintos contextos sin compartir el grafo — evita glitches al navegar
-	// rápidamente entre categorías.
-	return <primitive object={scene} scale={scale} position={[0, yOffset, 0]} />;
+	// Clonamos para que el cache interno de useGLTF no comparta el grafo
+	// entre instancias — cambiar de categoría podría romper el centrado si
+	// mutamos la escena original.
+	const cloned = useMemo(() => scene.clone(true), [scene]);
+	const ref = useRef<THREE.Group>(null);
+
+	useLayoutEffect(() => {
+		const group = ref.current;
+		if (!group) return;
+
+		const box = new THREE.Box3().setFromObject(group);
+		const size = new THREE.Vector3();
+		const center = new THREE.Vector3();
+		box.getSize(size);
+		box.getCenter(center);
+
+		const maxDim = Math.max(size.x, size.y, size.z);
+		// TARGET_SIZE ≈ altura del frustum visible a la distancia de la cámara
+		// (ver Canvas más abajo): mantiene al modelo llenando ~80 % del visor.
+		const TARGET_SIZE = 2.4;
+		const factor = maxDim > 0 ? TARGET_SIZE / maxDim : 1;
+
+		group.scale.setScalar(factor);
+		group.position.set(
+			-center.x * factor,
+			-center.y * factor,
+			-center.z * factor,
+		);
+	}, [cloned]);
+
+	return (
+		<group ref={ref}>
+			<primitive object={cloned} />
+		</group>
+	);
 }
 
 export default function AnatomyViewer({
 	modelUrl,
-	scale = 1,
-	yOffset = 0,
 	autoRotate = true,
 	isDark = false,
 }: AnatomyViewerProps) {
@@ -59,7 +83,10 @@ export default function AnatomyViewer({
 			// dpr limitado para no matar la batería en móviles — 2x basta para
 			// una imagen nítida sin exigir al GPU en pantallas retina.
 			dpr={[1, 2]}
-			camera={{ position: [0, 0.5, 4], fov: 45 }}
+			// Cámara cercana (2.6u) + fov estrecho (35°): el modelo ocupa la
+			// mayor parte del viewport. Si el médico quiere detalle, OrbitControls
+			// permite acercarse hasta 0.8u (ver minDistance).
+			camera={{ position: [0, 0, 2.6], fov: 35 }}
 			// shadows=false: los .glb educativos no necesitan sombras dinámicas;
 			// el environment light ya da volumen suficiente y ahorramos GPU.
 			shadows={false}
@@ -79,21 +106,23 @@ export default function AnatomyViewer({
 				{/* Environment "studio": HDR preset que ilumina el modelo con
 				    reflejos realistas. No necesita archivos externos. */}
 				<Environment preset="studio" />
-				<Model modelUrl={modelUrl} scale={scale} yOffset={yOffset} />
+				<Model modelUrl={modelUrl} />
 			</Suspense>
 
 			{/* OrbitControls: rotar (drag), zoom (rueda/pinch), pan (shift+drag).
 			    enablePan=false reduce controles accidentales en móvil — el médico
 			    solo necesita rotar para mostrar distintos ángulos al paciente.
-			    minDistance/maxDistance evitan que el usuario pierda el modelo. */}
+			    minDistance muy baja (0.8) permite acercarse a detalles finos
+			    como válvulas o vértebras; maxDistance evita perder el modelo. */}
 			<OrbitControls
 				enablePan={false}
 				enableDamping
 				dampingFactor={0.08}
 				autoRotate={autoRotate}
 				autoRotateSpeed={0.6}
-				minDistance={1.5}
-				maxDistance={10}
+				minDistance={0.8}
+				maxDistance={6}
+				target={[0, 0, 0]}
 			/>
 		</Canvas>
 	);

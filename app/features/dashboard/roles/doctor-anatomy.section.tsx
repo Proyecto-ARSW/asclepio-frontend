@@ -59,8 +59,6 @@ interface AnatomyCategory {
 	id: AnatomyCategoryId;
 	icon: ComponentType<React.SVGProps<SVGSVGElement>>;
 	modelUrl: string;
-	scale: number;
-	yOffset: number;
 	/** Acento visual de la tarjeta — respeta el token --color-primary */
 	accent: 'primary' | 'rose' | 'indigo';
 	label: Record<AppLocale, string>;
@@ -75,8 +73,6 @@ const ANATOMY_CATEGORIES: AnatomyCategory[] = [
 		id: 'skeleton',
 		icon: AcademicCapIcon,
 		modelUrl: '/models/anatomy/Human-skeleton.glb',
-		scale: 1.6,
-		yOffset: -1.4,
 		accent: 'indigo',
 		label: {
 			es: 'Sistema esquelético',
@@ -136,8 +132,6 @@ const ANATOMY_CATEGORIES: AnatomyCategory[] = [
 		id: 'heart',
 		icon: HeartIcon,
 		modelUrl: '/models/anatomy/Beating-heart.glb',
-		scale: 0.9,
-		yOffset: 0,
 		accent: 'rose',
 		label: {
 			es: 'Sistema circulatorio',
@@ -197,8 +191,6 @@ const ANATOMY_CATEGORIES: AnatomyCategory[] = [
 		id: 'dna',
 		icon: SparklesIcon,
 		modelUrl: '/models/anatomy/DNA.glb',
-		scale: 1.0,
-		yOffset: 0,
 		accent: 'primary',
 		label: {
 			es: 'Genética molecular',
@@ -616,8 +608,6 @@ export function DoctorAnatomySection({
 										>
 											<AnatomyViewer
 												modelUrl={active.modelUrl}
-												scale={active.scale}
-												yOffset={active.yOffset}
 												autoRotate={autoRotate}
 												isDark={isDark}
 											/>

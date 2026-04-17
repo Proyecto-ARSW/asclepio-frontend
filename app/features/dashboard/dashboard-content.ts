@@ -157,6 +157,7 @@ export function getDashboardContent(
 				historial: m.dashboardSidebarHistorial({}, options),
 				consentimientos: m.dashboardSidebarConsentimientos({}, options),
 				recetas: m.dashboardSidebarRecetas({}, options),
+				anatomy3d: m.dashboardSidebarAnatomy3d({}, options),
 				profile: m.dashboardSidebarProfile({}, options),
 				settings: m.dashboardSidebarSettings({}, options),
 			},

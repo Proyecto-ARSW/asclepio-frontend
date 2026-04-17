@@ -41,6 +41,7 @@ import {
 	gqlQueryWithFallback,
 } from '@/lib/graphql-client';
 import type { DashboardSection, RoleViewProps } from './dashboard-role.types';
+import { DoctorAnatomySection } from './doctor-anatomy.section';
 import { RoleDashboardShell } from './role-dashboard-shell';
 
 // ─── Tipos GraphQL ────────────────────────────────────────────────────────────
@@ -1362,6 +1363,18 @@ export function DoctorDashboardView({
 				return ConsentimientosSection();
 			case 'recetas':
 				return RecetasSection();
+			case 'anatomy3d':
+				// Sección educativa: el médico muestra modelos 3D al paciente
+				// como apoyo visual durante la consulta (corazón, esqueleto, ADN).
+				return (
+					<DoctorAnatomySection
+						locale={locale}
+						isDark={
+							typeof document !== 'undefined' &&
+							document.documentElement.classList.contains('dark')
+						}
+					/>
+				);
 			default:
 				return null;
 		}
@@ -2771,6 +2784,7 @@ export function DoctorDashboardView({
 		queue: m.dashboardSidebarQueue({}, { locale }),
 		disponibilidad: m.dashboardDoctorDisponibilidadTitle({}, { locale }),
 		historial: m.dashboardDoctorHistorialTitle({}, { locale }),
+		anatomy3d: m.dashboardSidebarAnatomy3d({}, { locale }),
 	};
 
 	return (

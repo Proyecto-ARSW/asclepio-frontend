@@ -87,7 +87,8 @@ const ADMIN_SIDEBAR_SECTIONS: NavSection[] = [
 	'userManagement',
 	'settings',
 ];
-// Médico: citas, pacientes, disponibilidad, historial, consentimientos y recetas
+// Médico: citas, pacientes, disponibilidad, historial, consentimientos, recetas
+// y visor 3D de anatomía para apoyo educativo al paciente durante la consulta
 const DOCTOR_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
 	'patients',
@@ -97,6 +98,7 @@ const DOCTOR_SIDEBAR_SECTIONS: NavSection[] = [
 	'historial',
 	'consentimientos',
 	'recetas',
+	'anatomy3d',
 	'settings',
 ];
 // Enfermero: ve su disponibilidad, gestiona la cola de turnos y el inventario de medicamentos
@@ -131,6 +133,7 @@ function isNavSection(value: string | null): value is NavSection {
 		value === 'historial' ||
 		value === 'consentimientos' ||
 		value === 'recetas' ||
+		value === 'anatomy3d' ||
 		value === 'profile' ||
 		value === 'settings'
 	);

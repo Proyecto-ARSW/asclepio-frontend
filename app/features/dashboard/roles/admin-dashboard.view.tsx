@@ -1303,6 +1303,7 @@ export function AdminDashboardView({
 		historial: m.dashboardSidebarHistorial({}, { locale }),
 		consentimientos: m.dashboardSidebarConsentimientos({}, { locale }),
 		recetas: m.dashboardSidebarRecetas({}, { locale }),
+		anatomy3d: m.dashboardSidebarAnatomy3d({}, { locale }),
 		profile: m.dashboardSidebarProfile({}, { locale }),
 	} as const satisfies Record<Exclude<DashboardSection, 'settings'>, string>;
 

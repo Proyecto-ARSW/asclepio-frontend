@@ -2,11 +2,14 @@ import {
 	ArrowRightIcon,
 	BuildingOffice2Icon,
 	CheckCircleIcon,
+	ChevronLeftIcon,
+	ChevronRightIcon,
 	ExclamationTriangleIcon,
+	MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { useForm } from '@tanstack/react-form';
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { redirect, useNavigate } from 'react-router';
 import {
 	Alert,
@@ -21,6 +24,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
+import { Input } from '@/components/ui/input/input.component';
 import { getAuthContent } from '@/features/auth/auth-content';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
@@ -131,6 +135,40 @@ export default function SelectHospitalPage() {
 		},
 	});
 
+	// ── Búsqueda y paginación ──
+	// Filtrado client-side: la lista de hospitales viene del preToken (ya está
+	// en memoria) así que no hay request extra. La paginación evita listas
+	// largas que bloqueen el scroll y mejoran la legibilidad.
+	const ITEMS_PER_PAGE = 5;
+	const [searchQuery, setSearchQuery] = useState('');
+	const [currentPage, setCurrentPage] = useState(0);
+
+	const filteredHospitals = useMemo(() => {
+		if (!searchQuery.trim()) return hospitals;
+		const q = searchQuery.toLowerCase();
+		return hospitals.filter(
+			(h) =>
+				h.nombre.toLowerCase().includes(q) ||
+				h.ciudad.toLowerCase().includes(q) ||
+				h.departamento.toLowerCase().includes(q),
+		);
+	}, [hospitals, searchQuery]);
+
+	const totalPages = Math.max(
+		1,
+		Math.ceil(filteredHospitals.length / ITEMS_PER_PAGE),
+	);
+	const paginatedHospitals = filteredHospitals.slice(
+		currentPage * ITEMS_PER_PAGE,
+		(currentPage + 1) * ITEMS_PER_PAGE,
+	);
+
+	// Resetear página al buscar para que el usuario no quede en una página vacía
+	// biome-ignore lint/correctness/useExhaustiveDependencies: searchQuery change must reset page
+	useEffect(() => {
+		setCurrentPage(0);
+	}, [searchQuery]);
+
 	const isAdmin = user?.rol === 'ADMIN';
 	const hasNoHospitals = hospitals.length === 0;
 
@@ -216,61 +254,136 @@ export default function SelectHospitalPage() {
 								<p className="text-sm text-muted-foreground">
 									{content.selectHospital.listHint}
 								</p>
+
+								{/* Barra de búsqueda — filtra por nombre, ciudad o departamento */}
+								{hospitals.length > ITEMS_PER_PAGE && (
+									<div className="relative">
+										<MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+										<Input
+											type="search"
+											value={searchQuery}
+											onChange={(e) => setSearchQuery(e.target.value)}
+											placeholder={
+												locale === 'es'
+													? 'Buscar hospital por nombre...'
+													: 'Search hospital by name...'
+											}
+											className="pl-9"
+											aria-label={
+												locale === 'es' ? 'Buscar hospital' : 'Search hospital'
+											}
+										/>
+									</div>
+								)}
+
 								<form.Field name="hospitalId">
 									{(field) => (
-										<div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-											{hospitals.map((hospital, index) => {
-												const selected = field.state.value === hospital.id;
-												return (
-													// Cada ítem de hospital entra escalonado (stagger)
-													<motion.button
-														key={hospital.id}
-														type="button"
-														onClick={() => field.handleChange(hospital.id)}
-														initial={{ opacity: 0, x: -12 }}
-														animate={{ opacity: 1, x: 0 }}
-														transition={{
-															duration: 0.3,
-															ease: 'easeOut',
-															delay: index * 0.06,
-														}}
-														// whileHover eleva la fila seleccionada
-														whileHover={{ x: 3 }}
-														className={[
-															'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors',
-															selected
-																? 'border-primary bg-primary/5'
-																: 'border-border bg-card hover:bg-muted/40',
-														].join(' ')}
-													>
-														<BuildingOffice2Icon className="h-5 w-5 shrink-0 text-primary" />
-														<div className="min-w-0 flex-1">
-															<p className="truncate text-sm font-medium text-foreground">
-																{hospital.nombre}
-															</p>
-															<p className="text-xs text-muted-foreground">
-																{hospital.ciudad}, {hospital.departamento}
-															</p>
-														</div>
-														<AnimatePresence>
-															{selected && (
-																<motion.span
-																	key="check"
-																	initial={{ scale: 0, opacity: 0 }}
-																	animate={{ scale: 1, opacity: 1 }}
-																	exit={{ scale: 0, opacity: 0 }}
+										<div className="space-y-2">
+											{/* AnimatePresence con mode="wait" para transición
+											    suave entre páginas de resultados */}
+											<AnimatePresence mode="wait">
+												<motion.div
+													key={`page-${currentPage}-${searchQuery}`}
+													initial={{ opacity: 0, y: 8 }}
+													animate={{ opacity: 1, y: 0 }}
+													exit={{ opacity: 0, y: -8 }}
+													transition={{ duration: 0.2 }}
+													className="space-y-2"
+												>
+													{paginatedHospitals.length === 0 ? (
+														<p className="py-4 text-center text-sm text-muted-foreground">
+															{locale === 'es'
+																? 'No se encontraron hospitales'
+																: 'No hospitals found'}
+														</p>
+													) : (
+														paginatedHospitals.map((hospital, index) => {
+															const selected =
+																field.state.value === hospital.id;
+															return (
+																<motion.button
+																	key={hospital.id}
+																	type="button"
+																	onClick={() =>
+																		field.handleChange(hospital.id)
+																	}
+																	initial={{ opacity: 0, x: -12 }}
+																	animate={{ opacity: 1, x: 0 }}
 																	transition={{
-																		duration: 0.2,
-																		ease: 'backOut',
+																		duration: 0.3,
+																		ease: 'easeOut',
+																		delay: index * 0.06,
 																	}}
+																	whileHover={{ x: 3 }}
+																	className={[
+																		'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors',
+																		selected
+																			? 'border-primary bg-primary/5'
+																			: 'border-border bg-card hover:bg-muted/40',
+																	].join(' ')}
 																>
-																	<CheckCircleIcon className="h-5 w-5 shrink-0 text-primary" />
-																</motion.span>
-															)}
-														</AnimatePresence>
-													</motion.button>
-												);
-											})}
+																	<BuildingOffice2Icon className="h-5 w-5 shrink-0 text-primary" />
+																	<div className="min-w-0 flex-1">
+																		<p className="truncate text-sm font-medium text-foreground">
+																			{hospital.nombre}
+																		</p>
+																		<p className="text-xs text-muted-foreground">
+																			{hospital.ciudad}, {hospital.departamento}
+																		</p>
+																	</div>
+																	<AnimatePresence>
+																		{selected && (
+																			<motion.span
+																				key="check"
+																				initial={{ scale: 0, opacity: 0 }}
+																				animate={{ scale: 1, opacity: 1 }}
+																				exit={{ scale: 0, opacity: 0 }}
+																				transition={{
+																					duration: 0.2,
+																					ease: 'backOut',
+																				}}
+																			>
+																				<CheckCircleIcon className="h-5 w-5 shrink-0 text-primary" />
+																			</motion.span>
+																		)}
+																	</AnimatePresence>
+																</motion.button>
+															);
+														})
+													)}
+												</motion.div>
+											</AnimatePresence>
+
+											{/* Controles de paginación — solo si hay más de una página */}
+											{totalPages > 1 && (
+												<div className="flex items-center justify-between pt-1">
+													<Button
+														type="button"
+														variant="ghost"
+														size="sm"
+														disabled={currentPage === 0}
+														onClick={() => setCurrentPage((p) => p - 1)}
+														className="gap-1"
+													>
+														<ChevronLeftIcon className="h-4 w-4" />
+														{locale === 'es' ? 'Anterior' : 'Previous'}
+													</Button>
+													<span className="text-xs tabular-nums text-muted-foreground">
+														{currentPage + 1} / {totalPages}
+													</span>
+													<Button
+														type="button"
+														variant="ghost"
+														size="sm"
+														disabled={currentPage >= totalPages - 1}
+														onClick={() => setCurrentPage((p) => p + 1)}
+														className="gap-1"
+													>
+														{locale === 'es' ? 'Siguiente' : 'Next'}
+														<ChevronRightIcon className="h-4 w-4" />
+													</Button>
+												</div>
+											)}
 										</div>
 									)}
 								</form.Field>

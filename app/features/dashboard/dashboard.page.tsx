@@ -5,6 +5,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
 import { Link, redirect, useLocation, useNavigate } from 'react-router';
+import { NotificationBell } from '@/components/medical/notification-bell';
 import { SidebarNav } from '@/components/medical/sidebar-nav';
 import { Badge } from '@/components/ui/badge/badge.component';
 import {
@@ -63,9 +64,13 @@ import type { Route } from './+types/dashboard.page';
 const DASHBOARD_SECTION_STORAGE_KEY = 'asclepio-dashboard-active-section';
 const PATIENT_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
+	'profile',
 	'triage',
 	'appointments',
 	'historial',
+	'consentimientos',
+	'recetas',
+	'medicines',
 	'queue',
 	'ai',
 	'settings',
@@ -78,22 +83,27 @@ const ADMIN_SIDEBAR_SECTIONS: NavSection[] = [
 	'queue',
 	'medicines',
 	'doctors',
+	'disponibilidad',
 	'userManagement',
 	'settings',
 ];
-// Médico: ve sus citas, gestiona disponibilidad y registra historial
+// Médico: citas, pacientes, disponibilidad, historial, consentimientos y recetas
 const DOCTOR_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
+	'patients',
 	'appointments',
 	'queue',
 	'disponibilidad',
 	'historial',
+	'consentimientos',
+	'recetas',
 	'settings',
 ];
-// Enfermero: ve su disponibilidad y gestiona la cola de turnos
+// Enfermero: ve su disponibilidad, gestiona la cola de turnos y el inventario de medicamentos
 const NURSE_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
 	'disponibilidad',
+	'medicines',
 	'queue',
 	'settings',
 ];
@@ -117,6 +127,11 @@ function isNavSection(value: string | null): value is NavSection {
 		value === 'medicines' ||
 		value === 'doctors' ||
 		value === 'userManagement' ||
+		value === 'disponibilidad' ||
+		value === 'historial' ||
+		value === 'consentimientos' ||
+		value === 'recetas' ||
+		value === 'profile' ||
 		value === 'settings'
 	);
 }
@@ -230,12 +245,6 @@ export default function DashboardPage() {
 		}
 	}, [hasSidebarNavigation, sidebarSections]);
 
-	useEffect(() => {
-		if (activeSection === 'triage') {
-			navigate(localePath('/triage', locale));
-		}
-	}, [activeSection, locale, navigate]);
-
 	if (!user) {
 		return null;
 	}
@@ -315,6 +324,8 @@ export default function DashboardPage() {
 					</div>
 
 					<div className="flex flex-wrap items-center gap-2">
+						{/* Campana de notificaciones — accesible para todos los roles */}
+						<NotificationBell locale={locale} />
 						<Button
 							type="button"
 							variant="outline"

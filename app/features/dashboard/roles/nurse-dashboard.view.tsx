@@ -1,7 +1,9 @@
 import {
 	ArrowPathIcon,
+	BeakerIcon,
 	CheckCircleIcon,
 	ClockIcon,
+	PlusIcon,
 	QueueListIcon,
 	XCircleIcon,
 } from '@heroicons/react/24/outline';
@@ -53,6 +55,31 @@ interface Turno {
 	numeroTurno: number;
 	tipo: string;
 	estado: string;
+}
+
+interface MedicineItem {
+	id: number;
+	nombreComercial: string;
+	nombreGenerico?: string;
+	presentacion?: string;
+	requiereReceta: boolean;
+}
+
+interface InventarioItem {
+	id: number;
+	medicamentoId: number;
+	sedeId: number;
+	stockActual: number;
+	stockMinimo?: number;
+	disponibilidad: string;
+	precio?: string;
+}
+
+interface SedeItem {
+	id: number;
+	nombre: string;
+	direccion?: string;
+	ciudad?: string;
 }
 
 // ─── Queries & Mutations ──────────────────────────────────────────────────────
@@ -142,6 +169,49 @@ const ATTEND_TURN = `
 const CANCEL_TURN = `
 	mutation CancelTurn($id: ID!) {
 		cancelarTurno(id: $id) { id estado }
+	}
+`;
+
+// ── Queries de inventario de medicamentos (enfermero gestiona stock por sede) ──
+const MEDICINES_QUERY = `
+	query NurseMedicines($busqueda: String) {
+		medicines(busqueda: $busqueda) {
+			id
+			nombreComercial
+			nombreGenerico
+			presentacion
+			requiereReceta
+		}
+	}
+`;
+
+const SEDES_QUERY = `
+	query NurseSedes {
+		sedes { id nombre direccion ciudad }
+	}
+`;
+
+const INVENTARIO_BY_SEDE_QUERY = `
+	query NurseInventarioBySede($sedeId: Int!) {
+		inventarioBySede(sedeId: $sedeId) {
+			id medicamentoId sedeId stockActual stockMinimo disponibilidad precio
+		}
+	}
+`;
+
+const CREATE_INVENTARIO = `
+	mutation NurseCreateInventario($input: CreateInventarioInput!) {
+		createInventario(input: $input) {
+			id medicamentoId sedeId stockActual disponibilidad precio
+		}
+	}
+`;
+
+const UPDATE_INVENTARIO = `
+	mutation NurseUpdateInventario($input: UpdateInventarioInput!) {
+		updateInventario(input: $input) {
+			id stockActual disponibilidad precio
+		}
 	}
 `;
 
@@ -241,6 +311,17 @@ export function NurseDashboardView({
 		diaSemana: 1,
 		horaInicio: '07:00',
 		horaFin: '15:00',
+	});
+
+	// ── Estado de inventario de medicamentos ──
+	const [medicines, setMedicines] = useState<MedicineItem[]>([]);
+	const [sedes, setSedes] = useState<SedeItem[]>([]);
+	const [inventario, setInventario] = useState<InventarioItem[]>([]);
+	const [selectedSedeId, setSelectedSedeId] = useState<number | null>(null);
+	const [medicinesLoading, setMedicinesLoading] = useState(false);
+	const [newStock, setNewStock] = useState({
+		medicamentoId: 0,
+		stockActual: 0,
 	});
 
 	const loadProfile = useCallback(async () => {
@@ -438,6 +519,108 @@ export function NurseDashboardView({
 			setTurns((prev) =>
 				prev.map((t) => (t.id === id ? { ...t, estado: 'ATENDIDO' } : t)),
 			);
+			flash(m.dashboardActionSuccess({}, { locale }));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setActionLoading(null);
+		}
+	}
+
+	// ── Carga de medicamentos y sedes para la sección de inventario ──
+	async function loadMedicinesData() {
+		setMedicinesLoading(true);
+		try {
+			const [medsRes, sedesRes] = await Promise.all([
+				gqlQuery<{ medicines: MedicineItem[] }>(MEDICINES_QUERY, {}),
+				sedes.length === 0
+					? gqlQuery<{ sedes: SedeItem[] }>(SEDES_QUERY)
+					: Promise.resolve({ sedes }),
+			]);
+			setMedicines(medsRes.medicines);
+			if (sedesRes.sedes !== sedes) setSedes(sedesRes.sedes);
+			// Si hay sedes y no se ha seleccionado una, seleccionar la primera
+			if (!selectedSedeId && sedesRes.sedes.length > 0) {
+				const firstSede = sedesRes.sedes[0].id;
+				setSelectedSedeId(firstSede);
+				const invRes = await gqlQuery<{ inventarioBySede: InventarioItem[] }>(
+					INVENTARIO_BY_SEDE_QUERY,
+					{ sedeId: firstSede },
+				);
+				setInventario(invRes.inventarioBySede);
+			}
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setMedicinesLoading(false);
+		}
+	}
+
+	async function handleSedeChange(sedeId: number) {
+		setSelectedSedeId(sedeId);
+		try {
+			const res = await gqlQuery<{ inventarioBySede: InventarioItem[] }>(
+				INVENTARIO_BY_SEDE_QUERY,
+				{ sedeId },
+			);
+			setInventario(res.inventarioBySede);
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		}
+	}
+
+	// ── Acción: crear/actualizar stock de un medicamento en una sede ──
+	async function handleUpdateStock(
+		inventarioId: number,
+		newStockActual: number,
+	) {
+		setActionLoading(`stock-${inventarioId}`);
+		setError('');
+		try {
+			const res = await gqlMutation<{ updateInventario: InventarioItem }>(
+				UPDATE_INVENTARIO,
+				{ input: { id: inventarioId, stockActual: newStockActual } },
+			);
+			setInventario((prev) =>
+				prev.map((item) =>
+					item.id === inventarioId
+						? { ...item, ...res.updateInventario }
+						: item,
+				),
+			);
+			flash(m.dashboardActionSuccess({}, { locale }));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setActionLoading(null);
+		}
+	}
+
+	async function handleCreateInventario() {
+		if (!selectedSedeId || !newStock.medicamentoId) return;
+		setActionLoading('create-inv');
+		setError('');
+		try {
+			const res = await gqlMutation<{ createInventario: InventarioItem }>(
+				CREATE_INVENTARIO,
+				{
+					input: {
+						medicamentoId: newStock.medicamentoId,
+						sedeId: selectedSedeId,
+						stockActual: newStock.stockActual,
+					},
+				},
+			);
+			setInventario((prev) => [...prev, res.createInventario]);
+			setNewStock({ medicamentoId: 0, stockActual: 0 });
 			flash(m.dashboardActionSuccess({}, { locale }));
 		} catch (err) {
 			setError(
@@ -714,6 +897,246 @@ export function NurseDashboardView({
 		);
 	}
 
+	// ── Sección de medicamentos / inventario por sede ──
+	function MedicinesSection() {
+		// Cargar datos al montar la sección
+		useEffect(() => {
+			if (medicines.length === 0) void loadMedicinesData();
+		}, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+		// Medicamentos que ya están en el inventario de la sede seleccionada
+		const inventarioMedIds = new Set(inventario.map((i) => i.medicamentoId));
+		// Medicamentos disponibles para agregar (no están ya en inventario)
+		const availableMeds = medicines.filter(
+			(med) => !inventarioMedIds.has(med.id),
+		);
+
+		return (
+			<div className="space-y-4">
+				{/* Selector de sede */}
+				<Card className="border-border/70">
+					<CardHeader className="pb-2">
+						<CardTitle className="flex items-center gap-2 text-base">
+							<BeakerIcon className="h-5 w-5 text-primary" />
+							{m.dashboardSidebarMedicines({}, { locale })}
+						</CardTitle>
+						<CardDescription>
+							{locale === 'es'
+								? 'Gestiona el stock de medicamentos por sede.'
+								: 'Manage medicine stock by location.'}
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						<div className="space-y-1">
+							<label
+								htmlFor="nurse-sede-select"
+								className="text-xs font-medium text-muted-foreground"
+							>
+								{locale === 'es' ? 'Sede' : 'Location'}
+							</label>
+							<Select
+								value={selectedSedeId ? String(selectedSedeId) : ''}
+								onValueChange={(v) => handleSedeChange(Number(v))}
+							>
+								<SelectTrigger id="nurse-sede-select" className="w-full">
+									<SelectValue
+										placeholder={
+											locale === 'es' ? 'Seleccionar sede' : 'Select location'
+										}
+									>
+										{sedes.find((s) => s.id === selectedSedeId)?.nombre ?? ''}
+									</SelectValue>
+								</SelectTrigger>
+								<SelectContent>
+									{sedes.map((s) => (
+										<SelectItem key={s.id} value={String(s.id)}>
+											{s.nombre}
+											{s.ciudad ? ` — ${s.ciudad}` : ''}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					</CardContent>
+				</Card>
+
+				{/* Inventario actual de la sede */}
+				{selectedSedeId && (
+					<Card className="border-border/70">
+						<CardHeader className="pb-2">
+							<CardTitle className="text-base">
+								{locale === 'es'
+									? 'Inventario de la sede'
+									: 'Location inventory'}
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-2">
+							{medicinesLoading ? (
+								[1, 2, 3].map((i) => (
+									<Skeleton key={i} className="h-16 rounded-xl" />
+								))
+							) : inventario.length === 0 ? (
+								<p className="text-sm text-muted-foreground">
+									{locale === 'es'
+										? 'No hay medicamentos registrados en esta sede.'
+										: 'No medicines registered at this location.'}
+								</p>
+							) : (
+								inventario.map((inv) => {
+									const med = medicines.find(
+										(m2) => m2.id === inv.medicamentoId,
+									);
+									return (
+										<div
+											key={inv.id}
+											className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/90 p-3"
+										>
+											<div className="min-w-0 flex-1">
+												<p className="truncate text-sm font-medium text-foreground">
+													{med?.nombreComercial ?? `#${inv.medicamentoId}`}
+												</p>
+												{med?.nombreGenerico && (
+													<p className="text-xs text-muted-foreground">
+														{med.nombreGenerico}
+													</p>
+												)}
+											</div>
+											<div className="flex items-center gap-2">
+												<Badge
+													variant={
+														inv.disponibilidad === 'DISPONIBLE'
+															? 'default'
+															: inv.disponibilidad === 'STOCK_BAJO'
+																? 'secondary'
+																: 'destructive'
+													}
+												>
+													{inv.disponibilidad === 'DISPONIBLE'
+														? locale === 'es'
+															? 'Disponible'
+															: 'Available'
+														: inv.disponibilidad === 'STOCK_BAJO'
+															? locale === 'es'
+																? 'Stock bajo'
+																: 'Low stock'
+															: locale === 'es'
+																? 'Agotado'
+																: 'Out of stock'}
+												</Badge>
+												<span className="text-xs tabular-nums text-muted-foreground">
+													{inv.stockActual} uds
+												</span>
+												<Input
+													type="number"
+													min={0}
+													defaultValue={inv.stockActual}
+													className="w-20 text-center text-xs"
+													aria-label={`Stock ${med?.nombreComercial ?? inv.medicamentoId}`}
+													onBlur={(e) => {
+														const val = Number(e.target.value);
+														if (!Number.isNaN(val) && val !== inv.stockActual) {
+															handleUpdateStock(inv.id, val);
+														}
+													}}
+												/>
+											</div>
+										</div>
+									);
+								})
+							)}
+						</CardContent>
+					</Card>
+				)}
+
+				{/* Agregar medicamento al inventario de la sede */}
+				{selectedSedeId && availableMeds.length > 0 && (
+					<Card className="border-border/70">
+						<CardHeader className="pb-2">
+							<CardTitle className="text-base">
+								{locale === 'es' ? 'Agregar medicamento' : 'Add medicine'}
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-3">
+							<div className="grid gap-3 sm:grid-cols-2">
+								<div className="space-y-1">
+									<label
+										htmlFor="nurse-med-select"
+										className="text-xs font-medium text-muted-foreground"
+									>
+										{locale === 'es' ? 'Medicamento' : 'Medicine'}
+									</label>
+									<Select
+										value={
+											newStock.medicamentoId
+												? String(newStock.medicamentoId)
+												: ''
+										}
+										onValueChange={(v) =>
+											setNewStock((prev) => ({
+												...prev,
+												medicamentoId: Number(v),
+											}))
+										}
+									>
+										<SelectTrigger id="nurse-med-select" className="w-full">
+											<SelectValue
+												placeholder={
+													locale === 'es' ? 'Seleccionar...' : 'Select...'
+												}
+											/>
+										</SelectTrigger>
+										<SelectContent>
+											{availableMeds.map((med) => (
+												<SelectItem key={med.id} value={String(med.id)}>
+													{med.nombreComercial}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+								<div className="space-y-1">
+									<label
+										htmlFor="nurse-stock-input"
+										className="text-xs font-medium text-muted-foreground"
+									>
+										{locale === 'es' ? 'Stock inicial' : 'Initial stock'}
+									</label>
+									<Input
+										id="nurse-stock-input"
+										type="number"
+										min={0}
+										value={newStock.stockActual}
+										onChange={(e) =>
+											setNewStock((prev) => ({
+												...prev,
+												stockActual: Number(e.target.value),
+											}))
+										}
+									/>
+								</div>
+							</div>
+							<Button
+								type="button"
+								onClick={handleCreateInventario}
+								disabled={
+									!newStock.medicamentoId || actionLoading === 'create-inv'
+								}
+								className="gap-2"
+							>
+								<PlusIcon className="h-4 w-4" />
+								{actionLoading === 'create-inv'
+									? m.dashboardActionSaving({}, { locale })
+									: locale === 'es'
+										? 'Agregar al inventario'
+										: 'Add to inventory'}
+							</Button>
+						</CardContent>
+					</Card>
+				)}
+			</div>
+		);
+	}
+
 	// ─── Subcomponentes de fila ───────────────────────────────────────────────
 
 	function SlotRow({
@@ -829,6 +1252,7 @@ export function NurseDashboardView({
 	const sectionTitles: Record<string, string> = {
 		overview: m.dashboardNurseOverviewTitle({}, { locale }),
 		disponibilidad: m.dashboardDoctorDisponibilidadTitle({}, { locale }),
+		medicines: m.dashboardSidebarMedicines({}, { locale }),
 		queue: m.dashboardNurseQueueTitle({}, { locale }),
 	};
 
@@ -838,6 +1262,8 @@ export function NurseDashboardView({
 				return <OverviewSection />;
 			case 'disponibilidad':
 				return <DisponibilidadSection />;
+			case 'medicines':
+				return <MedicinesSection />;
 			case 'queue':
 				return <QueueSection />;
 			default:

@@ -15,6 +15,7 @@ import {
 	DocumentTextIcon,
 	LinkIcon,
 	ListBulletIcon,
+	MapPinIcon,
 	MoonIcon,
 	PlayCircleIcon,
 	PuzzlePieceIcon,
@@ -88,6 +89,71 @@ function useInView(threshold = 0.15) {
 		return () => observer.disconnect();
 	}, [threshold]);
 	return { ref, inView };
+}
+
+// Hook de efecto typewriter: revela el texto carácter a carácter.
+// 'speed' controla el intervalo entre caracteres (ms). Se inicia solo cuando
+// 'enabled' es true (usualmente cuando la sección entra al viewport).
+function useTypewriter(text: string, speed = 45, enabled = true) {
+	const [displayed, setDisplayed] = useState('');
+	const [done, setDone] = useState(false);
+
+	useEffect(() => {
+		if (!enabled) return;
+		setDisplayed('');
+		setDone(false);
+		let i = 0;
+		const timer = setInterval(() => {
+			i++;
+			setDisplayed(text.slice(0, i));
+			if (i >= text.length) {
+				clearInterval(timer);
+				setDone(true);
+			}
+		}, speed);
+		return () => clearInterval(timer);
+	}, [text, speed, enabled]);
+
+	return { displayed, done };
+}
+
+// Componente de título con efecto typewriter + cursor parpadeante.
+// Combina IntersectionObserver para activar la animación solo al entrar al viewport.
+function TypewriterTitle({
+	text,
+	className,
+	as: Tag = 'h1',
+}: {
+	text: string;
+	className?: string;
+	as?: 'h1' | 'h2' | 'h3' | 'p';
+}) {
+	const { ref, inView } = useInView(0.3);
+	const prefersReduced = useReducedMotion();
+	const { displayed, done } = useTypewriter(
+		text,
+		40,
+		inView && !prefersReduced,
+	);
+
+	// Si prefiere movimiento reducido, muestra el texto completo inmediatamente
+	const content = prefersReduced ? text : displayed;
+
+	return (
+		<Tag ref={ref} className={className}>
+			{content}
+			{/* Cursor blink: parpadeo discreto que desaparece al terminar la animación.
+			    opacity [1,1,0,0] con linear simula un step de encendido/apagado. */}
+			{!prefersReduced && inView && !done && (
+				<motion.span
+					className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[0.1em] bg-primary"
+					animate={{ opacity: [1, 1, 0, 0] }}
+					transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+					aria-hidden="true"
+				/>
+			)}
+		</Tag>
+	);
 }
 
 // Wrapper de sección que revela su contenido con fade+slide al entrar al viewport.
@@ -675,9 +741,11 @@ function PlatformSlider({ locale }: { locale: AppLocale }) {
 					<p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
 						{m.homeLandingPlatformEyebrow({}, { locale })}
 					</p>
-					<h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-						{m.homeLandingPlatformTitle({}, { locale })}
-					</h2>
+					<TypewriterTitle
+						text={m.homeLandingPlatformTitle({}, { locale })}
+						as="h2"
+						className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
+					/>
 				</RevealSection>
 
 				{/* Área del slider — overflow-hidden evita que los slides salientes sean visibles */}
@@ -954,6 +1022,15 @@ export default function HomePage() {
 			aria-label={m.a11yLandmarkMain({}, { locale })}
 			className="relative overflow-x-clip bg-background text-foreground selection:bg-primary/20"
 		>
+			{/* Imagen de cielo de fondo — la misma usada en selección de hospital.
+			    opacity baja para no competir con el contenido, saturación sube
+			    levemente para dar calidez al landing. */}
+			<img
+				src="/images/register-background.svg"
+				alt=""
+				aria-hidden="true"
+				className="pointer-events-none absolute inset-0 -z-20 h-full w-full object-cover object-center opacity-30 saturate-125"
+			/>
 			<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_10%,color-mix(in_oklch,var(--color-primary)_20%,transparent),transparent_34%),radial-gradient(circle_at_80%_18%,color-mix(in_oklch,var(--color-secondary)_35%,white),transparent_30%),linear-gradient(180deg,color-mix(in_oklch,var(--color-background)_96%,white)_0%,color-mix(in_oklch,var(--color-secondary)_20%,white)_52%,var(--color-background)_100%)]" />
 
 			{/* ── NAVBAR ── */}
@@ -1146,9 +1223,11 @@ export default function HomePage() {
 							<span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
 							{m.homeLandingTrustedBadge({}, { locale })}
 						</Badge>
-						<h1 className="max-w-xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-							{m.homeLandingHeroTitle({}, { locale })}
-						</h1>
+						<TypewriterTitle
+							text={m.homeLandingHeroTitle({}, { locale })}
+							as="h1"
+							className="max-w-xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl"
+						/>
 						<p className="max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
 							{m.homeLandingHeroSubtitle({}, { locale })}
 						</p>
@@ -1202,16 +1281,30 @@ export default function HomePage() {
 							</div>
 						</div>
 
-						<Link
-							to={localePath('/register', locale)}
-							className={cn(
-								buttonVariants({ size: 'lg' }),
-								'inline-flex rounded-full px-5 transition-all duration-300 hover:-translate-y-0.5',
-							)}
-						>
-							{m.homeLandingHeroCta({}, { locale })}
-							<ArrowRightIcon className="h-4 w-4" />
-						</Link>
+						<div className="flex flex-wrap gap-3">
+							<Link
+								to={localePath('/register', locale)}
+								className={cn(
+									buttonVariants({ size: 'lg' }),
+									'inline-flex rounded-full px-5 transition-all duration-300 hover:-translate-y-0.5',
+								)}
+							>
+								{m.homeLandingHeroCta({}, { locale })}
+								<ArrowRightIcon className="h-4 w-4" />
+							</Link>
+							{/* Botón de acceso rápido a hospitales cercanos — usa variant outline
+							    para jerarquía visual secundaria respecto al CTA principal. */}
+							<Link
+								to={localePath('/nearby-hospitals', locale)}
+								className={cn(
+									buttonVariants({ variant: 'outline', size: 'lg' }),
+									'inline-flex gap-2 rounded-full px-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/60 hover:text-primary',
+								)}
+							>
+								<MapPinIcon className="h-4 w-4" />
+								{m.nearbyHospitalsQuickAccess({}, { locale })}
+							</Link>
+						</div>
 					</RevealSection>
 
 					{/* Columna derecha — desliza desde la derecha */}
@@ -1300,9 +1393,11 @@ export default function HomePage() {
 						<p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
 							{m.homeLandingServicesBuiltEyebrow({}, { locale })}
 						</p>
-						<h2 className="mt-3 text-4xl font-bold tracking-tight text-foreground">
-							{m.homeLandingServicesBuiltTitle({}, { locale })}
-						</h2>
+						<TypewriterTitle
+							text={m.homeLandingServicesBuiltTitle({}, { locale })}
+							as="h2"
+							className="mt-3 text-4xl font-bold tracking-tight text-foreground"
+						/>
 						<p className="mt-3 text-sm leading-relaxed text-muted-foreground">
 							{m.homeLandingServicesBuiltDescription({}, { locale })}
 						</p>

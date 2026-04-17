@@ -17,6 +17,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
+import { Input } from '@/components/ui/input/input.component';
 import {
 	Select,
 	SelectContent,
@@ -35,6 +36,7 @@ import {
 } from '@/lib/graphql-client';
 import type { RoleViewProps } from './dashboard-role.types';
 import { PatientAiSection } from './patient-ai.section';
+import { PatientTriageSection } from './patient-triage.section';
 import { RoleDashboardShell } from './role-dashboard-shell';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -88,11 +90,58 @@ interface SlotDisponible {
 	duracionMinutos: number;
 }
 
+interface MedicineItem {
+	id: number;
+	nombreComercial: string;
+	nombreGenerico?: string;
+	presentacion?: string;
+	requiereReceta: boolean;
+}
+
+interface InventarioItem {
+	id: number;
+	medicamentoId: number;
+	sedeId: number;
+	stockActual: number;
+	disponibilidad: string;
+	precio?: string;
+}
+
+interface SedeItem {
+	id: number;
+	nombre: string;
+	direccion?: string;
+	ciudad?: string;
+}
+
+interface ConsentimientoPatient {
+	id: number;
+	pacienteId: string;
+	tipoConsentimiento: string;
+	consentimientoOtorgado: boolean;
+	fechaConsentimiento: string;
+	revocado: boolean;
+	fechaRevocacion: string | null;
+}
+
+interface RecetaPatient {
+	id: number;
+	historialId: string;
+	medicamentoId: number;
+	dosis: string | null;
+	frecuencia: string | null;
+	duracionDias: number | null;
+	observaciones: string | null;
+}
+
 // ─── Queries & Mutations ──────────────────────────────────────────────────────
 
-const PATIENTS_QUERY = `
-	query PatientProfile {
-		patients {
+// myPatientProfile usa @CurrentUser() en el backend: el paciente solo accede a
+// SU propio perfil sin necesitar permisos sobre el listado completo de pacientes
+// (que es PHI restringido a personal clínico/administrativo).
+const MY_PATIENT_PROFILE_QUERY = `
+	query MyPatientProfile {
+		myPatientProfile {
 			id
 			usuarioId
 			tipoSangre
@@ -231,10 +280,97 @@ const CANCEL_TURN = `
 	}
 `;
 
+// Medicamentos: catálogo, inventario por medicamento y sedes
+const MEDICINES_QUERY = `
+	query PatientMedicines($busqueda: String) {
+		medicines(busqueda: $busqueda) {
+			id
+			nombreComercial
+			nombreGenerico
+			presentacion
+			requiereReceta
+		}
+	}
+`;
+
+const INVENTARIO_BY_MEDICAMENTO_QUERY = `
+	query InventarioByMedicamento($medicamentoId: Int!) {
+		inventarioByMedicamento(medicamentoId: $medicamentoId) {
+			id
+			medicamentoId
+			sedeId
+			stockActual
+			disponibilidad
+			precio
+		}
+	}
+`;
+
+const SEDES_QUERY = `
+	query Sedes {
+		sedes {
+			id
+			nombre
+			direccion
+			ciudad
+		}
+	}
+`;
+
+// ── Consentimientos informados del paciente (solo lectura) ──
+// Ley 23/1981 Art. 15 Colombia: el paciente tiene derecho a conocer los
+// consentimientos que ha otorgado y su estado (vigente/revocado).
+const MY_CONSENTIMIENTOS_QUERY = `
+	query MisConsentimientos($pacienteId: ID!) {
+		consentimientosByPaciente(pacienteId: $pacienteId) {
+			id pacienteId tipoConsentimiento consentimientoOtorgado
+			fechaConsentimiento revocado fechaRevocacion
+		}
+	}
+`;
+
+// Mutation para que el paciente otorgue o deniegue un consentimiento.
+// revocarConsentimiento marca el consentimiento como revocado (denegado).
+const REVOCAR_CONSENTIMIENTO = `
+	mutation RevocarConsentimientoPaciente($id: Int!) {
+		revocarConsentimiento(id: $id) {
+			id revocado fechaRevocacion
+		}
+	}
+`;
+
+// ── Recetas del paciente (a través de su historial) ──
+const RECETAS_BY_HISTORIAL_QUERY = `
+	query RecetasPaciente($historialId: ID!) {
+		recetasByHistorial(historialId: $historialId) {
+			id historialId medicamentoId dosis frecuencia duracionDias observaciones
+		}
+	}
+`;
+
+const MEDICINES_CATALOG_QUERY = `
+	query MedicinesCatalog {
+		medicines { id nombreComercial nombreGenerico presentacion requiereReceta }
+	}
+`;
+
 // Cancelar cita del paciente
 const CANCEL_APPOINTMENT = `
 	mutation CancelPatientAppointment($input: CancelAppoinmentInput!) {
 		cancelAppoinment(input: $input) { id estado }
+	}
+`;
+
+// Mutation para que el usuario actualice su propio perfil (nombre, apellido, teléfono).
+// Usa el mutation updateMyProfile que valida el JWT para editar solo el registro propio.
+const UPDATE_MY_PROFILE = `
+	mutation UpdateMyProfile($input: UpdateMyProfileInput!) {
+		updateMyProfile(input: $input) {
+			id
+			nombre
+			apellido
+			telefono
+		}
 	}
 `;
 
@@ -311,6 +447,23 @@ function uniqueTurnConflictRetryMessage(locale: AppLocale) {
 	return 'The turn could not be created due to a temporary numbering conflict. Please try again in a few seconds.';
 }
 
+// Mapa de especialidades — sincronizado con el backend (tabla especialidades)
+const SPECIALTY_MAP: Record<number, { es: string; en: string }> = {
+	1: { es: 'Medicina General', en: 'General Medicine' },
+	2: { es: 'Cardiología', en: 'Cardiology' },
+	3: { es: 'Pediatría', en: 'Pediatrics' },
+	4: { es: 'Dermatología', en: 'Dermatology' },
+	5: { es: 'Ginecología', en: 'Gynecology' },
+	6: { es: 'Neurología', en: 'Neurology' },
+	7: { es: 'Ortopedia', en: 'Orthopedics' },
+};
+
+function specialtyLabel(id: number, locale: AppLocale): string {
+	const entry = SPECIALTY_MAP[id];
+	if (!entry) return `#${id}`;
+	return locale === 'es' ? entry.es : entry.en;
+}
+
 function doctorDisplayName(doctor: Doctor, locale: AppLocale) {
 	const fullName = `${doctor.nombre ?? ''} ${doctor.apellido ?? ''}`.trim();
 	return fullName || m.dashboardPatientDoctorUnnamed({}, { locale });
@@ -318,7 +471,10 @@ function doctorDisplayName(doctor: Doctor, locale: AppLocale) {
 
 function doctorDisplayLabel(doctor: Doctor, locale: AppLocale) {
 	const name = doctorDisplayName(doctor, locale);
-	return doctor.consultorio ? `${name} - ${doctor.consultorio}` : name;
+	const spec = specialtyLabel(doctor.especialidadId, locale);
+	const parts = [name, spec];
+	if (doctor.consultorio) parts.push(doctor.consultorio);
+	return parts.join(' — ');
 }
 
 function toLocalDateValue(date: Date) {
@@ -404,6 +560,32 @@ export function PatientDashboardView({
 	const [successMsg, setSuccessMsg] = useState('');
 	const [actionLoading, setActionLoading] = useState<string | null>(null);
 	const [isWaitingRoomOpen, setIsWaitingRoomOpen] = useState(false);
+	const [specialtyFilter, setSpecialtyFilter] = useState<string>('');
+	const [medicineSearch, setMedicineSearch] = useState('');
+	const [medicinesList, setMedicinesList] = useState<MedicineItem[]>([]);
+	const [sedes, setSedes] = useState<SedeItem[]>([]);
+	const [selectedMedicineInventory, setSelectedMedicineInventory] = useState<
+		InventarioItem[]
+	>([]);
+	const [selectedMedicineId, setSelectedMedicineId] = useState<number | null>(
+		null,
+	);
+	const [medicinesLoading, setMedicinesLoading] = useState(false);
+
+	// ── Estado de consentimientos y recetas del paciente ──
+	const [myConsentimientos, setMyConsentimientos] = useState<
+		ConsentimientoPatient[]
+	>([]);
+	const [myRecetas, setMyRecetas] = useState<RecetaPatient[]>([]);
+	const [medicineCatalog, setMedicineCatalog] = useState<MedicineItem[]>([]);
+
+	// Estado del formulario de perfil personal
+	const [profileForm, setProfileForm] = useState({
+		nombre: user.nombre,
+		apellido: user.apellido,
+		telefono: '',
+	});
+	const [profileLoading, setProfileLoading] = useState(false);
 
 	// Formulario de agendar cita
 	const [booking, setBooking] = useState({
@@ -414,18 +596,19 @@ export function PatientDashboardView({
 	});
 
 	const loadProfile = useCallback(async () => {
-		const res = await gqlQuery<{ patients: PatientProfile[] }>(PATIENTS_QUERY);
-		const normalizedUserId = String(user.id);
-		const mine = res.patients.find(
-			(p) => String(p.usuarioId) === normalizedUserId,
+		// myPatientProfile devuelve null si el usuario autenticado no tiene perfil
+		// de paciente creado aún, sin requerir acceso al listado completo (PHI).
+		const res = await gqlQuery<{ myPatientProfile: PatientProfile | null }>(
+			MY_PATIENT_PROFILE_QUERY,
 		);
+		const mine = res.myPatientProfile;
 		if (!mine) {
 			setMissingProfile(true);
 			return null;
 		}
 		setPatientId(mine.id);
 		return mine;
-	}, [user.id]);
+	}, []);
 
 	const loadData = useCallback(async () => {
 		setLoading(true);
@@ -605,6 +788,57 @@ export function PatientDashboardView({
 		if (section !== 'queue') setIsWaitingRoomOpen(false);
 	}, [section]);
 
+	// Cargador de consentimientos — se usa como efecto dentro de la sección.
+	// Componente inline que dispara la carga al montarse (patrón "loader component").
+	function ConsentimientosLoader({
+		patientId: pid,
+	}: {
+		patientId: string | null;
+	}) {
+		useEffect(() => {
+			if (!pid) return;
+			gqlQuery<{ consentimientosByPaciente: ConsentimientoPatient[] }>(
+				MY_CONSENTIMIENTOS_QUERY,
+				{ pacienteId: pid },
+			)
+				.then((res) => setMyConsentimientos(res.consentimientosByPaciente))
+				.catch(() => {});
+		}, [pid]);
+		return null;
+	}
+
+	// Cargador de recetas — recorre todos los historiales del paciente
+	function RecetasLoader({ patientId: pid }: { patientId: string | null }) {
+		useEffect(() => {
+			if (!pid || historial.length === 0) return;
+			// Cargar catálogo de medicamentos para mostrar nombres
+			const loadCatalog =
+				medicineCatalog.length === 0
+					? gqlQuery<{ medicines: MedicineItem[] }>(
+							MEDICINES_CATALOG_QUERY,
+						).then((res) => {
+							setMedicineCatalog(res.medicines);
+							return res.medicines;
+						})
+					: Promise.resolve(medicineCatalog);
+
+			// Cargar recetas de todos los historiales del paciente
+			void loadCatalog.then(() => {
+				Promise.all(
+					historial.map((h) =>
+						gqlQuery<{ recetasByHistorial: RecetaPatient[] }>(
+							RECETAS_BY_HISTORIAL_QUERY,
+							{ historialId: h.id },
+						).then((res) => res.recetasByHistorial),
+					),
+				)
+					.then((results) => setMyRecetas(results.flat()))
+					.catch(() => {});
+			});
+		}, [pid]); // eslint-disable-line react-hooks/exhaustive-deps
+		return null;
+	}
+
 	function flash(msg: string) {
 		setSuccessMsg(msg);
 		setTimeout(() => setSuccessMsg(''), 3000);
@@ -709,6 +943,44 @@ export function PatientDashboardView({
 		}
 	}
 
+	// ── Acción: buscar medicamentos ──
+	async function handleSearchMedicines(query?: string) {
+		setMedicinesLoading(true);
+		try {
+			const [medsRes, sedesRes] = await Promise.all([
+				gqlQuery<{ medicines: MedicineItem[] }>(MEDICINES_QUERY, {
+					busqueda: query || undefined,
+				}),
+				sedes.length === 0
+					? gqlQuery<{ sedes: SedeItem[] }>(SEDES_QUERY)
+					: Promise.resolve({ sedes }),
+			]);
+			setMedicinesList(medsRes.medicines);
+			if (sedesRes.sedes !== sedes) setSedes(sedesRes.sedes);
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setMedicinesLoading(false);
+		}
+	}
+
+	async function handleSelectMedicine(medicamentoId: number) {
+		setSelectedMedicineId(medicamentoId);
+		try {
+			const res = await gqlQuery<{ inventarioByMedicamento: InventarioItem[] }>(
+				INVENTARIO_BY_MEDICAMENTO_QUERY,
+				{ medicamentoId },
+			);
+			setSelectedMedicineInventory(res.inventarioByMedicamento);
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		}
+	}
+
 	// ── Acción: crear turno ──
 	// El paciente puede unirse a la cola del hospital directamente.
 	// hospitalId viene de selectedHospitalId (hospital seleccionado al iniciar sesión).
@@ -790,6 +1062,35 @@ export function PatientDashboardView({
 			}
 		} finally {
 			setActionLoading(null);
+		}
+	}
+
+	// ── Acción: actualizar perfil personal ──
+	async function handleUpdateProfile() {
+		setProfileLoading(true);
+		setError('');
+		try {
+			const input: Record<string, string> = {};
+			if (profileForm.nombre.trim() && profileForm.nombre !== user.nombre)
+				input.nombre = profileForm.nombre.trim();
+			if (profileForm.apellido.trim() && profileForm.apellido !== user.apellido)
+				input.apellido = profileForm.apellido.trim();
+			if (profileForm.telefono.trim())
+				input.telefono = profileForm.telefono.trim();
+
+			if (Object.keys(input).length === 0) {
+				setProfileLoading(false);
+				return;
+			}
+
+			await gqlMutation(UPDATE_MY_PROFILE, { input });
+			flash(m.dashboardActionSuccess({}, { locale }));
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : m.rootErrorTitle({}, { locale }),
+			);
+		} finally {
+			setProfileLoading(false);
 		}
 	}
 
@@ -900,6 +1201,11 @@ export function PatientDashboardView({
 	const showAi = section === 'ai';
 	const showGame = section === 'queue' && isWaitingRoomOpen;
 	const showHistorial = section === 'historial';
+	const showMedicines = section === 'medicines';
+	const showConsentimientos = section === 'consentimientos';
+	const showRecetas = section === 'recetas';
+	const showTriage = section === 'triage';
+	const showProfile = section === 'profile';
 	const _showQueueList = showQueue && !(section === 'queue' && showGame);
 	const headerSubtitle =
 		section === 'ai'
@@ -909,14 +1215,28 @@ export function PatientDashboardView({
 	// ─── Sección de citas con formulario de agendado ──────────────────────────
 
 	function AppointmentBookingForm() {
+		const specialtySelectId = 'patient-booking-specialty';
 		const doctorSelectId = 'patient-booking-doctor';
 		const doctorHelpId = 'patient-booking-doctor-help';
 		const doctorEmptyStateId = 'patient-booking-doctor-empty';
 		const dateInputId = 'patient-booking-calendar';
 		const slotSelectId = 'patient-booking-slot';
 		const reasonInputId = 'patient-booking-reason';
+		// Filtrar médicos por especialidad cuando el paciente selecciona una
+		const filteredDoctors = specialtyFilter
+			? doctors.filter((d) => String(d.especialidadId) === specialtyFilter)
+			: doctors;
+		// Extraer especialidades únicas de los médicos disponibles
+		const availableSpecialties = [
+			...new Map(
+				doctors.map((d) => [
+					d.especialidadId,
+					specialtyLabel(d.especialidadId, locale),
+				]),
+			),
+		].sort((a, b) => a[1].localeCompare(b[1]));
 		const selectedDoctor =
-			doctors.find((d) => d.id === booking.medicoId) ?? null;
+			filteredDoctors.find((d) => d.id === booking.medicoId) ?? null;
 		const selectedDate = fromLocalDateValue(booking.fecha);
 		const selectedSlot =
 			slots.find((s) => s.fechaHora === booking.slot) ?? null;
@@ -951,7 +1271,49 @@ export function PatientDashboardView({
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					{/* Paso 1: seleccionar médico */}
+					{/* Paso 1a: filtrar por especialidad */}
+					<div className="space-y-2">
+						<label
+							htmlFor={specialtySelectId}
+							className="text-xs font-medium text-muted-foreground"
+						>
+							{m.dashboardPatientFilterBySpecialty({}, { locale })}
+						</label>
+						<Select
+							value={specialtyFilter}
+							onValueChange={(v) => {
+								setSpecialtyFilter(!v || v === '__all__' ? '' : v);
+								setBooking((prev) => ({
+									...prev,
+									medicoId: '',
+									fecha: '',
+									slot: '',
+								}));
+							}}
+						>
+							<SelectTrigger id={specialtySelectId} className="w-full">
+								<SelectValue
+									placeholder={m.dashboardPatientAllSpecialties({}, { locale })}
+								>
+									{specialtyFilter
+										? specialtyLabel(Number(specialtyFilter), locale)
+										: m.dashboardPatientAllSpecialties({}, { locale })}
+								</SelectValue>
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="__all__">
+									{m.dashboardPatientAllSpecialties({}, { locale })}
+								</SelectItem>
+								{availableSpecialties.map(([id, label]) => (
+									<SelectItem key={id} value={String(id)}>
+										{label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+
+					{/* Paso 1b: seleccionar médico */}
 					<div className="space-y-2">
 						<label
 							htmlFor={doctorSelectId}
@@ -961,7 +1323,7 @@ export function PatientDashboardView({
 						</label>
 						<Select
 							value={booking.medicoId}
-							disabled={loading || doctors.length === 0}
+							disabled={loading || filteredDoctors.length === 0}
 							onValueChange={(v) =>
 								setBooking((prev) => ({
 									...prev,
@@ -977,7 +1339,7 @@ export function PatientDashboardView({
 								aria-describedby={
 									selectedDoctor
 										? doctorHelpId
-										: !loading && doctors.length === 0
+										: !loading && filteredDoctors.length === 0
 											? doctorEmptyStateId
 											: undefined
 								}
@@ -992,7 +1354,7 @@ export function PatientDashboardView({
 								</SelectValue>
 							</SelectTrigger>
 							<SelectContent className="w-[min(94vw,36rem)]">
-								{doctors.map((d) => {
+								{filteredDoctors.map((d) => {
 									const label = doctorDisplayLabel(d, locale);
 									return (
 										<SelectItem
@@ -1025,7 +1387,7 @@ export function PatientDashboardView({
 								{doctorDisplayLabel(selectedDoctor, locale)}
 							</p>
 						)}
-						{!loading && doctors.length === 0 && (
+						{!loading && filteredDoctors.length === 0 && (
 							<p
 								id={doctorEmptyStateId}
 								className="text-xs text-muted-foreground"
@@ -1359,6 +1721,321 @@ export function PatientDashboardView({
 				</Alert>
 			)}
 
+			{/* ── Consentimientos informados ── */}
+			{showConsentimientos && (
+				<section aria-label={m.dashboardSidebarConsentimientos({}, { locale })}>
+					<Card className="border-border/70">
+						<CardHeader className="pb-2">
+							<CardTitle className="text-base">
+								{locale === 'es'
+									? 'Mis consentimientos informados'
+									: 'My informed consents'}
+							</CardTitle>
+							<CardDescription>
+								{locale === 'es'
+									? 'Registro de autorizaciones otorgadas para procedimientos y tratamientos (Ley 23/1981).'
+									: 'Record of authorizations granted for procedures and treatments.'}
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-2">
+							{/* ConsentimientosLoader dispara la carga al montarse como componente JSX.
+							    Esto evita el problema de hooks condicionales: React lo trata como
+							    componente independiente con su propio useEffect. */}
+							<ConsentimientosLoader patientId={patientId} />
+							{myConsentimientos.length === 0 ? (
+								<p className="text-sm text-muted-foreground">
+									{locale === 'es'
+										? 'No tienes consentimientos registrados.'
+										: 'You have no registered consents.'}
+								</p>
+							) : (
+								myConsentimientos.map((c) => (
+									<div
+										key={c.id}
+										className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/90 p-3"
+									>
+										<div className="min-w-0 flex-1">
+											<p className="text-sm font-medium text-foreground">
+												{c.tipoConsentimiento}
+											</p>
+											<p className="text-xs text-muted-foreground">
+												{new Date(c.fechaConsentimiento).toLocaleDateString(
+													locale,
+													{
+														day: '2-digit',
+														month: 'long',
+														year: 'numeric',
+													},
+												)}
+											</p>
+										</div>
+										<div className="flex items-center gap-2">
+											<Badge
+												variant={
+													c.revocado
+														? 'destructive'
+														: c.consentimientoOtorgado
+															? 'default'
+															: 'secondary'
+												}
+											>
+												{c.revocado
+													? m.consentimientoRevoked({}, { locale })
+													: c.consentimientoOtorgado
+														? m.consentimientoGranted({}, { locale })
+														: m.consentimientoDenied({}, { locale })}
+											</Badge>
+											{/* El paciente puede revocar (denegar) un consentimiento vigente.
+											    Una vez revocado el estado es irreversible desde el frontend
+											    (Ley 23/1981 Art. 15: revocación queda en historial). */}
+											{!c.revocado && c.consentimientoOtorgado && (
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													disabled={actionLoading === `revoke-${c.id}`}
+													onClick={async () => {
+														setActionLoading(`revoke-${c.id}`);
+														try {
+															const res = await gqlMutation<{
+																revocarConsentimiento: {
+																	id: number;
+																	revocado: boolean;
+																	fechaRevocacion: string;
+																};
+															}>(REVOCAR_CONSENTIMIENTO, { id: c.id });
+															setMyConsentimientos((prev) =>
+																prev.map((item) =>
+																	item.id === c.id
+																		? {
+																				...item,
+																				revocado: true,
+																				fechaRevocacion:
+																					res.revocarConsentimiento
+																						.fechaRevocacion,
+																			}
+																		: item,
+																),
+															);
+															flash(
+																m.consentimientoUpdateSuccess({}, { locale }),
+															);
+														} catch {
+															setError(
+																m.consentimientoUpdateError({}, { locale }),
+															);
+														} finally {
+															setActionLoading(null);
+														}
+													}}
+												>
+													{m.consentimientoDeny({}, { locale })}
+												</Button>
+											)}
+										</div>
+									</div>
+								))
+							)}
+						</CardContent>
+					</Card>
+				</section>
+			)}
+
+			{/* ── Recetas médicas del paciente ── */}
+			{showRecetas && (
+				<section aria-label={m.dashboardSidebarRecetas({}, { locale })}>
+					<Card className="border-border/70">
+						<CardHeader className="pb-2">
+							<CardTitle className="text-base">
+								{locale === 'es' ? 'Mis recetas médicas' : 'My prescriptions'}
+							</CardTitle>
+							<CardDescription>
+								{locale === 'es'
+									? 'Recetas prescritas por tus médicos vinculadas a tu historial clínico.'
+									: 'Prescriptions written by your doctors linked to your medical history.'}
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-2">
+							<RecetasLoader patientId={patientId} />
+							{myRecetas.length === 0 ? (
+								<p className="text-sm text-muted-foreground">
+									{locale === 'es'
+										? 'No tienes recetas médicas registradas.'
+										: 'You have no registered prescriptions.'}
+								</p>
+							) : (
+								myRecetas.map((r) => {
+									const med = medicineCatalog.find(
+										(m2) => m2.id === r.medicamentoId,
+									);
+									return (
+										<div
+											key={r.id}
+											className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/90 p-3"
+										>
+											<div className="min-w-0 flex-1">
+												<p className="text-sm font-semibold text-foreground">
+													{med?.nombreComercial ?? `#${r.medicamentoId}`}
+												</p>
+												<div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+													{r.dosis && (
+														<span>
+															{locale === 'es' ? 'Dosis' : 'Dose'}: {r.dosis}
+														</span>
+													)}
+													{r.frecuencia && (
+														<span>
+															{locale === 'es' ? 'Frecuencia' : 'Frequency'}:{' '}
+															{r.frecuencia}
+														</span>
+													)}
+													{r.duracionDias && (
+														<span>
+															{r.duracionDias}{' '}
+															{locale === 'es' ? 'días' : 'days'}
+														</span>
+													)}
+												</div>
+												{r.observaciones && (
+													<p className="mt-1 text-xs text-muted-foreground/80">
+														{r.observaciones}
+													</p>
+												)}
+											</div>
+											{med?.requiereReceta && (
+												<Badge variant="secondary" className="text-[10px]">
+													{locale === 'es'
+														? 'Requiere receta'
+														: 'Prescription required'}
+												</Badge>
+											)}
+										</div>
+									);
+								})
+							)}
+						</CardContent>
+					</Card>
+				</section>
+			)}
+
+			{/* ── Perfil personal ── */}
+			{showProfile && (
+				<section aria-label={m.dashboardSidebarProfile({}, { locale })}>
+					<Card className="border-border/70">
+						<CardHeader className="pb-2">
+							<CardTitle className="text-base">
+								{locale === 'es'
+									? 'Información personal'
+									: 'Personal information'}
+							</CardTitle>
+							<CardDescription>
+								{locale === 'es'
+									? 'Actualiza tu nombre, apellido y teléfono de contacto.'
+									: 'Update your name, last name and phone number.'}
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							{/* Grid responsivo: 2 columnas en escritorio, 1 en móvil */}
+							<div className="grid gap-4 sm:grid-cols-2">
+								<div className="space-y-1">
+									<label
+										htmlFor="profile-nombre"
+										className="text-xs font-medium text-muted-foreground"
+									>
+										{m.authRegisterLabelNombre({}, { locale })}
+									</label>
+									<Input
+										id="profile-nombre"
+										value={profileForm.nombre}
+										onChange={(e) =>
+											setProfileForm((prev) => ({
+												...prev,
+												nombre: e.target.value,
+											}))
+										}
+										placeholder={user.nombre}
+									/>
+								</div>
+								<div className="space-y-1">
+									<label
+										htmlFor="profile-apellido"
+										className="text-xs font-medium text-muted-foreground"
+									>
+										{m.authRegisterLabelApellido({}, { locale })}
+									</label>
+									<Input
+										id="profile-apellido"
+										value={profileForm.apellido}
+										onChange={(e) =>
+											setProfileForm((prev) => ({
+												...prev,
+												apellido: e.target.value,
+											}))
+										}
+										placeholder={user.apellido}
+									/>
+								</div>
+							</div>
+							<div className="space-y-1">
+								<label
+									htmlFor="profile-telefono"
+									className="text-xs font-medium text-muted-foreground"
+								>
+									{m.authRegisterLabelTelefono({}, { locale })}
+								</label>
+								<Input
+									id="profile-telefono"
+									type="tel"
+									value={profileForm.telefono}
+									onChange={(e) =>
+										setProfileForm((prev) => ({
+											...prev,
+											telefono: e.target.value,
+										}))
+									}
+									placeholder={
+										locale === 'es' ? '+57 300 123 4567' : '+1 555 123 4567'
+									}
+								/>
+							</div>
+
+							{/* Info de solo lectura: email y rol */}
+							<div className="grid gap-4 sm:grid-cols-2">
+								<div className="space-y-1">
+									<p className="text-xs font-medium text-muted-foreground">
+										{m.authRegisterLabelEmail({}, { locale })}
+									</p>
+									<p className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+										{user.email}
+									</p>
+								</div>
+								<div className="space-y-1">
+									<p className="text-xs font-medium text-muted-foreground">
+										{m.authRegisterLabelRol({}, { locale })}
+									</p>
+									<p className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+										{user.rol}
+									</p>
+								</div>
+							</div>
+
+							<Button
+								type="button"
+								onClick={handleUpdateProfile}
+								disabled={profileLoading}
+								className="gap-2"
+							>
+								{profileLoading
+									? m.dashboardActionSaving({}, { locale })
+									: locale === 'es'
+										? 'Guardar cambios'
+										: 'Save changes'}
+							</Button>
+						</CardContent>
+					</Card>
+				</section>
+			)}
+
 			{/* ── Historial médico ── */}
 			{showHistorial && (
 				<div className="space-y-4">
@@ -1644,7 +2321,176 @@ export function PatientDashboardView({
 				</section>
 			)}
 
+			{showTriage && <PatientTriageSection locale={locale} />}
+
 			{showAi && <PatientAiSection locale={locale} />}
+
+			{showMedicines && (
+				<section aria-label={m.dashboardSidebarMedicines({}, { locale })}>
+					<Card className="border-border/70">
+						<CardHeader className="pb-2">
+							<CardTitle className="text-base">
+								{m.dashboardPatientMedicinesTitle({}, { locale })}
+							</CardTitle>
+							<CardDescription>
+								{m.dashboardPatientMedicinesSubtitle({}, { locale })}
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							{/* Buscador de medicamentos */}
+							<div className="flex gap-2">
+								<Input
+									id="patient-medicine-search"
+									value={medicineSearch}
+									onChange={(e) => setMedicineSearch(e.target.value)}
+									placeholder={m.dashboardPatientMedicinesSearchPlaceholder(
+										{},
+										{ locale },
+									)}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter')
+											void handleSearchMedicines(medicineSearch);
+									}}
+								/>
+								<Button
+									type="button"
+									onClick={() => void handleSearchMedicines(medicineSearch)}
+									disabled={medicinesLoading}
+								>
+									{medicinesLoading
+										? m.dashboardActionSaving({}, { locale })
+										: m.dashboardPatientMedicinesSearchAction({}, { locale })}
+								</Button>
+							</div>
+
+							{/* Lista de medicamentos */}
+							{medicinesList.length > 0 && (
+								<div className="space-y-2">
+									{medicinesList.map((med) => {
+										const isSelected = selectedMedicineId === med.id;
+										return (
+											<div key={med.id}>
+												<button
+													type="button"
+													onClick={() => void handleSelectMedicine(med.id)}
+													className={`w-full rounded-xl border p-3 text-left transition-colors ${
+														isSelected
+															? 'border-primary bg-primary/5'
+															: 'border-border/70 hover:bg-muted/30'
+													}`}
+												>
+													<div className="flex flex-wrap items-center justify-between gap-2">
+														<div className="space-y-0.5">
+															<p className="text-sm font-medium">
+																{med.nombreComercial}
+															</p>
+															{med.nombreGenerico && (
+																<p className="text-xs text-muted-foreground">
+																	{med.nombreGenerico}
+																</p>
+															)}
+														</div>
+														<div className="flex gap-2">
+															{med.presentacion && (
+																<Badge variant="outline">
+																	{med.presentacion}
+																</Badge>
+															)}
+															{med.requiereReceta && (
+																<Badge variant="secondary">
+																	{m.dashboardMedicinesFieldRequiresPrescription(
+																		{},
+																		{ locale },
+																	)}
+																</Badge>
+															)}
+														</div>
+													</div>
+												</button>
+
+												{/* Disponibilidad por sede */}
+												{isSelected && selectedMedicineInventory.length > 0 && (
+													<div className="mt-2 ml-4 space-y-1.5">
+														{selectedMedicineInventory.map((inv) => {
+															const sede = sedes.find(
+																(s) => s.id === inv.sedeId,
+															);
+															return (
+																<div
+																	key={inv.id}
+																	className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/20 p-2.5"
+																>
+																	<div>
+																		<p className="text-sm font-medium">
+																			{sede?.nombre ?? `Sede #${inv.sedeId}`}
+																		</p>
+																		{sede?.direccion && (
+																			<p className="text-xs text-muted-foreground">
+																				{sede.direccion}
+																				{sede.ciudad ? ` — ${sede.ciudad}` : ''}
+																			</p>
+																		)}
+																	</div>
+																	<div className="flex items-center gap-2">
+																		<Badge
+																			variant={
+																				inv.disponibilidad === 'DISPONIBLE'
+																					? 'default'
+																					: inv.disponibilidad === 'STOCK_BAJO'
+																						? 'secondary'
+																						: 'destructive'
+																			}
+																		>
+																			{inv.disponibilidad === 'DISPONIBLE'
+																				? m.dashboardPatientMedicineAvailable(
+																						{},
+																						{ locale },
+																					)
+																				: inv.disponibilidad === 'STOCK_BAJO'
+																					? m.dashboardPatientMedicineLowStock(
+																							{},
+																							{ locale },
+																						)
+																					: m.dashboardPatientMedicineOutOfStock(
+																							{},
+																							{ locale },
+																						)}
+																		</Badge>
+																		{inv.precio && (
+																			<span className="text-xs font-medium text-foreground">
+																				${inv.precio}
+																			</span>
+																		)}
+																	</div>
+																</div>
+															);
+														})}
+													</div>
+												)}
+												{isSelected &&
+													selectedMedicineInventory.length === 0 && (
+														<p className="mt-2 ml-4 text-xs text-muted-foreground">
+															{m.dashboardPatientMedicinesNoStock(
+																{},
+																{ locale },
+															)}
+														</p>
+													)}
+											</div>
+										);
+									})}
+								</div>
+							)}
+
+							{medicinesList.length === 0 && !medicinesLoading && (
+								<p className="text-sm text-muted-foreground">
+									{m.dashboardPatientMedicinesEmpty({}, { locale })}
+								</p>
+							)}
+						</CardContent>
+					</Card>
+				</section>
+			)}
 		</RoleDashboardShell>
 	);
 }

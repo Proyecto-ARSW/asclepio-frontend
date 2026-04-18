@@ -121,6 +121,7 @@ export function NewTriageForm({
 
 	return (
 		<form
+			aria-label={content.formTitle}
 			onSubmit={(event) => {
 				event.preventDefault();
 				void form.handleSubmit();
@@ -141,11 +142,13 @@ export function NewTriageForm({
 						</FieldLabel>
 						<Input
 							id={field.name}
+							aria-describedby="triage-patient-id-desc"
 							value={field.state.value}
 							onBlur={field.handleBlur}
 							onChange={(event) => field.handleChange(event.target.value)}
 							required
 						/>
+						<p id="triage-patient-id-desc" className="sr-only">{content.patientIdDesc}</p>
 						<FieldError
 							errors={field.state.meta.errors.map((message) => ({ message }))}
 						/>
@@ -265,3 +268,5 @@ export function NewTriageForm({
 		</form>
 	);
 }
+
+// Daniel Useche

@@ -31,6 +31,7 @@ export function TriageCommentForm({
 
 	return (
 		<form
+			aria-label={content.forms.comment.formLabel}
 			onSubmit={(event) => {
 				event.preventDefault();
 				void form.handleSubmit();
@@ -51,12 +52,14 @@ export function TriageCommentForm({
 						</FieldLabel>
 						<Textarea
 							id={field.name}
+							aria-describedby="triage-comment-desc"
 							value={field.state.value}
 							onBlur={field.handleBlur}
 							onChange={(event) => field.handleChange(event.target.value)}
 							placeholder={content.forms.comment.placeholder}
 							disabled={disabled}
 						/>
+						<p id="triage-comment-desc" className="sr-only">{content.forms.comment.commentDesc}</p>
 						<FieldError
 							errors={field.state.meta.errors.map((message) => ({ message }))}
 						/>
@@ -81,3 +84,5 @@ export function TriageCommentForm({
 		</form>
 	);
 }
+
+// Daniel Useche

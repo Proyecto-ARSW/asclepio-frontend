@@ -667,6 +667,7 @@ export function ReceptionistDashboardView({
 					</p>
 					<Button
 						type="button"
+						aria-label={m.a11yReceptionistCallNextBtn({}, { locale })}
 						onClick={handleCallNext}
 						disabled={actionLoading === 'call-next'}
 						className="gap-2 shrink-0"
@@ -807,6 +808,7 @@ export function ReceptionistDashboardView({
 												type="button"
 												size="sm"
 												variant="outline"
+												aria-label={m.a11yReceptionistAttendTurnBtn({}, { locale })}
 												className="gap-1 text-xs"
 												disabled={
 													actionLoading === `complete-appt-${a.id}` ||
@@ -1034,6 +1036,7 @@ export function ReceptionistDashboardView({
 						<div className="flex gap-2">
 							<Button
 								type="button"
+								aria-label={m.a11yReceptionistCreateTurnBtn({}, { locale })}
 								onClick={handleCreateTurn}
 								disabled={
 									actionLoading === 'create-turn' ||
@@ -1051,6 +1054,7 @@ export function ReceptionistDashboardView({
 							<Button
 								type="button"
 								variant="outline"
+								aria-label={m.a11yReceptionistCallNextBtn({}, { locale })}
 								onClick={handleCallNext}
 								disabled={actionLoading === 'call-next'}
 								className="gap-2"

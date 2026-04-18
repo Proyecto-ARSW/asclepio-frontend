@@ -272,6 +272,7 @@ function t(locale: AppLocale) {
 		resetView: 'Reiniciar vista',
 		zoomIn: 'Acercar',
 		zoomOut: 'Alejar',
+		anatomySectionLabel: 'Visualizador interactivo de anatomía humana en 3D',
 		loading: 'Cargando modelo 3D…',
 		sourceLabel: 'Archivo',
 		proTip: 'Consejo profesional',
@@ -293,6 +294,7 @@ function t(locale: AppLocale) {
 		resetView: 'Reset view',
 		zoomIn: 'Zoom in',
 		zoomOut: 'Zoom out',
+		anatomySectionLabel: 'Interactive 3D human anatomy viewer',
 		loading: 'Loading 3D model…',
 		sourceLabel: 'File',
 		proTip: 'Pro tip',
@@ -314,6 +316,7 @@ function t(locale: AppLocale) {
 		resetView: 'Redefinir vista',
 		zoomIn: 'Aproximar',
 		zoomOut: 'Afastar',
+		anatomySectionLabel: 'Visualizador interativo de anatomia humana em 3D',
 		loading: 'Carregando modelo 3D…',
 		sourceLabel: 'Arquivo',
 		proTip: 'Dica profissional',
@@ -335,6 +338,7 @@ function t(locale: AppLocale) {
 		resetView: 'Réinitialiser la vue',
 		zoomIn: 'Zoom avant',
 		zoomOut: 'Zoom arrière',
+		anatomySectionLabel: "Visionneuse interactive d'anatomie humaine 3D",
 		loading: 'Chargement du modèle 3D…',
 		sourceLabel: 'Fichier',
 		proTip: 'Astuce pro',
@@ -356,6 +360,7 @@ function t(locale: AppLocale) {
 		resetView: 'Ansicht zurücksetzen',
 		zoomIn: 'Heranzoomen',
 		zoomOut: 'Herauszoomen',
+		anatomySectionLabel: 'Interaktiver 3D-Viewer für menschliche Anatomie',
 		loading: 'Lade 3D-Modell…',
 		sourceLabel: 'Datei',
 		proTip: 'Profi-Tipp',
@@ -470,7 +475,7 @@ export function DoctorAnatomySection({
 	const enterMotion = { opacity: 1, y: 0 };
 
 	return (
-		<div className="space-y-5">
+		<section aria-label={i18n.anatomySectionLabel} className="space-y-5">
 			{/* ── Encabezado: fade+slide al entrar al viewport ─────────────── */}
 			<motion.header
 				ref={headerRef}
@@ -764,7 +769,7 @@ export function DoctorAnatomySection({
 					</Card>
 				</motion.div>
 			</div>
-		</div>
+		</section>
 	);
 }
 

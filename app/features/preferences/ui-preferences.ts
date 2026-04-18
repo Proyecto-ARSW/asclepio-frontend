@@ -1,5 +1,8 @@
 export type ThemeMode = 'light' | 'dark' | 'system';
 
+export const FONT_SCALE_LEVELS = [0.875, 1, 1.25, 1.5, 2] as const;
+export type FontScale = (typeof FONT_SCALE_LEVELS)[number];
+
 // Modos de color accesibles para distintas condiciones visuales.
 // Se aplican como clases en <html> y se combinan con el tema claro/oscuro.
 export type ColorMode =
@@ -30,6 +33,7 @@ export interface UiPreferences {
 	dyslexiaFont: boolean;
 	voiceGuideEnabled: boolean;
 	overviewBlocks: OverviewBlockKey[];
+	fontScale: FontScale;
 }
 
 export const UI_PREFERENCES_STORAGE_KEY = 'asclepio-ui-preferences';
@@ -40,6 +44,7 @@ const DEFAULT_PREFERENCES: UiPreferences = {
 	dyslexiaFont: false,
 	voiceGuideEnabled: false,
 	overviewBlocks: [...DEFAULT_OVERVIEW_BLOCKS],
+	fontScale: 1,
 };
 
 function isOverviewBlockKey(value: string): value is OverviewBlockKey {
@@ -108,12 +113,18 @@ export function readUiPreferences(): UiPreferences {
 		)
 			? (parsed.colorMode as ColorMode)
 			: DEFAULT_PREFERENCES.colorMode;
+		const fontScale: FontScale = FONT_SCALE_LEVELS.includes(
+			parsed.fontScale as FontScale,
+		)
+			? (parsed.fontScale as FontScale)
+			: DEFAULT_PREFERENCES.fontScale;
 		return {
 			theme,
 			colorMode,
 			dyslexiaFont,
 			voiceGuideEnabled,
 			overviewBlocks,
+			fontScale,
 		};
 	} catch {
 		return DEFAULT_PREFERENCES;
@@ -147,6 +158,10 @@ export function applyUiPreferences(prefs: UiPreferences): void {
 
 	// Tipografía para dislexia
 	root.classList.toggle('dyslexia-font', prefs.dyslexiaFont);
+
+	// Escala de fuente: se aplica como propiedad inline para no interferir
+	// con las variables CSS del tema declaradas en :root del stylesheet.
+	root.style.setProperty('--font-scale', String(prefs.fontScale));
 
 	// Modos de color accesibles: limpiamos todos primero y aplicamos el activo.
 	// Esto garantiza que nunca haya dos modos activos al mismo tiempo.

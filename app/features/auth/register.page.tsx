@@ -450,7 +450,7 @@ export default function RegisterPage() {
 							</motion.div>
 							<CardTitle>{content.register.title}</CardTitle>
 							<CardDescription>{content.register.subtitle}</CardDescription>
-							<div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+							<nav aria-label={m.a11yRegisterStepIndicator({}, { locale })} className="flex flex-wrap items-center justify-center gap-3 pt-1">
 								<StepIndicator
 									step={step}
 									index={1}
@@ -468,7 +468,7 @@ export default function RegisterPage() {
 									index={3}
 									label={content.register.stepTitles[2]}
 								/>
-							</div>
+							</nav>
 						</CardHeader>
 						<CardContent className="space-y-5 px-5 pt-4 pb-5 sm:px-6">
 							<form
@@ -501,12 +501,14 @@ export default function RegisterPage() {
 																<FieldLabel htmlFor={field.name}>
 																	{content.register.labels.nombre}
 																</FieldLabel>
+																<p id="reg-nombre-desc" className="sr-only">{m.a11yRegisterNombreDesc({}, { locale })}</p>
 																<div className="relative">
 																	<UserIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 																	<Input
 																		id={field.name}
 																		type="text"
 																		autoComplete="given-name"
+																		aria-describedby="reg-nombre-desc"
 																		value={field.state.value}
 																		onBlur={field.handleBlur}
 																		onChange={(event) =>
@@ -528,12 +530,14 @@ export default function RegisterPage() {
 																<FieldLabel htmlFor={field.name}>
 																	{content.register.labels.apellido}
 																</FieldLabel>
+																<p id="reg-apellido-desc" className="sr-only">{m.a11yRegisterApellidoDesc({}, { locale })}</p>
 																<div className="relative">
 																	<UserIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 																	<Input
 																		id={field.name}
 																		type="text"
 																		autoComplete="family-name"
+																		aria-describedby="reg-apellido-desc"
 																		value={field.state.value}
 																		onBlur={field.handleBlur}
 																		onChange={(event) =>
@@ -557,12 +561,14 @@ export default function RegisterPage() {
 															<FieldLabel htmlFor={field.name}>
 																{content.register.labels.email}
 															</FieldLabel>
+															<p id="reg-email-desc" className="sr-only">{m.a11yRegisterEmailDesc({}, { locale })}</p>
 															<div className="relative">
 																<EnvelopeIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 																<Input
 																	id={field.name}
 																	type="email"
 																	autoComplete="email"
+																	aria-describedby="reg-email-desc"
 																	value={field.state.value}
 																	onBlur={field.handleBlur}
 																	onChange={(event) =>
@@ -585,12 +591,14 @@ export default function RegisterPage() {
 															<FieldLabel htmlFor={field.name}>
 																{content.register.labels.password}
 															</FieldLabel>
+															<p id="reg-password-desc" className="sr-only">{m.a11yRegisterPasswordDesc({}, { locale })}</p>
 															<div className="relative">
 																<LockClosedIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 																<Input
 																	id={field.name}
 																	type="password"
 																	autoComplete="new-password"
+																	aria-describedby="reg-password-desc"
 																	value={field.state.value}
 																	onBlur={field.handleBlur}
 																	onChange={(event) =>
@@ -616,12 +624,14 @@ export default function RegisterPage() {
 															<FieldLabel htmlFor={field.name}>
 																{content.register.labels.telefono}
 															</FieldLabel>
+															<p id="reg-telefono-desc" className="sr-only">{m.a11yRegisterTelefonoDesc({}, { locale })}</p>
 															<div className="relative">
 																<PhoneIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 																<Input
 																	id={field.name}
 																	type="tel"
 																	autoComplete="tel"
+																	aria-describedby="reg-telefono-desc"
 																	value={field.state.value}
 																	onBlur={field.handleBlur}
 																	onChange={(event) =>
@@ -848,6 +858,7 @@ export default function RegisterPage() {
 																<FieldLabel htmlFor={field.name}>
 																	{content.register.labels.eps}
 																</FieldLabel>
+																<p id="reg-eps-desc" className="sr-only">{m.a11yRegisterEpsDesc({}, { locale })}</p>
 																<Input
 																	id={field.name}
 																	type="text"
@@ -858,6 +869,7 @@ export default function RegisterPage() {
 																	placeholder={
 																		content.register.placeholders.eps
 																	}
+																	aria-describedby="reg-eps-desc"
 																/>
 															</Field>
 														)}
@@ -869,6 +881,7 @@ export default function RegisterPage() {
 															<FieldLabel htmlFor={field.name}>
 																{content.register.labels.alergias}
 															</FieldLabel>
+															<p id="reg-alergias-desc" className="sr-only">{m.a11yRegisterAlergiasDesc({}, { locale })}</p>
 															<Input
 																id={field.name}
 																type="text"
@@ -879,6 +892,7 @@ export default function RegisterPage() {
 																placeholder={
 																	content.register.placeholders.alergias
 																}
+																aria-describedby="reg-alergias-desc"
 															/>
 														</Field>
 													)}
@@ -918,6 +932,7 @@ export default function RegisterPage() {
 													type="button"
 													variant="outline"
 													onClick={handleBack}
+													aria-label={m.a11yRegisterNavBack({}, { locale })}
 												>
 													<ChevronLeftIcon className="h-4 w-4" />
 													{content.register.navigation.back}
@@ -927,6 +942,7 @@ export default function RegisterPage() {
 												type="submit"
 												className="flex-1"
 												disabled={isSubmitting}
+												aria-label={step < 3 ? m.a11yRegisterNavNext({}, { locale }) : m.a11yRegisterNavSubmit({}, { locale })}
 											>
 												{step < 3
 													? content.register.navigation.next

@@ -2630,6 +2630,7 @@ export function DoctorDashboardView({
 									type="button"
 									size="sm"
 									variant="outline"
+									aria-label={m.a11yDoctorConfirmAppointmentBtn({ patient: `${a.paciente?.nombre ?? ""} ${a.paciente?.apellido ?? ""}` }, { locale })}
 									onClick={() => handleConfirm(a)}
 									disabled={actionLoading === a.id}
 									className="gap-1 text-xs"
@@ -2643,6 +2644,7 @@ export function DoctorDashboardView({
 									type="button"
 									size="sm"
 									variant="destructive"
+									aria-label={m.a11yDoctorCancelAppointmentBtn({ patient: `${a.paciente?.nombre ?? ""} ${a.paciente?.apellido ?? ""}` }, { locale })}
 									onClick={() => handleCancel(a.id)}
 									disabled={actionLoading === `${a.id}-cancel`}
 									className="gap-1 text-xs"

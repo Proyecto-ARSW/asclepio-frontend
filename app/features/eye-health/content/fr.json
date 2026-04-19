@@ -1,0 +1,94 @@
+{
+	"nav": {
+		"eyeHealth": "Sante Oculaire"
+	},
+	"meta": {
+		"title": "Sante Oculaire | Asclepio"
+	},
+	"page": {
+		"title": "Revision de sante oculaire",
+		"subtitle": "Flux guide pour une auto-evaluation visuelle initiale. Ne remplace pas une consultation professionnelle.",
+		"homeLink": "Retour a l'accueil",
+		"restart": "Recommencer le test",
+		"stepCounter": "Etape {current} sur {total}",
+		"progressLabel": "Progression du test"
+	},
+	"common": {
+		"back": "Retour",
+		"continue": "Continuer",
+		"required": "Ce champ est obligatoire",
+		"yes": "Oui",
+		"no": "Non"
+	},
+	"steps": {
+		"calibration": {
+			"title": "Debut et calibration",
+			"description": "Reglez la luminosite au maximum puis ajustez l'echelle avec une carte physique.",
+			"brightnessLabel": "Je confirme la luminosite maximale",
+			"brightnessHint": "Cela ameliore le contraste pendant les tests.",
+			"brightnessRequired": "Confirmez la luminosite maximale pour continuer",
+			"scaleLabel": "Echelle visuelle : {value}%",
+			"scaleHint": "Deplacez le slider jusqu'a aligner la reference.",
+			"referenceLabel": "Reference de calibration",
+			"submit": "Enregistrer la calibration"
+		},
+		"acuity": {
+			"title": "Test 1 : Acuite visuelle",
+			"description": "Gardez une distance d'un bras et testez chaque oeil separement.",
+			"distanceHint": "Distance conseillee : un bras",
+			"leftEyePrompt": "Couvrez l'oeil droit et repondez pour l'oeil gauche",
+			"rightEyePrompt": "Couvrez l'oeil gauche et repondez pour l'oeil droit",
+			"answerLabel": "Selectionnez la direction de l'ouverture",
+			"optionUp": "Haut",
+			"optionRight": "Droite",
+			"optionDown": "Bas",
+			"optionLeft": "Gauche",
+			"submit": "Enregistrer l'acuite"
+		},
+		"colorBlindness": {
+			"title": "Test 2 : Perception des couleurs (Ishihara)",
+			"description": "Observez chaque planche et ecrivez le nombre vu.",
+			"plateCounter": "Planche {current} sur {total}",
+			"inputLabel": "Nombre observe",
+			"inputHint": "Entrez uniquement des chiffres, par exemple 12",
+			"inputPlaceholder": "Ex : 12",
+			"inputInvalid": "Entrez un nombre valide",
+			"next": "Planche suivante",
+			"finish": "Terminer la perception des couleurs",
+			"imageAlt": "Planche Ishihara {index}",
+			"loadingImage": "Chargement de la planche..."
+		},
+		"astigmatism": {
+			"title": "Test 3 : Astigmatisme",
+			"description": "Observez les lignes radiales et signalez si certaines paraissent differentes.",
+			"question": "Toutes les lignes semblent egalement nettes",
+			"notesLabel": "Observations",
+			"notesPlaceholder": "Decrivez les lignes differentes (optionnel)",
+			"submit": "Enregistrer l'astigmatisme"
+		},
+		"results": {
+			"title": "Resultats",
+			"subtitle": "Resume indicatif base sur vos reponses.",
+			"acuityScore": "Score d'acuite",
+			"colorScore": "Score Ishihara",
+			"astigmatismStatus": "Risque d'astigmatisme",
+			"astigmatismRisk": "Observation possible",
+			"astigmatismNoRisk": "Aucune observation notable",
+			"calibrationStatus": "Calibration",
+			"calibrationReady": "Terminee",
+			"interpretationTitle": "Interpretation",
+			"levelExcellent": "Excellent",
+			"levelGood": "Bon",
+			"levelConsult": "Consultation suggeree",
+			"excellentDescription": "Vos reponses indiquent une perception visuelle stable.",
+			"goodDescription": "Resultat fonctionnel, refaire le test avec un meilleur eclairage.",
+			"consultDescription": "Une consultation d'optometrie est recommandee.",
+			"saveLoading": "Enregistrement du resultat...",
+			"saveSuccess": "Resultat enregistre avec succes",
+			"saveErrorTitle": "Impossible d'enregistrer",
+			"saveErrorDescription": "Vous pouvez reessayer. Le resume local reste visible.",
+			"retrySave": "Reessayer",
+			"restart": "Recommencer le test"
+		}
+	}
+}

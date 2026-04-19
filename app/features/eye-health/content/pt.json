@@ -1,0 +1,94 @@
+{
+	"nav": {
+		"eyeHealth": "Saude Ocular"
+	},
+	"meta": {
+		"title": "Saude Ocular | Asclepio"
+	},
+	"page": {
+		"title": "Revisao de saude ocular",
+		"subtitle": "Fluxo guiado para autoavaliacao visual inicial. Nao substitui consulta profissional.",
+		"homeLink": "Voltar ao inicio",
+		"restart": "Reiniciar teste",
+		"stepCounter": "Passo {current} de {total}",
+		"progressLabel": "Progresso do teste"
+	},
+	"common": {
+		"back": "Voltar",
+		"continue": "Continuar",
+		"required": "Este campo e obrigatorio",
+		"yes": "Sim",
+		"no": "Nao"
+	},
+	"steps": {
+		"calibration": {
+			"title": "Inicio e calibracao",
+			"description": "Ajuste o brilho para o maximo e calibre a escala com um cartao fisico.",
+			"brightnessLabel": "Confirmo brilho no maximo",
+			"brightnessHint": "Isso melhora o contraste durante as provas.",
+			"brightnessRequired": "Confirme o brilho maximo para continuar",
+			"scaleLabel": "Escala visual: {value}%",
+			"scaleHint": "Mova o slider ate alinhar com o cartao.",
+			"referenceLabel": "Referencia de calibracao",
+			"submit": "Salvar calibracao"
+		},
+		"acuity": {
+			"title": "Prova 1: Acuidade visual",
+			"description": "Mantenha distancia de um braco e avalie cada olho separadamente.",
+			"distanceHint": "Distancia sugerida: um braco",
+			"leftEyePrompt": "Cubra o olho direito e responda para o esquerdo",
+			"rightEyePrompt": "Cubra o olho esquerdo e responda para o direito",
+			"answerLabel": "Selecione a direcao da abertura",
+			"optionUp": "Acima",
+			"optionRight": "Direita",
+			"optionDown": "Abaixo",
+			"optionLeft": "Esquerda",
+			"submit": "Salvar acuidade"
+		},
+		"colorBlindness": {
+			"title": "Prova 2: Percepcao de cores (Ishihara)",
+			"description": "Observe cada placa e escreva o numero que voce ve.",
+			"plateCounter": "Placa {current} de {total}",
+			"inputLabel": "Numero observado",
+			"inputHint": "Digite apenas numeros, por exemplo 12",
+			"inputPlaceholder": "Ex: 12",
+			"inputInvalid": "Digite um numero valido",
+			"next": "Proxima placa",
+			"finish": "Finalizar percepcao de cores",
+			"imageAlt": "Placa Ishihara {index}",
+			"loadingImage": "Carregando placa..."
+		},
+		"astigmatism": {
+			"title": "Prova 3: Astigmatismo",
+			"description": "Observe as linhas radiais e informe se alguma parece diferente.",
+			"question": "Todas as linhas parecem igualmente nitidas",
+			"notesLabel": "Observacoes",
+			"notesPlaceholder": "Descreva linhas diferentes (opcional)",
+			"submit": "Salvar astigmatismo"
+		},
+		"results": {
+			"title": "Resultados",
+			"subtitle": "Resumo orientativo com base nas respostas.",
+			"acuityScore": "Acertos de acuidade",
+			"colorScore": "Acertos Ishihara",
+			"astigmatismStatus": "Risco de astigmatismo",
+			"astigmatismRisk": "Possivel achado",
+			"astigmatismNoRisk": "Sem achado relevante",
+			"calibrationStatus": "Calibracao",
+			"calibrationReady": "Concluida",
+			"interpretationTitle": "Interpretacao",
+			"levelExcellent": "Excelente",
+			"levelGood": "Bom",
+			"levelConsult": "Sugestao de consulta",
+			"excellentDescription": "Respostas consistentes com percepcao visual estavel.",
+			"goodDescription": "Resultado funcional, repita em melhor iluminacao.",
+			"consultDescription": "Recomenda-se consulta profissional de optometria.",
+			"saveLoading": "Salvando resultado...",
+			"saveSuccess": "Resultado salvo com sucesso",
+			"saveErrorTitle": "Nao foi possivel salvar",
+			"saveErrorDescription": "Voce pode tentar novamente. O resumo local continua visivel.",
+			"retrySave": "Tentar novamente",
+			"restart": "Reiniciar teste"
+		}
+	}
+}

@@ -39,6 +39,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu/dropdown-menu.component';
+import { getEyeHealthContent } from '@/features/eye-health/content/eye-health-content';
 import { LanguageSwitcher } from '@/features/i18n/language-switcher';
 import {
 	type AppLocale,
@@ -969,11 +970,46 @@ export default function HomePage() {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [authHydrated, setAuthHydrated] = useState(false);
 	const [hasActiveSession, setHasActiveSession] = useState(false);
+	const eyeHealthContent = getEyeHealthContent(locale);
+	type HomeNavItem =
+		| {
+				id: 'home' | 'about' | 'services';
+				label: string;
+				kind: 'section';
+				sectionId: 'home' | 'about' | 'services';
+		  }
+		| {
+				id: 'eye-health';
+				label: string;
+				kind: 'route';
+				to: string;
+		  };
 
-	const navItems = [
-		{ id: 'home', label: m.homeLandingNavHome({}, { locale }) },
-		{ id: 'about', label: m.homeLandingNavAbout({}, { locale }) },
-		{ id: 'services', label: m.homeLandingNavServices({}, { locale }) },
+	const navItems: HomeNavItem[] = [
+		{
+			id: 'home',
+			label: m.homeLandingNavHome({}, { locale }),
+			kind: 'section',
+			sectionId: 'home',
+		},
+		{
+			id: 'about',
+			label: m.homeLandingNavAbout({}, { locale }),
+			kind: 'section',
+			sectionId: 'about',
+		},
+		{
+			id: 'services',
+			label: m.homeLandingNavServices({}, { locale }),
+			kind: 'section',
+			sectionId: 'services',
+		},
+		{
+			id: 'eye-health',
+			label: eyeHealthContent.nav.eyeHealth,
+			kind: 'route',
+			to: localePath('/salud-ocular', locale),
+		},
 	];
 
 	const services = getServicesData(locale);
@@ -1149,13 +1185,22 @@ export default function HomePage() {
 						<ul className="hidden items-center gap-2 text-sm md:flex">
 							{navItems.map((item) => (
 								<li key={item.id}>
-									<button
-										type="button"
-										onClick={() => scrollToSection(item.id)}
-										className="rounded-full px-3 py-2 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
-									>
-										{item.label}
-									</button>
+									{item.kind === 'route' ? (
+										<Link
+											to={item.to}
+											className="inline-flex rounded-full px-3 py-2 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
+										>
+											{item.label}
+										</Link>
+									) : (
+										<button
+											type="button"
+											onClick={() => scrollToSection(item.sectionId)}
+											className="rounded-full px-3 py-2 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
+										>
+											{item.label}
+										</button>
+									)}
 								</li>
 							))}
 						</ul>
@@ -1276,14 +1321,25 @@ export default function HomePage() {
 								<div className="mt-1 space-y-4 border-t border-border/60 pt-4">
 									<div className="flex flex-col gap-1.5">
 										{navItems.map((item) => (
-											<button
-												key={item.id}
-												type="button"
-												onClick={() => scrollToSection(item.id)}
-												className="w-full rounded-xl border border-border bg-background px-4 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-											>
-												{item.label}
-											</button>
+											<div key={item.id}>
+												{item.kind === 'route' ? (
+													<Link
+														to={item.to}
+														onClick={() => setMobileMenuOpen(false)}
+														className="inline-flex w-full rounded-xl border border-border bg-background px-4 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+													>
+														{item.label}
+													</Link>
+												) : (
+													<button
+														type="button"
+														onClick={() => scrollToSection(item.sectionId)}
+														className="w-full rounded-xl border border-border bg-background px-4 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+													>
+														{item.label}
+													</button>
+												)}
+											</div>
 										))}
 									</div>
 									<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

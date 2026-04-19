@@ -1,0 +1,94 @@
+{
+	"nav": {
+		"eyeHealth": "Eye Health"
+	},
+	"meta": {
+		"title": "Eye Health | Asclepio"
+	},
+	"page": {
+		"title": "Eye health review",
+		"subtitle": "Guided flow for an initial visual self-check. It does not replace professional care.",
+		"homeLink": "Back to home",
+		"restart": "Restart test",
+		"stepCounter": "Step {current} of {total}",
+		"progressLabel": "Test progress"
+	},
+	"common": {
+		"back": "Back",
+		"continue": "Continue",
+		"required": "This field is required",
+		"yes": "Yes",
+		"no": "No"
+	},
+	"steps": {
+		"calibration": {
+			"title": "Start and calibration",
+			"description": "Set maximum brightness and adjust scale so the reference card matches a physical card.",
+			"brightnessLabel": "I confirm brightness is at maximum",
+			"brightnessHint": "This setting improves contrast during the test.",
+			"brightnessRequired": "Confirm maximum brightness to continue",
+			"scaleLabel": "Visual scale: {value}%",
+			"scaleHint": "Move the slider until the reference border matches your card.",
+			"referenceLabel": "Calibration reference",
+			"submit": "Save calibration"
+		},
+		"acuity": {
+			"title": "Test 1: Visual acuity",
+			"description": "Keep about one arm of distance. Evaluate each eye separately by covering the opposite eye.",
+			"distanceHint": "Suggested distance: one arm",
+			"leftEyePrompt": "Cover your right eye and answer for your left eye",
+			"rightEyePrompt": "Cover your left eye and answer for your right eye",
+			"answerLabel": "Choose the opening direction",
+			"optionUp": "Up",
+			"optionRight": "Right",
+			"optionDown": "Down",
+			"optionLeft": "Left",
+			"submit": "Save acuity"
+		},
+		"colorBlindness": {
+			"title": "Test 2: Color perception (Ishihara)",
+			"description": "Observe each plate and type the number you see. Avoid approximations or extra text.",
+			"plateCounter": "Plate {current} of {total}",
+			"inputLabel": "Observed number",
+			"inputHint": "Type numbers only, for example 12",
+			"inputPlaceholder": "Ex: 12",
+			"inputInvalid": "Enter a valid number",
+			"next": "Next plate",
+			"finish": "Finish color perception",
+			"imageAlt": "Ishihara plate {index}",
+			"loadingImage": "Loading plate..."
+		},
+		"astigmatism": {
+			"title": "Test 3: Astigmatism",
+			"description": "Look at the radial figure. If some lines look darker, blurry, or thicker, report it.",
+			"question": "All lines look equally sharp",
+			"notesLabel": "Notes",
+			"notesPlaceholder": "Describe which lines look different (optional)",
+			"submit": "Save astigmatism"
+		},
+		"results": {
+			"title": "Results",
+			"subtitle": "Guidance summary based on your answers.",
+			"acuityScore": "Acuity score",
+			"colorScore": "Ishihara score",
+			"astigmatismStatus": "Astigmatism risk",
+			"astigmatismRisk": "Possible finding",
+			"astigmatismNoRisk": "No relevant finding",
+			"calibrationStatus": "Calibration",
+			"calibrationReady": "Completed",
+			"interpretationTitle": "Interpretation",
+			"levelExcellent": "Excellent",
+			"levelGood": "Good",
+			"levelConsult": "Consultation suggested",
+			"excellentDescription": "Your answers are consistent with stable visual perception.",
+			"goodDescription": "Results look functional, but repeat under better lighting conditions.",
+			"consultDescription": "A professional optometry consultation is recommended.",
+			"saveLoading": "Saving result...",
+			"saveSuccess": "Result saved successfully",
+			"saveErrorTitle": "Could not save",
+			"saveErrorDescription": "You can retry. Local summary remains visible.",
+			"retrySave": "Retry save",
+			"restart": "Restart test"
+		}
+	}
+}

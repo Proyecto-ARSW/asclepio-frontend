@@ -1,0 +1,94 @@
+{
+	"nav": {
+		"eyeHealth": "Augengesundheit"
+	},
+	"meta": {
+		"title": "Augengesundheit | Asclepio"
+	},
+	"page": {
+		"title": "Augengesundheits-Check",
+		"subtitle": "Gefuhrter Ablauf fur eine erste visuelle Selbsteinschatzung. Kein Ersatz fur professionelle Untersuchung.",
+		"homeLink": "Zuruck zur Startseite",
+		"restart": "Test neu starten",
+		"stepCounter": "Schritt {current} von {total}",
+		"progressLabel": "Testfortschritt"
+	},
+	"common": {
+		"back": "Zuruck",
+		"continue": "Weiter",
+		"required": "Dieses Feld ist erforderlich",
+		"yes": "Ja",
+		"no": "Nein"
+	},
+	"steps": {
+		"calibration": {
+			"title": "Start und Kalibrierung",
+			"description": "Stelle maximale Helligkeit ein und passe die Skala mit einer physischen Karte an.",
+			"brightnessLabel": "Ich bestaetige maximale Helligkeit",
+			"brightnessHint": "Dies verbessert den Kontrast wahrend der Tests.",
+			"brightnessRequired": "Bitte maximale Helligkeit bestaetigen",
+			"scaleLabel": "Visuelle Skala: {value}%",
+			"scaleHint": "Bewege den Slider, bis die Referenz passt.",
+			"referenceLabel": "Kalibrierungsreferenz",
+			"submit": "Kalibrierung speichern"
+		},
+		"acuity": {
+			"title": "Test 1: Sehsharpfe",
+			"description": "Halte etwa einen Armlange Abstand und teste jedes Auge getrennt.",
+			"distanceHint": "Empfohlene Distanz: eine Armlange",
+			"leftEyePrompt": "Rechtes Auge abdecken und fur linkes Auge antworten",
+			"rightEyePrompt": "Linkes Auge abdecken und fur rechtes Auge antworten",
+			"answerLabel": "Richtung der Offnung auswahlen",
+			"optionUp": "Oben",
+			"optionRight": "Rechts",
+			"optionDown": "Unten",
+			"optionLeft": "Links",
+			"submit": "Sehsharpfe speichern"
+		},
+		"colorBlindness": {
+			"title": "Test 2: Farbwahrnehmung (Ishihara)",
+			"description": "Betrachte jede Tafel und gib die gesehene Zahl ein.",
+			"plateCounter": "Tafel {current} von {total}",
+			"inputLabel": "Gesehene Zahl",
+			"inputHint": "Nur Zahlen eingeben, z. B. 12",
+			"inputPlaceholder": "Bsp: 12",
+			"inputInvalid": "Bitte eine gueltige Zahl eingeben",
+			"next": "Naechste Tafel",
+			"finish": "Farbtest abschliessen",
+			"imageAlt": "Ishihara-Tafel {index}",
+			"loadingImage": "Tafel wird geladen..."
+		},
+		"astigmatism": {
+			"title": "Test 3: Astigmatismus",
+			"description": "Schaue auf die radialen Linien und melde sichtbare Unterschiede.",
+			"question": "Alle Linien wirken gleich scharf",
+			"notesLabel": "Notizen",
+			"notesPlaceholder": "Beschreibe abweichende Linien (optional)",
+			"submit": "Astigmatismus speichern"
+		},
+		"results": {
+			"title": "Ergebnisse",
+			"subtitle": "Orientierende Zusammenfassung basierend auf deinen Antworten.",
+			"acuityScore": "Sehsharpfe-Treffer",
+			"colorScore": "Ishihara-Treffer",
+			"astigmatismStatus": "Astigmatismus-Risiko",
+			"astigmatismRisk": "Moeglicher Hinweis",
+			"astigmatismNoRisk": "Kein relevanter Hinweis",
+			"calibrationStatus": "Kalibrierung",
+			"calibrationReady": "Abgeschlossen",
+			"interpretationTitle": "Interpretation",
+			"levelExcellent": "Exzellent",
+			"levelGood": "Gut",
+			"levelConsult": "Konsultation empfohlen",
+			"excellentDescription": "Deine Antworten passen zu einer stabilen visuellen Wahrnehmung.",
+			"goodDescription": "Funktionales Ergebnis, bitte bei besserem Licht wiederholen.",
+			"consultDescription": "Eine professionelle optometrische Untersuchung wird empfohlen.",
+			"saveLoading": "Ergebnis wird gespeichert...",
+			"saveSuccess": "Ergebnis erfolgreich gespeichert",
+			"saveErrorTitle": "Speichern fehlgeschlagen",
+			"saveErrorDescription": "Du kannst es erneut versuchen. Die lokale Zusammenfassung bleibt sichtbar.",
+			"retrySave": "Speichern erneut versuchen",
+			"restart": "Test neu starten"
+		}
+	}
+}

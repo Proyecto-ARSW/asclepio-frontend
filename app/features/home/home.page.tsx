@@ -48,13 +48,11 @@ import {
 	hasValidAccessTokenInStorage,
 } from '@/lib/auth-session';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/store/auth.store';
 
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
 	const locale = currentLocale(window.location.pathname);
-	if (hasValidAccessTokenInStorage()) {
-		return redirect(localePath('/dashboard', locale));
-	}
 	if (getStoredPreToken()) {
 		return redirect(localePath('/select-hospital', locale));
 	}
@@ -146,7 +144,7 @@ function TypewriterTitle({
 			    opacity [1,1,0,0] con linear simula un step de encendido/apagado. */}
 			{!prefersReduced && inView && !done && (
 				<motion.span
-					className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[0.1em] bg-primary"
+					className="ml-0.5 inline-block h-[1em] w-0.5 translate-y-[0.1em] bg-primary"
 					animate={{ opacity: [1, 1, 0, 0] }}
 					transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
 					aria-hidden="true"
@@ -734,7 +732,10 @@ function PlatformSlider({ locale }: { locale: AppLocale }) {
 	const slide = slides[currentIndex];
 
 	return (
-		<section aria-label={m.a11yLandmarkPlatform({}, { locale })} className="px-4 pb-14 sm:px-6 lg:px-8">
+		<section
+			aria-label={m.a11yLandmarkPlatform({}, { locale })}
+			className="px-4 pb-14 sm:px-6 lg:px-8"
+		>
 			<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card/80 px-6 py-12 shadow-sm backdrop-blur lg:px-10">
 				{/* Encabezado de la sección */}
 				<RevealSection className="mx-auto mb-10 max-w-2xl text-center">
@@ -953,8 +954,11 @@ export default function HomePage() {
 	const location = useLocation();
 	const locale = currentLocale(location.pathname) as AppLocale;
 	const prefersReducedMotion = useReducedMotion();
+	const { user, selectedHospital, logout } = useAuthStore();
 	const [isDarkMode, setIsDarkMode] = useState(false);
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+	const [authHydrated, setAuthHydrated] = useState(false);
+	const [hasActiveSession, setHasActiveSession] = useState(false);
 
 	const navItems = [
 		{ id: 'home', label: m.homeLandingNavHome({}, { locale }) },
@@ -993,6 +997,12 @@ export default function HomePage() {
 	];
 
 	const capabilities = getCapabilities(locale);
+	const landingDashboardLabel = 'Dashboard';
+	const isAuthenticated = authHydrated && hasActiveSession;
+	const displayName = user
+		? `${user.nombre ?? ''} ${user.apellido ?? ''}`.trim() || user.email
+		: '';
+	const selectedHospitalName = selectedHospital?.nombre ?? '';
 
 	const scrollToSection = (id: string) => {
 		if (typeof document === 'undefined') return;
@@ -1007,6 +1017,26 @@ export default function HomePage() {
 		setIsDarkMode(document.documentElement.classList.contains('dark'));
 	}, []);
 
+	useEffect(() => {
+		const rehydrateResult = useAuthStore.persist.rehydrate();
+		const finalizeHydration = () => {
+			setAuthHydrated(true);
+			setHasActiveSession(hasValidAccessTokenInStorage());
+		};
+
+		if (rehydrateResult instanceof Promise) {
+			void rehydrateResult.finally(finalizeHydration);
+			return;
+		}
+
+		finalizeHydration();
+	}, []);
+
+	useEffect(() => {
+		if (!authHydrated) return;
+		setHasActiveSession(hasValidAccessTokenInStorage());
+	}, [authHydrated]);
+
 	function handleThemeToggle() {
 		if (typeof document === 'undefined') return;
 		const currentlyDark = document.documentElement.classList.contains('dark');
@@ -1015,6 +1045,12 @@ export default function HomePage() {
 		applyUiPreferences({ ...currentPrefs, theme: nextTheme });
 		saveUiPreferences({ ...currentPrefs, theme: nextTheme });
 		setIsDarkMode(!currentlyDark);
+	}
+
+	function handleLandingLogout() {
+		logout();
+		setHasActiveSession(false);
+		setMobileMenuOpen(false);
 	}
 
 	return (
@@ -1131,25 +1167,68 @@ export default function HomePage() {
 								locale={locale}
 								triggerClassName="h-8 shrink-0 rounded-full bg-card/90 px-2.5 text-xs font-semibold backdrop-blur"
 							/>
-							<Link
-								to={localePath('/register', locale)}
-								className={cn(
-									buttonVariants({ variant: 'ghost', size: 'sm' }),
-									'h-8 shrink-0 rounded-full px-3',
-								)}
-							>
-								{m.homeLandingGetStarted({}, { locale })}
-							</Link>
-							<Link
-								to={localePath('/login', locale)}
-								className={cn(
-									buttonVariants({ size: 'sm' }),
-									'h-8 shrink-0 rounded-full px-3',
-								)}
-							>
-								{m.homeLandingContactUs({}, { locale })}
-								<ArrowRightIcon className="h-3.5 w-3.5" />
-							</Link>
+							{isAuthenticated ? (
+								<>
+									{displayName && (
+										<Badge
+											variant="secondary"
+											className="max-w-48 truncate rounded-full px-3 py-1 text-xs"
+										>
+											{displayName}
+										</Badge>
+									)}
+									{selectedHospitalName && (
+										<Badge
+											variant="outline"
+											className="max-w-44 truncate rounded-full px-3 py-1 text-xs"
+										>
+											{selectedHospitalName}
+										</Badge>
+									)}
+									<Link
+										to={localePath('/dashboard', locale)}
+										className={cn(
+											buttonVariants({ size: 'sm' }),
+											'h-8 shrink-0 rounded-full px-3',
+										)}
+									>
+										{landingDashboardLabel}
+										<ArrowRightIcon className="h-3.5 w-3.5" />
+									</Link>
+									<button
+										type="button"
+										onClick={handleLandingLogout}
+										className={cn(
+											buttonVariants({ variant: 'ghost', size: 'sm' }),
+											'h-8 shrink-0 rounded-full px-3',
+										)}
+									>
+										{m.dashboardSidebarLogout({}, { locale })}
+									</button>
+								</>
+							) : (
+								<>
+									<Link
+										to={localePath('/register', locale)}
+										className={cn(
+											buttonVariants({ variant: 'ghost', size: 'sm' }),
+											'h-8 shrink-0 rounded-full px-3',
+										)}
+									>
+										{m.homeLandingGetStarted({}, { locale })}
+									</Link>
+									<Link
+										to={localePath('/login', locale)}
+										className={cn(
+											buttonVariants({ size: 'sm' }),
+											'h-8 shrink-0 rounded-full px-3',
+										)}
+									>
+										{m.homeLandingContactUs({}, { locale })}
+										<ArrowRightIcon className="h-3.5 w-3.5" />
+									</Link>
+								</>
+							)}
 						</div>
 					</nav>
 
@@ -1178,27 +1257,55 @@ export default function HomePage() {
 										))}
 									</div>
 									<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-										<Link
-											to={localePath('/register', locale)}
-											onClick={() => setMobileMenuOpen(false)}
-											className={cn(
-												buttonVariants({ variant: 'ghost', size: 'sm' }),
-												'justify-center rounded-full px-4',
-											)}
-										>
-											{m.homeLandingGetStarted({}, { locale })}
-										</Link>
-										<Link
-											to={localePath('/login', locale)}
-											onClick={() => setMobileMenuOpen(false)}
-											className={cn(
-												buttonVariants({ size: 'sm' }),
-												'justify-center rounded-full px-4',
-											)}
-										>
-											{m.homeLandingContactUs({}, { locale })}
-											<ArrowRightIcon className="h-3.5 w-3.5" />
-										</Link>
+										{isAuthenticated ? (
+											<>
+												<Link
+													to={localePath('/dashboard', locale)}
+													onClick={() => setMobileMenuOpen(false)}
+													className={cn(
+														buttonVariants({ size: 'sm' }),
+														'justify-center rounded-full px-4',
+													)}
+												>
+													{landingDashboardLabel}
+													<ArrowRightIcon className="h-3.5 w-3.5" />
+												</Link>
+												<button
+													type="button"
+													onClick={handleLandingLogout}
+													className={cn(
+														buttonVariants({ variant: 'ghost', size: 'sm' }),
+														'justify-center rounded-full px-4',
+													)}
+												>
+													{m.dashboardSidebarLogout({}, { locale })}
+												</button>
+											</>
+										) : (
+											<>
+												<Link
+													to={localePath('/register', locale)}
+													onClick={() => setMobileMenuOpen(false)}
+													className={cn(
+														buttonVariants({ variant: 'ghost', size: 'sm' }),
+														'justify-center rounded-full px-4',
+													)}
+												>
+													{m.homeLandingGetStarted({}, { locale })}
+												</Link>
+												<Link
+													to={localePath('/login', locale)}
+													onClick={() => setMobileMenuOpen(false)}
+													className={cn(
+														buttonVariants({ size: 'sm' }),
+														'justify-center rounded-full px-4',
+													)}
+												>
+													{m.homeLandingContactUs({}, { locale })}
+													<ArrowRightIcon className="h-3.5 w-3.5" />
+												</Link>
+											</>
+										)}
 									</div>
 								</div>
 							</motion.div>
@@ -1283,13 +1390,19 @@ export default function HomePage() {
 
 						<div className="flex flex-wrap gap-3">
 							<Link
-								to={localePath('/register', locale)}
+								to={
+									isAuthenticated
+										? localePath('/dashboard', locale)
+										: localePath('/register', locale)
+								}
 								className={cn(
 									buttonVariants({ size: 'lg' }),
 									'inline-flex rounded-full px-5 transition-all duration-300 hover:-translate-y-0.5',
 								)}
 							>
-								{m.homeLandingHeroCta({}, { locale })}
+								{isAuthenticated
+									? landingDashboardLabel
+									: m.homeLandingHeroCta({}, { locale })}
 								<ArrowRightIcon className="h-4 w-4" />
 							</Link>
 							{/* Botón de acceso rápido a hospitales cercanos — usa variant outline
@@ -1536,7 +1649,10 @@ export default function HomePage() {
 			</section>
 
 			{/* ── INTEGRACIONES ── */}
-			<section aria-label={m.a11yLandmarkIntegrations({}, { locale })} className="px-4 pb-14 sm:px-6 lg:px-8">
+			<section
+				aria-label={m.a11yLandmarkIntegrations({}, { locale })}
+				className="px-4 pb-14 sm:px-6 lg:px-8"
+			>
 				<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card px-6 py-12 shadow-sm">
 					<RevealSection>
 						<h2 className="mx-auto max-w-xl text-center text-4xl font-bold tracking-tight text-foreground">
@@ -1582,7 +1698,10 @@ export default function HomePage() {
 			</section>
 
 			{/* ── CTA BANNER ── */}
-			<section aria-label={m.a11yLandmarkCta({}, { locale })} className="px-4 pb-14 sm:px-6 lg:px-8">
+			<section
+				aria-label={m.a11yLandmarkCta({}, { locale })}
+				className="px-4 pb-14 sm:px-6 lg:px-8"
+			>
 				<RevealSection>
 					<div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-linear-to-r from-primary via-secondary to-primary px-6 py-16 text-center shadow-md">
 						<div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.45)_1.5px,transparent_2px)] bg-size-[14px_14px] opacity-45" />
@@ -1590,13 +1709,19 @@ export default function HomePage() {
 							{m.homeLandingCtaTitle({}, { locale })}
 						</h2>
 						<Link
-							to={localePath('/register', locale)}
+							to={
+								isAuthenticated
+									? localePath('/dashboard', locale)
+									: localePath('/register', locale)
+							}
 							className={cn(
 								buttonVariants({ variant: 'secondary', size: 'lg' }),
 								'mt-6 inline-flex rounded-full border border-white/30 bg-white/90 px-5 text-primary transition-all duration-500 motion-reduce:transition-none hover:-translate-y-0.5 hover:bg-white',
 							)}
 						>
-							{m.homeLandingCtaButton({}, { locale })}
+							{isAuthenticated
+								? landingDashboardLabel
+								: m.homeLandingCtaButton({}, { locale })}
 							<ArrowRightIcon className="h-4 w-4" />
 						</Link>
 					</div>
@@ -1604,7 +1729,10 @@ export default function HomePage() {
 			</section>
 
 			{/* ── STATS + TESTIMONIAL ── */}
-			<section aria-label={m.a11yLandmarkStats({}, { locale })} className="px-4 pb-20 sm:px-6 lg:px-8">
+			<section
+				aria-label={m.a11yLandmarkStats({}, { locale })}
+				className="px-4 pb-20 sm:px-6 lg:px-8"
+			>
 				<div className="mx-auto max-w-7xl space-y-8 rounded-[2rem] border border-border/60 bg-card/80 p-6 shadow-sm backdrop-blur">
 					{/* Stats: cada número entra escalonado */}
 					<div className="mx-auto grid max-w-4xl grid-cols-2 justify-items-center gap-6 text-center sm:grid-cols-4">

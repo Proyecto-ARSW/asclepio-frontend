@@ -148,7 +148,9 @@ export function NewTriageForm({
 							onChange={(event) => field.handleChange(event.target.value)}
 							required
 						/>
-						<p id="triage-patient-id-desc" className="sr-only">{content.patientIdDesc}</p>
+						<p id="triage-patient-id-desc" className="sr-only">
+							{content.patient.patientIdDesc}
+						</p>
 						<FieldError
 							errors={field.state.meta.errors.map((message) => ({ message }))}
 						/>

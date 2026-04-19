@@ -66,29 +66,29 @@ const CONTRAST_BORDER_TONE_CLASSES = [
 function getCalibrationWidthClass(scalePercent: number): string {
 	switch (scalePercent) {
 		case 80:
-			return 'w-[56%]';
+			return 'w-[74%] sm:w-[56%]';
 		case 85:
-			return 'w-[60%]';
+			return 'w-[80%] sm:w-[60%]';
 		case 90:
-			return 'w-[64%]';
+			return 'w-[86%] sm:w-[64%]';
 		case 95:
-			return 'w-[68%]';
+			return 'w-[92%] sm:w-[68%]';
 		case 100:
-			return 'w-[72%]';
+			return 'w-[98%] sm:w-[72%]';
 		case 105:
-			return 'w-[76%]';
+			return 'w-[104%] sm:w-[76%]';
 		case 110:
-			return 'w-[80%]';
+			return 'w-[110%] sm:w-[80%]';
 		case 115:
-			return 'w-[84%]';
+			return 'w-[116%] sm:w-[84%]';
 		case 120:
-			return 'w-[88%]';
+			return 'w-[122%] sm:w-[88%]';
 		case 125:
-			return 'w-[92%]';
+			return 'w-[128%] sm:w-[92%]';
 		case 130:
-			return 'w-[96%]';
+			return 'w-[134%] sm:w-[96%]';
 		default:
-			return 'w-full';
+			return 'w-full sm:w-full';
 	}
 }
 
@@ -453,9 +453,20 @@ export function EyeHealthPage() {
 			<div className="mx-auto flex h-full w-full max-w-3xl flex-col px-4 pb-3 pt-3 sm:px-8 sm:pb-5 sm:pt-5">
 				<header className="mb-2 flex items-center justify-between gap-3">
 					<div className="min-w-0">
-						<p className="text-muted-foreground text-xs uppercase tracking-[0.14em]">
-							{content.nav.eyeHealth}
-						</p>
+						<Link
+							to={localePath('/', locale)}
+							className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/90 px-2.5 py-1 shadow-sm backdrop-blur"
+							aria-label="Ir al inicio"
+						>
+							<img
+								src="/favicon.png"
+								alt="Asclepio"
+								className="h-5 w-5 rounded-full border border-border/70 bg-card object-contain"
+							/>
+							<span className="text-muted-foreground text-xs font-semibold uppercase tracking-[0.14em]">
+								{content.nav.eyeHealth}
+							</span>
+						</Link>
 						<p className="text-xs font-medium">{stepCounter}</p>
 					</div>
 					<div className="flex items-center gap-2">
@@ -545,11 +556,13 @@ export function EyeHealthPage() {
 											{content.fullScreen.calibration.cardInstruction}
 										</p>
 										<div className="rounded-xl border border-dashed border-border/80 bg-background/80 p-4">
-											<div
-												className={`mx-auto aspect-[1.586/1] rounded-md border-2 border-primary/80 bg-primary/10 transition-all ${getCalibrationWidthClass(
-													calibrationScale,
-												)}`}
-											/>
+											<div className="mx-auto flex h-80 w-full items-center justify-center sm:h-auto">
+												<div
+													className={`mx-auto aspect-[1.586/1] rounded-md border-2 border-primary/80 bg-primary/10 transition-all rotate-90 sm:rotate-0 ${getCalibrationWidthClass(
+														calibrationScale,
+													)}`}
+												/>
+											</div>
 										</div>
 									</div>
 								</>

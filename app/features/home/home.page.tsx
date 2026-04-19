@@ -26,10 +26,19 @@ import {
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, redirect, useLocation } from 'react-router';
+import { Link, redirect, useLocation, useNavigate } from 'react-router';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { buttonVariants } from '@/components/ui/button/button.component';
 import { Card, CardContent } from '@/components/ui/card/card.component';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu/dropdown-menu.component';
 import { LanguageSwitcher } from '@/features/i18n/language-switcher';
 import {
 	type AppLocale,
@@ -951,6 +960,7 @@ function getCapabilities(locale: AppLocale) {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
+	const navigate = useNavigate();
 	const location = useLocation();
 	const locale = currentLocale(location.pathname) as AppLocale;
 	const prefersReducedMotion = useReducedMotion();
@@ -1003,6 +1013,8 @@ export default function HomePage() {
 		? `${user.nombre ?? ''} ${user.apellido ?? ''}`.trim() || user.email
 		: '';
 	const selectedHospitalName = selectedHospital?.nombre ?? '';
+	const displayInitials =
+		(user?.nombre?.[0] ?? '') + (user?.apellido?.[0] ?? '');
 
 	const scrollToSection = (id: string) => {
 		if (typeof document === 'undefined') return;
@@ -1051,6 +1063,7 @@ export default function HomePage() {
 		logout();
 		setHasActiveSession(false);
 		setMobileMenuOpen(false);
+		navigate(localePath('/', locale));
 	}
 
 	return (
@@ -1169,42 +1182,59 @@ export default function HomePage() {
 							/>
 							{isAuthenticated ? (
 								<>
-									{displayName && (
-										<Badge
-											variant="secondary"
-											className="max-w-48 truncate rounded-full px-3 py-1 text-xs"
-										>
-											{displayName}
-										</Badge>
-									)}
-									{selectedHospitalName && (
-										<Badge
-											variant="outline"
-											className="max-w-44 truncate rounded-full px-3 py-1 text-xs"
-										>
-											{selectedHospitalName}
-										</Badge>
-									)}
-									<Link
-										to={localePath('/dashboard', locale)}
-										className={cn(
-											buttonVariants({ size: 'sm' }),
-											'h-8 shrink-0 rounded-full px-3',
-										)}
-									>
-										{landingDashboardLabel}
-										<ArrowRightIcon className="h-3.5 w-3.5" />
-									</Link>
-									<button
-										type="button"
-										onClick={handleLandingLogout}
-										className={cn(
-											buttonVariants({ variant: 'ghost', size: 'sm' }),
-											'h-8 shrink-0 rounded-full px-3',
-										)}
-									>
-										{m.dashboardSidebarLogout({}, { locale })}
-									</button>
+									<div className="flex items-center gap-2">
+										<div className="max-w-52 text-right">
+											<p className="truncate text-xs font-semibold text-foreground">
+												{displayName}
+											</p>
+											{selectedHospitalName && (
+												<p className="truncate text-[11px] text-muted-foreground">
+													{selectedHospitalName}
+												</p>
+											)}
+										</div>
+										<DropdownMenu>
+											<DropdownMenuTrigger
+												className={cn(
+													buttonVariants({ variant: 'outline', size: 'sm' }),
+													'h-9 w-9 shrink-0 rounded-full px-0 text-xs font-bold uppercase',
+												)}
+												aria-label={
+													displayName || m.homeLandingBrand({}, { locale })
+												}
+											>
+												{displayInitials || 'U'}
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end" className="w-56">
+												<DropdownMenuGroup>
+													<DropdownMenuLabel className="space-y-0.5">
+														<p className="truncate text-sm font-semibold text-foreground">
+															{displayName}
+														</p>
+														{selectedHospitalName && (
+															<p className="truncate text-xs text-muted-foreground">
+																{selectedHospitalName}
+															</p>
+														)}
+													</DropdownMenuLabel>
+												</DropdownMenuGroup>
+												<DropdownMenuSeparator />
+												<DropdownMenuItem
+													onClick={() => {
+														navigate(localePath('/dashboard', locale));
+													}}
+												>
+													{landingDashboardLabel}
+												</DropdownMenuItem>
+												<DropdownMenuItem
+													variant="destructive"
+													onClick={handleLandingLogout}
+												>
+													{m.dashboardSidebarLogout({}, { locale })}
+												</DropdownMenuItem>
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</div>
 								</>
 							) : (
 								<>

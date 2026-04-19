@@ -1,4 +1,15 @@
-﻿import { HandRaisedIcon, SunIcon } from '@heroicons/react/24/outline';
+import {
+	ArrowDownIcon,
+	ArrowDownLeftIcon,
+	ArrowDownRightIcon,
+	ArrowLeftIcon,
+	ArrowRightIcon,
+	ArrowUpIcon,
+	ArrowUpLeftIcon,
+	ArrowUpRightIcon,
+	HandRaisedIcon,
+	SunIcon,
+} from '@heroicons/react/24/outline';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
@@ -15,29 +26,29 @@ import {
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 
 const LANDOLT_SIZE_CLASSES = [
-	'size-[11rem]',
-	'size-[10rem]',
-	'size-[9rem]',
-	'size-[8rem]',
-	'size-[7rem]',
-	'size-[6rem]',
+	'size-[8.5rem]',
+	'size-[7.8rem]',
+	'size-[7.2rem]',
+	'size-[6.4rem]',
+	'size-[5.8rem]',
 	'size-[5rem]',
+	'size-[4.5rem]',
 	'size-[4rem]',
-	'size-[3.5rem]',
-	'size-[3rem]',
+	'size-[3.6rem]',
+	'size-[3.2rem]',
 ] as const;
 
 const LANDOLT_BORDER_CLASSES = [
-	'border-14',
-	'border-13',
-	'border-12',
-	'border-11',
-	'border-10',
-	'border-9',
-	'border-8',
-	'border-7',
-	'border-6',
-	'border-5',
+	'border-[10px]',
+	'border-[10px]',
+	'border-[9px]',
+	'border-[9px]',
+	'border-[8px]',
+	'border-[7px]',
+	'border-[6px]',
+	'border-[6px]',
+	'border-[5px]',
+	'border-[4px]',
 ] as const;
 
 function getCalibrationWidthClass(scalePercent: number): string {
@@ -85,7 +96,15 @@ function LandoltRing({
 				? 'right-[-1px] top-1/2 h-[18%] w-[34%] -translate-y-1/2 rounded-l-md'
 				: direction === 'down'
 					? 'bottom-[-1px] left-1/2 h-[34%] w-[18%] -translate-x-1/2 rounded-t-md'
-					: 'left-[-1px] top-1/2 h-[18%] w-[34%] -translate-y-1/2 rounded-r-md';
+					: direction === 'left'
+						? 'left-[-1px] top-1/2 h-[18%] w-[34%] -translate-y-1/2 rounded-r-md'
+						: direction === 'upRight'
+							? 'right-[8%] top-[8%] h-[30%] w-[16%] rotate-45 rounded-sm'
+							: direction === 'downRight'
+								? 'bottom-[8%] right-[8%] h-[30%] w-[16%] -rotate-45 rounded-sm'
+								: direction === 'downLeft'
+									? 'bottom-[8%] left-[8%] h-[30%] w-[16%] rotate-45 rounded-sm'
+									: 'left-[8%] top-[8%] h-[30%] w-[16%] -rotate-45 rounded-sm';
 
 	return (
 		<div className="mx-auto flex w-full justify-center py-3">
@@ -133,9 +152,6 @@ export function EyeHealthPage() {
 		goNext,
 		goBack,
 		restart,
-		canSaveResult,
-		saveState,
-		saveResult,
 		classification,
 		acuityCorrectCount,
 		leftCorrectCount,
@@ -201,6 +217,53 @@ export function EyeHealthPage() {
 		? { duration: 0 }
 		: { duration: 0.26, ease: 'easeInOut' as const };
 
+	const landoltOptions: Array<{
+		direction: AcuityDirection;
+		label: string;
+		Icon: typeof ArrowUpIcon;
+	}> = [
+		{
+			direction: 'up',
+			label: content.fullScreen.landolt.optionUp,
+			Icon: ArrowUpIcon,
+		},
+		{
+			direction: 'upRight',
+			label: content.fullScreen.landolt.optionUpRight,
+			Icon: ArrowUpRightIcon,
+		},
+		{
+			direction: 'right',
+			label: content.fullScreen.landolt.optionRight,
+			Icon: ArrowRightIcon,
+		},
+		{
+			direction: 'downRight',
+			label: content.fullScreen.landolt.optionDownRight,
+			Icon: ArrowDownRightIcon,
+		},
+		{
+			direction: 'down',
+			label: content.fullScreen.landolt.optionDown,
+			Icon: ArrowDownIcon,
+		},
+		{
+			direction: 'downLeft',
+			label: content.fullScreen.landolt.optionDownLeft,
+			Icon: ArrowDownLeftIcon,
+		},
+		{
+			direction: 'left',
+			label: content.fullScreen.landolt.optionLeft,
+			Icon: ArrowLeftIcon,
+		},
+		{
+			direction: 'upLeft',
+			label: content.fullScreen.landolt.optionUpLeft,
+			Icon: ArrowUpLeftIcon,
+		},
+	];
+
 	const renderSingleAction = (label: string, onClick: () => void) => (
 		<div className="sticky bottom-0 mt-auto border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 backdrop-blur">
 			<Button
@@ -241,6 +304,7 @@ export function EyeHealthPage() {
 						style={{ width: `${progressValue}%` }}
 					/>
 				</div>
+
 				<AnimatePresence mode="wait">
 					<motion.section
 						key={stepIndex}
@@ -266,6 +330,7 @@ export function EyeHealthPage() {
 									</div>
 								</>
 							)}
+
 							{stepIndex === step.CALIBRATION && (
 								<>
 									<div className="space-y-4 text-center">
@@ -276,6 +341,7 @@ export function EyeHealthPage() {
 											{content.fullScreen.calibration.description}
 										</p>
 									</div>
+
 									<div className="mx-auto w-full max-w-xl space-y-5 rounded-2xl border border-border/70 bg-card/70 p-5">
 										<p className="text-sm font-medium">
 											{formatEyeHealthText(
@@ -311,6 +377,7 @@ export function EyeHealthPage() {
 									</div>
 								</>
 							)}
+
 							{stepIndex === step.LENSES && (
 								<div className="space-y-5 text-center">
 									<h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -318,6 +385,7 @@ export function EyeHealthPage() {
 									</h1>
 								</div>
 							)}
+
 							{stepIndex === step.COVER_LEFT && (
 								<>
 									<div className="mx-auto rounded-full border border-border/70 bg-card/75 p-5">
@@ -330,6 +398,7 @@ export function EyeHealthPage() {
 									</div>
 								</>
 							)}
+
 							{stepIndex === step.DISTANCE && (
 								<div className="space-y-4 text-center">
 									<h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -337,6 +406,7 @@ export function EyeHealthPage() {
 									</h1>
 								</div>
 							)}
+
 							{currentLandolt && (
 								<>
 									<div className="space-y-3 text-center">
@@ -354,19 +424,25 @@ export function EyeHealthPage() {
 												total: 10,
 											})}
 										</p>
+										<p className="text-muted-foreground text-xs">
+											{content.fullScreen.landolt.helper}
+										</p>
 									</div>
+
 									<LandoltRing
 										direction={currentLandolt.target}
 										sizeClass={
 											LANDOLT_SIZE_CLASSES[currentLandolt.index] ??
-											'size-[4rem]'
+											'size-[3.6rem]'
 										}
 										borderClass={
-											LANDOLT_BORDER_CLASSES[currentLandolt.index] ?? 'border-5'
+											LANDOLT_BORDER_CLASSES[currentLandolt.index] ??
+											'border-[4px]'
 										}
 									/>
 								</>
 							)}
+
 							{stepIndex === step.COVER_RIGHT && (
 								<>
 									<div className="mx-auto rounded-full border border-border/70 bg-card/75 p-5">
@@ -379,6 +455,7 @@ export function EyeHealthPage() {
 									</div>
 								</>
 							)}
+
 							{stepIndex === step.ISHIHARA_INTRO && (
 								<div className="space-y-4 text-center">
 									<h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -389,6 +466,7 @@ export function EyeHealthPage() {
 									</p>
 								</div>
 							)}
+
 							{isIshiharaStep && currentIshiharaFile && (
 								<div className="space-y-5">
 									<div className="space-y-3 text-center">
@@ -405,6 +483,7 @@ export function EyeHealthPage() {
 											)}
 										</p>
 									</div>
+
 									<div className="mx-auto w-full max-w-sm rounded-2xl border border-border/70 bg-card/70 p-3">
 										<img
 											src={`/images/ishihara/${currentIshiharaFile}`}
@@ -417,6 +496,7 @@ export function EyeHealthPage() {
 											className="mx-auto aspect-square w-full rounded-lg object-contain"
 										/>
 									</div>
+
 									<form
 										onSubmit={(event) => {
 											event.preventDefault();
@@ -450,6 +530,7 @@ export function EyeHealthPage() {
 									</form>
 								</div>
 							)}
+
 							{stepIndex === step.ASTIGMATISM_INTRO && (
 								<div className="space-y-4 text-center">
 									<h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -457,6 +538,7 @@ export function EyeHealthPage() {
 									</h1>
 								</div>
 							)}
+
 							{(stepIndex === step.ASTIGMATISM_LEFT ||
 								stepIndex === step.ASTIGMATISM_RIGHT) && (
 								<div className="space-y-6">
@@ -477,16 +559,19 @@ export function EyeHealthPage() {
 													)}
 										</h1>
 									</div>
+
 									<div className="mx-auto max-w-sm rounded-2xl border border-border/70 bg-card/70 p-4">
 										<div className="mx-auto aspect-square w-full max-w-64 rounded-full border border-border/80 bg-[repeating-conic-gradient(color-mix(in_oklch,var(--color-foreground)_68%,transparent)_0deg_2deg,transparent_2deg_12deg)] p-7">
 											<div className="h-full w-full rounded-full border border-border/80 bg-background/75" />
 										</div>
 									</div>
+
 									<p className="text-center text-base font-medium">
 										{content.fullScreen.astigmatism.question}
 									</p>
 								</div>
 							)}
+
 							{stepIndex === step.PROCESSING && (
 								<div className="space-y-5 text-center">
 									<div className="mx-auto size-14 animate-spin rounded-full border-2 border-border border-t-primary" />
@@ -498,6 +583,7 @@ export function EyeHealthPage() {
 									</p>
 								</div>
 							)}
+
 							{stepIndex === step.RESULTS && (
 								<div className="space-y-5">
 									<div className="space-y-2 text-center">
@@ -508,6 +594,7 @@ export function EyeHealthPage() {
 											{content.fullScreen.results.subtitle}
 										</p>
 									</div>
+
 									<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 										<div className="rounded-xl border border-border/70 bg-card/70 p-4">
 											<p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
@@ -532,6 +619,7 @@ export function EyeHealthPage() {
 												)}
 											</p>
 										</div>
+
 										<div className="rounded-xl border border-border/70 bg-card/70 p-4">
 											<p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
 												{content.fullScreen.results.colorLabel}
@@ -546,6 +634,7 @@ export function EyeHealthPage() {
 												)}
 											</p>
 										</div>
+
 										<div className="rounded-xl border border-border/70 bg-card/70 p-4">
 											<p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
 												{content.fullScreen.results.classificationLabel}
@@ -559,19 +648,10 @@ export function EyeHealthPage() {
 											</p>
 										</div>
 									</div>
-									{saveState.status === 'success' && (
-										<p className="text-center text-sm font-medium text-primary">
-											{content.fullScreen.results.saveSuccess}
-										</p>
-									)}
-									{saveState.status === 'error' && (
-										<p className="text-destructive text-center text-sm">
-											{content.fullScreen.results.saveError}
-										</p>
-									)}
 								</div>
 							)}
 						</div>
+
 						{stepIndex === step.BRIGHTNESS &&
 							renderSingleAction(content.fullScreen.brightness.cta, goNext)}
 						{stepIndex === step.CALIBRATION &&
@@ -582,48 +662,32 @@ export function EyeHealthPage() {
 							renderSingleAction(content.fullScreen.coverLeft.cta, goNext)}
 						{stepIndex === step.DISTANCE &&
 							renderSingleAction(content.fullScreen.distance.cta, goNext)}
+
 						{currentLandolt && (
 							<div className="sticky bottom-0 mt-auto border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 backdrop-blur">
-								<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-									<Button
-										type="button"
-										variant="outline"
-										className="h-11"
-										onClick={() => answerLandolt('up')}
-									>
-										{content.fullScreen.landolt.optionNorth}
-									</Button>
-									<Button
-										type="button"
-										variant="outline"
-										className="h-11"
-										onClick={() => answerLandolt('down')}
-									>
-										{content.fullScreen.landolt.optionSouth}
-									</Button>
-									<Button
-										type="button"
-										variant="outline"
-										className="h-11"
-										onClick={() => answerLandolt('right')}
-									>
-										{content.fullScreen.landolt.optionEast}
-									</Button>
-									<Button
-										type="button"
-										variant="outline"
-										className="h-11"
-										onClick={() => answerLandolt('left')}
-									>
-										{content.fullScreen.landolt.optionWest}
-									</Button>
+								<div className="grid grid-cols-4 gap-2">
+									{landoltOptions.map((option) => (
+										<Button
+											key={option.direction}
+											type="button"
+											variant="outline"
+											className="h-11 px-0"
+											onClick={() => answerLandolt(option.direction)}
+											aria-label={option.label}
+										>
+											<option.Icon className="size-4" />
+											<span className="sr-only">{option.label}</span>
+										</Button>
+									))}
 								</div>
 							</div>
 						)}
+
 						{stepIndex === step.COVER_RIGHT &&
 							renderSingleAction(content.fullScreen.coverRight.cta, goNext)}
 						{stepIndex === step.ISHIHARA_INTRO &&
 							renderSingleAction(content.fullScreen.ishiharaIntro.cta, goNext)}
+
 						{isIshiharaStep && currentIshiharaFile && (
 							<div className="sticky bottom-0 mt-auto border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 backdrop-blur">
 								<Button
@@ -640,11 +704,13 @@ export function EyeHealthPage() {
 								</Button>
 							</div>
 						)}
+
 						{stepIndex === step.ASTIGMATISM_INTRO &&
 							renderSingleAction(
 								content.fullScreen.astigmatismIntro.cta,
 								goNext,
 							)}
+
 						{stepIndex === step.ASTIGMATISM_LEFT && (
 							<div className="sticky bottom-0 mt-auto border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 backdrop-blur">
 								<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -666,6 +732,7 @@ export function EyeHealthPage() {
 								</div>
 							</div>
 						)}
+
 						{stepIndex === step.ASTIGMATISM_RIGHT && (
 							<div className="sticky bottom-0 mt-auto border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 backdrop-blur">
 								<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -687,40 +754,28 @@ export function EyeHealthPage() {
 								</div>
 							</div>
 						)}
+
 						{stepIndex === step.RESULTS && (
 							<div className="sticky bottom-0 mt-auto border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 backdrop-blur">
-								<Button
-									type="button"
-									onClick={() => {
-										void saveResult();
-									}}
-									disabled={!canSaveResult || saveState.status === 'saving'}
-									className="h-12 w-full rounded-xl text-sm font-semibold"
-								>
-									{saveState.status === 'saving'
-										? content.fullScreen.results.saving
-										: content.fullScreen.results.cta}
-								</Button>
-								{saveState.status === 'error' && (
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => {
-											void saveResult();
-										}}
-										className="mt-2 h-10 w-full"
-									>
-										{content.fullScreen.results.retry}
-									</Button>
-								)}
 								<Link
 									to={localePath('/', locale)}
 									className="mt-2 inline-flex w-full"
 								>
-									<Button type="button" variant="ghost" className="h-10 w-full">
-										{content.fullScreen.common.finish}
+									<Button
+										type="button"
+										className="h-12 w-full rounded-xl text-sm font-semibold"
+									>
+										{content.fullScreen.results.cta}
 									</Button>
 								</Link>
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={restart}
+									className="mt-2 h-10 w-full"
+								>
+									{content.fullScreen.common.restart}
+								</Button>
 							</div>
 						)}
 					</motion.section>

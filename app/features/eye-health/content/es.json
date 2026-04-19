@@ -127,10 +127,15 @@
 			"eyeLeft": "Serie para ojo izquierdo",
 			"eyeRight": "Serie para ojo derecho",
 			"counter": "Anillo {current} de {total}",
-			"optionNorth": "N",
-			"optionSouth": "S",
-			"optionEast": "E",
-			"optionWest": "O"
+			"helper": "Selecciona la flecha que coincide con la abertura.",
+			"optionUp": "Arriba",
+			"optionUpRight": "Arriba derecha",
+			"optionRight": "Derecha",
+			"optionDownRight": "Abajo derecha",
+			"optionDown": "Abajo",
+			"optionDownLeft": "Abajo izquierda",
+			"optionLeft": "Izquierda",
+			"optionUpLeft": "Arriba izquierda"
 		},
 		"coverRight": {
 			"title": "Ahora, tapate el ojo DERECHO.",
@@ -178,7 +183,7 @@
 			"levelExcellent": "Excelente",
 			"levelGood": "Bueno",
 			"levelConsult": "Sugerencia de consulta",
-			"cta": "Finalizar y Guardar",
+			"cta": "Finalizar prueba",
 			"saving": "Guardando...",
 			"retry": "Reintentar guardado",
 			"saveSuccess": "Resultado guardado correctamente.",

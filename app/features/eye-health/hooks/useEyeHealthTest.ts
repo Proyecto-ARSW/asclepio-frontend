@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { gqlMutation } from '@/lib/graphql-client';
 
 export const ISHIHARA_FILES = [
 	'Ishihara_12.jpg',
@@ -17,7 +16,16 @@ export const ISHIHARA_FILES = [
 	'Ishihara_97.jpg',
 ] as const;
 
-const DIRECTIONS = ['up', 'right', 'down', 'left'] as const;
+const DIRECTIONS = [
+	'up',
+	'upRight',
+	'right',
+	'downRight',
+	'down',
+	'downLeft',
+	'left',
+	'upLeft',
+] as const;
 
 export const EYE_HEALTH_TOTAL_STEPS = 45;
 
@@ -41,33 +49,6 @@ export const EYE_HEALTH_STEP = {
 	PROCESSING: 43,
 	RESULTS: 44,
 } as const;
-
-const SAVE_EYE_HEALTH_RESULT_CANDIDATES = [
-	{
-		mutation: `
-			mutation SaveEyeHealthResult($input: SaveEyeHealthResultInput!) {
-				saveEyeHealthResult(input: $input)
-			}
-		`,
-		variables: (input: SaveEyeHealthResultPayload) => ({ input }),
-	},
-	{
-		mutation: `
-			mutation SaveEyeHealthResult($input: EyeHealthResultInput!) {
-				saveEyeHealthResult(input: $input)
-			}
-		`,
-		variables: (input: SaveEyeHealthResultPayload) => ({ input }),
-	},
-	{
-		mutation: `
-			mutation SaveEyeHealthResult($data: SaveEyeHealthResultInput!) {
-				saveEyeHealthResult(data: $data)
-			}
-		`,
-		variables: (input: SaveEyeHealthResultPayload) => ({ data: input }),
-	},
-] as const;
 
 export type AcuityDirection = (typeof DIRECTIONS)[number];
 export type EyeHealthClassification = 'excellent' | 'good' | 'consultation';
@@ -97,47 +78,6 @@ export interface IshiharaResult {
 	expectedAnswer: string;
 	userAnswer: string;
 	isCorrect: boolean;
-}
-
-export interface SaveEyeHealthResultPayload {
-	calibration: CalibrationResult;
-	acuity: {
-		leftEye: {
-			targets: AcuityDirection[];
-			answers: Array<AcuityDirection | null>;
-			correctCount: number;
-			total: number;
-		};
-		rightEye: {
-			targets: AcuityDirection[];
-			answers: Array<AcuityDirection | null>;
-			correctCount: number;
-			total: number;
-		};
-		correctCount: number;
-		total: number;
-	};
-	colorBlindness: {
-		plates: IshiharaResult[];
-		correctCount: number;
-		total: number;
-	};
-	astigmatism: {
-		leftEyeSeesDifferentLines: boolean;
-		rightEyeSeesDifferentLines: boolean;
-		riskDetected: boolean;
-	};
-	classification: EyeHealthClassification;
-	completedAt: string;
-}
-
-interface SaveEyeHealthResponse {
-	saveEyeHealthResult: boolean | Record<string, unknown> | null;
-}
-
-interface EyeHealthSaveState {
-	status: 'idle' | 'saving' | 'success' | 'error';
-	errorMessage?: string;
 }
 
 function randomDirection(): AcuityDirection {
@@ -183,9 +123,6 @@ export function useEyeHealthTest() {
 		boolean | null
 	>(null);
 	const [validationError, setValidationError] = useState<string | null>(null);
-	const [saveState, setSaveState] = useState<EyeHealthSaveState>({
-		status: 'idle',
-	});
 
 	const isLeftLandoltStep =
 		stepIndex >= EYE_HEALTH_STEP.LEFT_TEST_START &&
@@ -266,14 +203,6 @@ export function useEyeHealthTest() {
 		return 'consultation';
 	}, [acuityCorrectCount, colorCorrectCount, astigmatismRiskDetected]);
 
-	const canSaveResult =
-		stepIndex === EYE_HEALTH_STEP.RESULTS &&
-		leftAnswers.every((answer) => answer !== null) &&
-		rightAnswers.every((answer) => answer !== null) &&
-		colorAnsweredCount === ISHIHARA_FILES.length &&
-		astigmatismLeftDifferent !== null &&
-		astigmatismRightDifferent !== null;
-
 	const astigmatism: AstigmatismResult | null =
 		astigmatismLeftDifferent === null || astigmatismRightDifferent === null
 			? null
@@ -281,61 +210,6 @@ export function useEyeHealthTest() {
 					linesUniform: !astigmatismRiskDetected,
 					notes: '',
 				};
-
-	const payload = useMemo<SaveEyeHealthResultPayload | null>(() => {
-		if (!canSaveResult) return null;
-
-		return {
-			calibration: {
-				scalePercent: calibrationScale,
-				maxBrightness: true,
-			},
-			acuity: {
-				leftEye: {
-					targets: leftTargets,
-					answers: leftAnswers,
-					correctCount: leftCorrectCount,
-					total: leftTargets.length,
-				},
-				rightEye: {
-					targets: rightTargets,
-					answers: rightAnswers,
-					correctCount: rightCorrectCount,
-					total: rightTargets.length,
-				},
-				correctCount: acuityCorrectCount,
-				total: leftTargets.length + rightTargets.length,
-			},
-			colorBlindness: {
-				plates: ishiharaResults,
-				correctCount: colorCorrectCount,
-				total: ISHIHARA_FILES.length,
-			},
-			astigmatism: {
-				leftEyeSeesDifferentLines: astigmatismLeftDifferent ?? false,
-				rightEyeSeesDifferentLines: astigmatismRightDifferent ?? false,
-				riskDetected: astigmatismRiskDetected,
-			},
-			classification,
-			completedAt: new Date().toISOString(),
-		};
-	}, [
-		canSaveResult,
-		calibrationScale,
-		leftTargets,
-		leftAnswers,
-		leftCorrectCount,
-		rightTargets,
-		rightAnswers,
-		rightCorrectCount,
-		acuityCorrectCount,
-		ishiharaResults,
-		colorCorrectCount,
-		astigmatismLeftDifferent,
-		astigmatismRightDifferent,
-		astigmatismRiskDetected,
-		classification,
-	]);
 
 	const goNext = useCallback(() => {
 		setValidationError(null);
@@ -435,36 +309,7 @@ export function useEyeHealthTest() {
 		setAstigmatismLeftDifferent(null);
 		setAstigmatismRightDifferent(null);
 		setValidationError(null);
-		setSaveState({ status: 'idle' });
 	}, []);
-
-	const saveResult = useCallback(async () => {
-		if (!payload || !canSaveResult) return;
-
-		setSaveState({ status: 'saving' });
-		let lastError: unknown = null;
-
-		for (const candidate of SAVE_EYE_HEALTH_RESULT_CANDIDATES) {
-			try {
-				await gqlMutation<SaveEyeHealthResponse>(
-					candidate.mutation,
-					candidate.variables(payload),
-				);
-				setSaveState({ status: 'success' });
-				return;
-			} catch (error) {
-				lastError = error;
-			}
-		}
-
-		setSaveState({
-			status: 'error',
-			errorMessage:
-				lastError instanceof Error
-					? lastError.message
-					: 'Unknown GraphQL error',
-		});
-	}, [payload, canSaveResult]);
 
 	return {
 		stepIndex,
@@ -497,9 +342,6 @@ export function useEyeHealthTest() {
 		goNext,
 		goBack,
 		restart,
-		canSaveResult,
-		saveState,
-		saveResult,
 		classification,
 		acuityCorrectCount,
 		leftCorrectCount,
@@ -508,6 +350,5 @@ export function useEyeHealthTest() {
 		colorAnsweredCount,
 		ishiharaResults,
 		astigmatism,
-		payload,
 	};
 }

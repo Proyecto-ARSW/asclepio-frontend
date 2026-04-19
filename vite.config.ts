@@ -27,7 +27,9 @@ export default defineConfig({
 		tsconfigPaths(),
 		imagetools(),
 		babel({
-			filter: /\.[jt]sx?$/,
+			// React compiler should only run on local React source files.
+			// This avoids Babel touching very large generated or dependency .js files.
+			filter: /[\\/]app[\\/].*\.[jt]sx$/,
 			babelConfig: {
 				presets: ['@babel/preset-typescript'],
 				plugins: [['babel-plugin-react-compiler', {}]],

@@ -175,7 +175,10 @@ export function PatientAiSection({ locale }: { locale: AppLocale }) {
 	};
 
 	return (
-		<section aria-label={m.a11yPatientAiSection({}, { locale })} className="space-y-4 rounded-xl border border-border/70 bg-card/60 p-4">
+		<section
+			aria-label={m.a11yPatientAiSection({}, { locale })}
+			className="space-y-4 rounded-xl border border-border/70 bg-card/60 p-4"
+		>
 			<div className="space-y-1">
 				<h3 className="text-base font-semibold text-foreground">
 					{m.dashboardPatientAiTitle({}, { locale })}
@@ -211,7 +214,9 @@ export function PatientAiSection({ locale }: { locale: AppLocale }) {
 							aria-describedby="ai-upload-desc"
 							onChange={handleFileChange}
 						/>
-						<p id="ai-upload-desc" className="sr-only">{m.a11yPatientAiUploadDesc({}, { locale })}</p>
+						<p id="ai-upload-desc" className="sr-only">
+							{m.a11yPatientAiUploadDesc({}, { locale })}
+						</p>
 						{file && (
 							<p className="text-xs text-muted-foreground">{file.name}</p>
 						)}
@@ -257,50 +262,53 @@ export function PatientAiSection({ locale }: { locale: AppLocale }) {
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-3">
-						<div role="region" aria-label={m.a11yPatientAiResultRegion({}, { locale })} aria-live="polite">
+						<section
+							aria-label={m.a11yPatientAiResultRegion({}, { locale })}
+							aria-live="polite"
+						>
 							{loading ? (
 								<Skeleton className="h-20 w-full rounded-lg" />
 							) : result ? (
-							<div className="space-y-3">
-								<div className="flex flex-wrap items-center gap-2">
-									<Badge variant="secondary">
-										{m.dashboardPatientAiPredictionLabel({}, { locale })}:
-									</Badge>
-									<span className="text-sm font-semibold text-foreground">
-										{result.clase_predicha}
-									</span>
+								<div className="space-y-3">
+									<div className="flex flex-wrap items-center gap-2">
+										<Badge variant="secondary">
+											{m.dashboardPatientAiPredictionLabel({}, { locale })}:
+										</Badge>
+										<span className="text-sm font-semibold text-foreground">
+											{result.clase_predicha}
+										</span>
+									</div>
+									<div className="flex flex-wrap items-center gap-2">
+										<Badge variant="outline">
+											{m.dashboardPatientAiConfidenceLabel({}, { locale })}
+										</Badge>
+										<span className="text-sm text-foreground">
+											{formatPercent(result.confianza)}
+										</span>
+									</div>
+									<div className="flex flex-wrap items-center gap-2">
+										<span className="text-xs text-muted-foreground">
+											{m.dashboardPatientAiVersionLabel({}, { locale })}
+										</span>
+										<span className="text-xs font-medium text-foreground">
+											{result.version}
+										</span>
+									</div>
+									<div className="flex flex-wrap items-center gap-2">
+										<span className="text-xs text-muted-foreground">
+											{m.dashboardPatientAiResponseTimeLabel({}, { locale })}
+										</span>
+										<span className="text-xs font-medium text-foreground">
+											{formatMs(elapsedMs)}
+										</span>
+									</div>
 								</div>
-								<div className="flex flex-wrap items-center gap-2">
-									<Badge variant="outline">
-										{m.dashboardPatientAiConfidenceLabel({}, { locale })}
-									</Badge>
-									<span className="text-sm text-foreground">
-										{formatPercent(result.confianza)}
-									</span>
-								</div>
-								<div className="flex flex-wrap items-center gap-2">
-									<span className="text-xs text-muted-foreground">
-										{m.dashboardPatientAiVersionLabel({}, { locale })}
-									</span>
-									<span className="text-xs font-medium text-foreground">
-										{result.version}
-									</span>
-								</div>
-								<div className="flex flex-wrap items-center gap-2">
-									<span className="text-xs text-muted-foreground">
-										{m.dashboardPatientAiResponseTimeLabel({}, { locale })}
-									</span>
-									<span className="text-xs font-medium text-foreground">
-										{formatMs(elapsedMs)}
-									</span>
-								</div>
-							</div>
-						) : (
-							<p className="text-xs text-muted-foreground">
-								{m.dashboardPatientAiNoResult({}, { locale })}
-							</p>
-						)}
-						</div>
+							) : (
+								<p className="text-xs text-muted-foreground">
+									{m.dashboardPatientAiNoResult({}, { locale })}
+								</p>
+							)}
+						</section>
 					</CardContent>
 				</Card>
 

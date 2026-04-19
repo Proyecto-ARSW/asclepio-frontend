@@ -1032,7 +1032,7 @@ export function WaitingRoomGame() {
 				: ownByProfileNameLeaderboardIndex;
 
 	const leaderboardPanel = (
-		<div
+		<section
 			aria-label={m.a11yGameLeaderboard({}, { locale })}
 			className={
 				isMobile
@@ -1082,7 +1082,7 @@ export function WaitingRoomGame() {
 					})}
 				</ol>
 			)}
-		</div>
+		</section>
 	);
 
 	return (
@@ -1137,7 +1137,6 @@ export function WaitingRoomGame() {
 			>
 				<canvas
 					ref={canvasRef}
-					role="application"
 					aria-label={m.a11yGameCanvas({}, { locale })}
 					className={`block h-full w-full touch-none ${isPlaying ? 'cursor-none' : 'cursor-default'}`}
 				/>
@@ -1199,7 +1198,9 @@ export function WaitingRoomGame() {
 													message,
 												}))}
 											/>
-											<p id="game-nickname-desc" className="sr-only">{m.a11yGameNicknameDesc({}, { locale })}</p>
+											<p id="game-nickname-desc" className="sr-only">
+												{m.a11yGameNicknameDesc({}, { locale })}
+											</p>
 										</Field>
 									)}
 								</setupForm.Field>

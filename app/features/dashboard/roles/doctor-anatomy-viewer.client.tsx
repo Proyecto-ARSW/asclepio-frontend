@@ -90,6 +90,7 @@ function Model({ modelUrl }: { modelUrl: string }) {
 	useLayoutEffect(() => {
 		const group = ref.current;
 		if (!group) return;
+		scene.updateWorldMatrix(true, true);
 
 		// Reset del wrapper antes de medir: el <group> persiste entre
 		// renders y si no se resetea, medimos sobre el bounding box ya
@@ -189,6 +190,8 @@ export default function AnatomyViewer({
 	zoomInTick = 0,
 	zoomOutTick = 0,
 }: AnatomyViewerProps) {
+	const canvasBackground = isDark ? '#0b1416' : '#0f1a1d';
+
 	return (
 		<Canvas
 			// dpr limitado para no matar la batería en móviles — 2x basta para
@@ -208,7 +211,7 @@ export default function AnatomyViewer({
 				// desaparece. El token `--color-card` del tema light es muy
 				// claro, así que fijamos un teal-900 que funciona en ambos
 				// modos y mantiene el entorno "estudio" de la iluminación.
-				background: '#0b1416',
+				background: canvasBackground,
 				borderRadius: 'inherit',
 			}}
 		>

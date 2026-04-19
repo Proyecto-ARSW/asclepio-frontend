@@ -122,6 +122,13 @@
 			"title": "Manten el dispositivo a un brazo de distancia.",
 			"cta": "Todo listo"
 		},
+		"contrast": {
+			"title": "Prueba de contraste",
+			"eyeLeft": "Contraste para ojo izquierdo",
+			"eyeRight": "Contraste para ojo derecho",
+			"counter": "Figura {current} de {total}",
+			"helper": "La figura tendra menos contraste en cada paso. Selecciona la direccion de la abertura."
+		},
 		"landolt": {
 			"title": "Selecciona la direccion de la abertura",
 			"eyeLeft": "Serie para ojo izquierdo",
@@ -173,10 +180,13 @@
 		},
 		"results": {
 			"title": "Reporte final",
-			"subtitle": "Resumen de agudeza, daltonismo y astigmatismo.",
+			"subtitle": "Resumen de agudeza, contraste, daltonismo y astigmatismo.",
 			"acuityLabel": "Agudeza visual",
 			"acuityValue": "{correct} de {total}",
 			"acuityPerEye": "Izquierdo: {left} | Derecho: {right}",
+			"contrastLabel": "Sensibilidad al contraste",
+			"contrastValue": "{correct} de {total}",
+			"contrastPerEye": "Izquierdo: {left} | Derecho: {right}",
 			"colorLabel": "Percepcion de colores",
 			"colorValue": "{correct} de {total}",
 			"classificationLabel": "Resultado general",

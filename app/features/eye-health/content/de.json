@@ -90,5 +90,114 @@
 			"retrySave": "Speichern erneut versuchen",
 			"restart": "Test neu starten"
 		}
+	},
+	"fullScreen": {
+		"common": {
+			"stepCounter": "Bildschirm {current} von {total}",
+			"back": "Zuruck",
+			"restart": "Neu starten",
+			"finish": "Beenden"
+		},
+		"brightness": {
+			"title": "Stelle die Bildschirmhelligkeit fur genaue Ergebnisse auf Maximum.",
+			"description": "Mehr Helligkeit verbessert die Lesbarkeit der Sehtests.",
+			"cta": "Naster Schritt"
+		},
+		"calibration": {
+			"title": "Grosse anpassen",
+			"description": "Kalibriere die visuelle Referenz vor dem Start.",
+			"cardInstruction": "Lege eine physische Karte auf den Bildschirm und passe an, bis es ubereinstimmt.",
+			"scaleLabel": "Skala: {value}%",
+			"cta": "Naster Schritt"
+		},
+		"lenses": {
+			"title": "Nutze deine Brille oder Kontaktlinsen, wenn du sie normalerweise trgst.",
+			"cta": "Weiter"
+		},
+		"coverLeft": {
+			"title": "Decke dein LINKES Auge ab.",
+			"cta": "Weiter"
+		},
+		"distance": {
+			"title": "Halte das Gert etwa eine Armlange entfernt.",
+			"cta": "Bereit"
+		},
+		"contrast": {
+			"title": "Kontrasttest",
+			"eyeLeft": "Kontrast fur linkes Auge",
+			"eyeRight": "Kontrast fur rechtes Auge",
+			"counter": "Figur {current} von {total}",
+			"helper": "Die Figur hat in jedem Schritt weniger Kontrast. Wle die Offnungsrichtung."
+		},
+		"landolt": {
+			"title": "Wahle die Offnungsrichtung",
+			"eyeLeft": "Serie fur linkes Auge",
+			"eyeRight": "Serie fur rechtes Auge",
+			"counter": "Ring {current} von {total}",
+			"helper": "Wahle den Pfeil, der zur Offnung passt.",
+			"optionUp": "Oben",
+			"optionUpRight": "Oben rechts",
+			"optionRight": "Rechts",
+			"optionDownRight": "Unten rechts",
+			"optionDown": "Unten",
+			"optionDownLeft": "Unten links",
+			"optionLeft": "Links",
+			"optionUpLeft": "Oben links"
+		},
+		"coverRight": {
+			"title": "Decke jetzt dein RECHTES Auge ab.",
+			"cta": "Weiter"
+		},
+		"ishiharaIntro": {
+			"title": "Farbtest",
+			"description": "Halte beide Augen offen und das Gert in Armlange.",
+			"cta": "Starten"
+		},
+		"ishihara": {
+			"title": "Tippe die Zahl ein, die du siehst",
+			"counter": "Tafel {current} von {total}",
+			"imageAlt": "Ishihara-Tafel {index}",
+			"inputPlaceholder": "Zahl",
+			"invalidChars": "Nur Zahlen sind erlaubt.",
+			"emptyMeansNoSee": "Wenn leer, wird es als keine sichtbare Zahl gewertet.",
+			"cta": "Weiter"
+		},
+		"astigmatismIntro": {
+			"title": "Decke ein Auge ab und schaue auf die Grafik.",
+			"cta": "Grafik anzeigen"
+		},
+		"astigmatism": {
+			"title": "Astigmatismus-Test ({eye})",
+			"eyeLeft": "linkes Auge",
+			"eyeRight": "rechtes Auge",
+			"question": "Sehen einige Linien dunkler oder unscharfer aus?",
+			"optionEqual": "Alle Linien sehen gleich aus",
+			"optionDifferent": "Ich sehe unterschiedliche Linien"
+		},
+		"processing": {
+			"title": "Dein Sehen wird analysiert...",
+			"description": "Wir verarbeiten deine Antworten."
+		},
+		"results": {
+			"title": "Abschlussbericht",
+			"subtitle": "Zusammenfassung von Sehscharfe, Kontrast, Farbe und Astigmatismus.",
+			"acuityLabel": "Sehscharfe",
+			"acuityValue": "{correct} von {total}",
+			"acuityPerEye": "Links: {left} | Rechts: {right}",
+			"contrastLabel": "Kontrastempfindlichkeit",
+			"contrastValue": "{correct} von {total}",
+			"contrastPerEye": "Links: {left} | Rechts: {right}",
+			"colorLabel": "Farbwahrnehmung",
+			"colorValue": "{correct} von {total}",
+			"classificationLabel": "Gesamtergebnis",
+			"levelExcellent": "Exzellent",
+			"levelGood": "Gut",
+			"levelConsult": "Konsultation empfohlen",
+			"cta": "Test beenden",
+			"saving": "Speichern...",
+			"retry": "Speichern erneut versuchen",
+			"saveSuccess": "Ergebnis erfolgreich gespeichert.",
+			"saveError": "Ergebnis konnte nicht gespeichert werden."
+		}
 	}
 }

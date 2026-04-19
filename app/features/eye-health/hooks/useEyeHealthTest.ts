@@ -27,7 +27,7 @@ const DIRECTIONS = [
 	'upLeft',
 ] as const;
 
-export const EYE_HEALTH_TOTAL_STEPS = 45;
+export const EYE_HEALTH_TOTAL_STEPS = 57;
 
 export const EYE_HEALTH_STEP = {
 	BRIGHTNESS: 0,
@@ -35,19 +35,25 @@ export const EYE_HEALTH_STEP = {
 	LENSES: 2,
 	COVER_LEFT: 3,
 	DISTANCE: 4,
-	LEFT_TEST_START: 5,
-	LEFT_TEST_END: 14,
-	COVER_RIGHT: 15,
-	RIGHT_TEST_START: 16,
-	RIGHT_TEST_END: 25,
-	ISHIHARA_INTRO: 26,
-	ISHIHARA_START: 27,
-	ISHIHARA_END: 39,
-	ASTIGMATISM_INTRO: 40,
-	ASTIGMATISM_LEFT: 41,
-	ASTIGMATISM_RIGHT: 42,
-	PROCESSING: 43,
-	RESULTS: 44,
+	LEFT_CONTRAST_START: 5,
+	LEFT_CONTRAST_END: 9,
+	LEFT_APERTURE_INTRO: 10,
+	LEFT_TEST_START: 11,
+	LEFT_TEST_END: 20,
+	COVER_RIGHT: 21,
+	RIGHT_CONTRAST_START: 22,
+	RIGHT_CONTRAST_END: 26,
+	RIGHT_APERTURE_INTRO: 27,
+	RIGHT_TEST_START: 28,
+	RIGHT_TEST_END: 37,
+	ISHIHARA_INTRO: 38,
+	ISHIHARA_START: 39,
+	ISHIHARA_END: 51,
+	ASTIGMATISM_INTRO: 52,
+	ASTIGMATISM_LEFT: 53,
+	ASTIGMATISM_RIGHT: 54,
+	PROCESSING: 55,
+	RESULTS: 56,
 } as const;
 
 export type AcuityDirection = (typeof DIRECTIONS)[number];
@@ -109,12 +115,24 @@ export function useEyeHealthTest() {
 	const [rightTargets, setRightTargets] = useState<AcuityDirection[]>(() =>
 		createLandoltSequence(10),
 	);
+	const [leftContrastTargets, setLeftContrastTargets] = useState<
+		AcuityDirection[]
+	>(() => createLandoltSequence(5));
+	const [rightContrastTargets, setRightContrastTargets] = useState<
+		AcuityDirection[]
+	>(() => createLandoltSequence(5));
 	const [leftAnswers, setLeftAnswers] = useState<Array<AcuityDirection | null>>(
 		() => Array.from({ length: 10 }, () => null),
 	);
 	const [rightAnswers, setRightAnswers] = useState<
 		Array<AcuityDirection | null>
 	>(() => Array.from({ length: 10 }, () => null));
+	const [leftContrastAnswers, setLeftContrastAnswers] = useState<
+		Array<AcuityDirection | null>
+	>(() => Array.from({ length: 5 }, () => null));
+	const [rightContrastAnswers, setRightContrastAnswers] = useState<
+		Array<AcuityDirection | null>
+	>(() => Array.from({ length: 5 }, () => null));
 	const [ishiharaAnswers, setIshiharaAnswers] = useState<
 		Record<string, string>
 	>({});
@@ -126,6 +144,12 @@ export function useEyeHealthTest() {
 	>(null);
 	const [validationError, setValidationError] = useState<string | null>(null);
 
+	const isLeftContrastStep =
+		stepIndex >= EYE_HEALTH_STEP.LEFT_CONTRAST_START &&
+		stepIndex <= EYE_HEALTH_STEP.LEFT_CONTRAST_END;
+	const isRightContrastStep =
+		stepIndex >= EYE_HEALTH_STEP.RIGHT_CONTRAST_START &&
+		stepIndex <= EYE_HEALTH_STEP.RIGHT_CONTRAST_END;
 	const isLeftLandoltStep =
 		stepIndex >= EYE_HEALTH_STEP.LEFT_TEST_START &&
 		stepIndex <= EYE_HEALTH_STEP.LEFT_TEST_END;
@@ -136,6 +160,12 @@ export function useEyeHealthTest() {
 		stepIndex >= EYE_HEALTH_STEP.ISHIHARA_START &&
 		stepIndex <= EYE_HEALTH_STEP.ISHIHARA_END;
 
+	const leftContrastIndex = isLeftContrastStep
+		? stepIndex - EYE_HEALTH_STEP.LEFT_CONTRAST_START
+		: -1;
+	const rightContrastIndex = isRightContrastStep
+		? stepIndex - EYE_HEALTH_STEP.RIGHT_CONTRAST_START
+		: -1;
 	const leftTestIndex = isLeftLandoltStep
 		? stepIndex - EYE_HEALTH_STEP.LEFT_TEST_START
 		: -1;
@@ -147,6 +177,21 @@ export function useEyeHealthTest() {
 		: -1;
 	const currentIshiharaFile =
 		ishiharaIndex >= 0 ? ISHIHARA_FILES[ishiharaIndex] : undefined;
+
+	const leftContrastCorrectCount = useMemo(
+		() =>
+			leftContrastTargets.filter(
+				(target, index) => leftContrastAnswers[index] === target,
+			).length,
+		[leftContrastTargets, leftContrastAnswers],
+	);
+	const rightContrastCorrectCount = useMemo(
+		() =>
+			rightContrastTargets.filter(
+				(target, index) => rightContrastAnswers[index] === target,
+			).length,
+		[rightContrastTargets, rightContrastAnswers],
+	);
 
 	const leftCorrectCount = useMemo(
 		() =>
@@ -189,21 +234,33 @@ export function useEyeHealthTest() {
 	const astigmatismRiskDetected =
 		astigmatismLeftDifferent === true || astigmatismRightDifferent === true;
 
+	const contrastCorrectCount =
+		leftContrastCorrectCount + rightContrastCorrectCount;
 	const acuityCorrectCount = leftCorrectCount + rightCorrectCount;
 
 	const classification = useMemo<EyeHealthClassification>(() => {
 		if (
 			acuityCorrectCount >= 16 &&
 			colorCorrectCount >= 11 &&
+			contrastCorrectCount >= 8 &&
 			!astigmatismRiskDetected
 		) {
 			return 'excellent';
 		}
-		if (acuityCorrectCount >= 12 && colorCorrectCount >= 8) {
+		if (
+			acuityCorrectCount >= 12 &&
+			colorCorrectCount >= 8 &&
+			contrastCorrectCount >= 5
+		) {
 			return 'good';
 		}
 		return 'consultation';
-	}, [acuityCorrectCount, colorCorrectCount, astigmatismRiskDetected]);
+	}, [
+		acuityCorrectCount,
+		colorCorrectCount,
+		contrastCorrectCount,
+		astigmatismRiskDetected,
+	]);
 
 	const astigmatism: AstigmatismResult | null =
 		astigmatismLeftDifferent === null || astigmatismRightDifferent === null
@@ -255,6 +312,41 @@ export function useEyeHealthTest() {
 		[isLeftLandoltStep, leftTestIndex, isRightLandoltStep, rightTestIndex],
 	);
 
+	const answerContrast = useCallback(
+		(direction: AcuityDirection) => {
+			setValidationError(null);
+
+			if (isLeftContrastStep && leftContrastIndex >= 0) {
+				setLeftContrastAnswers((previous) => {
+					const next = [...previous];
+					next[leftContrastIndex] = direction;
+					return next;
+				});
+				setStepIndex((previous) =>
+					Math.min(previous + 1, EYE_HEALTH_TOTAL_STEPS - 1),
+				);
+				return;
+			}
+
+			if (isRightContrastStep && rightContrastIndex >= 0) {
+				setRightContrastAnswers((previous) => {
+					const next = [...previous];
+					next[rightContrastIndex] = direction;
+					return next;
+				});
+				setStepIndex((previous) =>
+					Math.min(previous + 1, EYE_HEALTH_TOTAL_STEPS - 1),
+				);
+			}
+		},
+		[
+			isLeftContrastStep,
+			leftContrastIndex,
+			isRightContrastStep,
+			rightContrastIndex,
+		],
+	);
+
 	const submitIshiharaAnswer = useCallback(
 		(rawValue: string, invalidMessage: string) => {
 			if (!currentIshiharaFile) {
@@ -303,8 +395,12 @@ export function useEyeHealthTest() {
 	const restart = useCallback(() => {
 		setStepIndex(EYE_HEALTH_STEP.BRIGHTNESS);
 		setCalibrationScale(100);
+		setLeftContrastTargets(createLandoltSequence(5));
+		setRightContrastTargets(createLandoltSequence(5));
 		setLeftTargets(createLandoltSequence(10));
 		setRightTargets(createLandoltSequence(10));
+		setLeftContrastAnswers(Array.from({ length: 5 }, () => null));
+		setRightContrastAnswers(Array.from({ length: 5 }, () => null));
 		setLeftAnswers(Array.from({ length: 10 }, () => null));
 		setRightAnswers(Array.from({ length: 10 }, () => null));
 		setIshiharaAnswers({});
@@ -321,6 +417,15 @@ export function useEyeHealthTest() {
 		step: EYE_HEALTH_STEP,
 		calibrationScale,
 		setCalibrationScale,
+		isLeftContrastStep,
+		isRightContrastStep,
+		leftContrastIndex,
+		rightContrastIndex,
+		leftContrastTargets,
+		rightContrastTargets,
+		leftContrastAnswers,
+		rightContrastAnswers,
+		answerContrast,
 		isLeftLandoltStep,
 		isRightLandoltStep,
 		leftTestIndex,
@@ -345,6 +450,9 @@ export function useEyeHealthTest() {
 		goBack,
 		restart,
 		classification,
+		contrastCorrectCount,
+		leftContrastCorrectCount,
+		rightContrastCorrectCount,
 		acuityCorrectCount,
 		leftCorrectCount,
 		rightCorrectCount,

@@ -90,5 +90,114 @@
 			"retrySave": "Tentar novamente",
 			"restart": "Reiniciar teste"
 		}
+	},
+	"fullScreen": {
+		"common": {
+			"stepCounter": "Tela {current} de {total}",
+			"back": "Voltar",
+			"restart": "Reiniciar",
+			"finish": "Finalizar"
+		},
+		"brightness": {
+			"title": "Aumente o brilho da tela ao maximo para resultados mais precisos.",
+			"description": "Mais brilho melhora a leitura dos testes visuais.",
+			"cta": "Proximo passo"
+		},
+		"calibration": {
+			"title": "Ajuste o tamanho",
+			"description": "Calibre a referencia visual antes de comecar.",
+			"cardInstruction": "Coloque um cartao fisico sobre a tela e ajuste ate coincidir.",
+			"scaleLabel": "Escala: {value}%",
+			"cta": "Proximo passo"
+		},
+		"lenses": {
+			"title": "Use seus oculos ou lentes de contato se voce usa normalmente.",
+			"cta": "Proximo"
+		},
+		"coverLeft": {
+			"title": "Cubra o olho ESQUERDO.",
+			"cta": "Proximo"
+		},
+		"distance": {
+			"title": "Mantenha o dispositivo a uma distancia de um braco.",
+			"cta": "Tudo pronto"
+		},
+		"contrast": {
+			"title": "Teste de contraste",
+			"eyeLeft": "Contraste para olho esquerdo",
+			"eyeRight": "Contraste para olho direito",
+			"counter": "Figura {current} de {total}",
+			"helper": "A figura tera menos contraste em cada etapa. Selecione a direcao da abertura."
+		},
+		"landolt": {
+			"title": "Selecione a direcao da abertura",
+			"eyeLeft": "Serie para olho esquerdo",
+			"eyeRight": "Serie para olho direito",
+			"counter": "Anel {current} de {total}",
+			"helper": "Selecione a seta que coincide com a abertura.",
+			"optionUp": "Acima",
+			"optionUpRight": "Acima direita",
+			"optionRight": "Direita",
+			"optionDownRight": "Abaixo direita",
+			"optionDown": "Abaixo",
+			"optionDownLeft": "Abaixo esquerda",
+			"optionLeft": "Esquerda",
+			"optionUpLeft": "Acima esquerda"
+		},
+		"coverRight": {
+			"title": "Agora, cubra o olho DIREITO.",
+			"cta": "Proximo"
+		},
+		"ishiharaIntro": {
+			"title": "Teste de cores",
+			"description": "Mantenha ambos os olhos abertos e o dispositivo a distancia de um braco.",
+			"cta": "Comecar"
+		},
+		"ishihara": {
+			"title": "Digite o numero que voce ve",
+			"counter": "Placa {current} de {total}",
+			"imageAlt": "Placa Ishihara {index}",
+			"inputPlaceholder": "Numero",
+			"invalidChars": "Somente numeros sao permitidos.",
+			"emptyMeansNoSee": "Se deixar vazio, sera considerado que voce nao ve numero.",
+			"cta": "Proximo"
+		},
+		"astigmatismIntro": {
+			"title": "Cubra um olho e observe o grafico.",
+			"cta": "Ver grafico"
+		},
+		"astigmatism": {
+			"title": "Teste de astigmatismo ({eye})",
+			"eyeLeft": "olho esquerdo",
+			"eyeRight": "olho direito",
+			"question": "Algumas linhas parecem mais escuras ou borradas?",
+			"optionEqual": "Todas as linhas parecem iguais",
+			"optionDifferent": "Vejo linhas diferentes"
+		},
+		"processing": {
+			"title": "Analisando sua visao...",
+			"description": "Estamos processando suas respostas."
+		},
+		"results": {
+			"title": "Relatorio final",
+			"subtitle": "Resumo de acuidade, contraste, cores e astigmatismo.",
+			"acuityLabel": "Acuidade visual",
+			"acuityValue": "{correct} de {total}",
+			"acuityPerEye": "Esquerdo: {left} | Direito: {right}",
+			"contrastLabel": "Sensibilidade ao contraste",
+			"contrastValue": "{correct} de {total}",
+			"contrastPerEye": "Esquerdo: {left} | Direito: {right}",
+			"colorLabel": "Percepcao de cores",
+			"colorValue": "{correct} de {total}",
+			"classificationLabel": "Resultado geral",
+			"levelExcellent": "Excelente",
+			"levelGood": "Bom",
+			"levelConsult": "Sugestao de consulta",
+			"cta": "Finalizar teste",
+			"saving": "Salvando...",
+			"retry": "Tentar novamente",
+			"saveSuccess": "Resultado salvo com sucesso.",
+			"saveError": "Nao foi possivel salvar o resultado."
+		}
 	}
 }

@@ -90,5 +90,114 @@
 			"retrySave": "Retry save",
 			"restart": "Restart test"
 		}
+	},
+	"fullScreen": {
+		"common": {
+			"stepCounter": "Screen {current} of {total}",
+			"back": "Back",
+			"restart": "Restart",
+			"finish": "Finish"
+		},
+		"brightness": {
+			"title": "Increase your screen brightness to maximum for better accuracy.",
+			"description": "Higher brightness improves readability during visual tests.",
+			"cta": "Next step"
+		},
+		"calibration": {
+			"title": "Adjust the size",
+			"description": "Calibrate the visual reference before starting.",
+			"cardInstruction": "Place a physical card on the screen and adjust until they match.",
+			"scaleLabel": "Scale: {value}%",
+			"cta": "Next step"
+		},
+		"lenses": {
+			"title": "Use your glasses or contact lenses if you normally wear them.",
+			"cta": "Next"
+		},
+		"coverLeft": {
+			"title": "Cover your LEFT eye.",
+			"cta": "Next"
+		},
+		"distance": {
+			"title": "Hold the device about one arm length away.",
+			"cta": "Ready"
+		},
+		"contrast": {
+			"title": "Contrast test",
+			"eyeLeft": "Contrast for left eye",
+			"eyeRight": "Contrast for right eye",
+			"counter": "Figure {current} of {total}",
+			"helper": "The figure will have less contrast at each step. Select the opening direction."
+		},
+		"landolt": {
+			"title": "Select the opening direction",
+			"eyeLeft": "Series for left eye",
+			"eyeRight": "Series for right eye",
+			"counter": "Ring {current} of {total}",
+			"helper": "Select the arrow that matches the opening.",
+			"optionUp": "Up",
+			"optionUpRight": "Up right",
+			"optionRight": "Right",
+			"optionDownRight": "Down right",
+			"optionDown": "Down",
+			"optionDownLeft": "Down left",
+			"optionLeft": "Left",
+			"optionUpLeft": "Up left"
+		},
+		"coverRight": {
+			"title": "Now cover your RIGHT eye.",
+			"cta": "Next"
+		},
+		"ishiharaIntro": {
+			"title": "Color test",
+			"description": "Keep both eyes open and hold the device at arm distance.",
+			"cta": "Start"
+		},
+		"ishihara": {
+			"title": "Type the number you see",
+			"counter": "Plate {current} of {total}",
+			"imageAlt": "Ishihara plate {index}",
+			"inputPlaceholder": "Number",
+			"invalidChars": "Only numbers are allowed.",
+			"emptyMeansNoSee": "If left empty, it will be counted as not seeing a number.",
+			"cta": "Next"
+		},
+		"astigmatismIntro": {
+			"title": "Cover one eye and look at the chart.",
+			"cta": "View chart"
+		},
+		"astigmatism": {
+			"title": "Astigmatism test ({eye})",
+			"eyeLeft": "left eye",
+			"eyeRight": "right eye",
+			"question": "Do some lines look darker or blurrier?",
+			"optionEqual": "All lines look the same",
+			"optionDifferent": "I see different lines"
+		},
+		"processing": {
+			"title": "Analyzing your vision...",
+			"description": "We are processing your answers."
+		},
+		"results": {
+			"title": "Final report",
+			"subtitle": "Summary of acuity, contrast, color, and astigmatism.",
+			"acuityLabel": "Visual acuity",
+			"acuityValue": "{correct} of {total}",
+			"acuityPerEye": "Left: {left} | Right: {right}",
+			"contrastLabel": "Contrast sensitivity",
+			"contrastValue": "{correct} of {total}",
+			"contrastPerEye": "Left: {left} | Right: {right}",
+			"colorLabel": "Color perception",
+			"colorValue": "{correct} of {total}",
+			"classificationLabel": "Overall result",
+			"levelExcellent": "Excellent",
+			"levelGood": "Good",
+			"levelConsult": "Consultation suggested",
+			"cta": "Finish test",
+			"saving": "Saving...",
+			"retry": "Retry save",
+			"saveSuccess": "Result saved successfully.",
+			"saveError": "Could not save the result."
+		}
 	}
 }

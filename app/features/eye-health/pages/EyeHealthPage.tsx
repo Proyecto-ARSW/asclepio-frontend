@@ -55,6 +55,14 @@ const LANDOLT_BORDER_CLASSES = [
 	'border-[1px]',
 ] as const;
 
+const CONTRAST_BORDER_TONE_CLASSES = [
+	'border-foreground/26',
+	'border-foreground/18',
+	'border-foreground/12',
+	'border-foreground/8',
+	'border-foreground/5',
+] as const;
+
 function getCalibrationWidthClass(scalePercent: number): string {
 	switch (scalePercent) {
 		case 80:
@@ -88,10 +96,12 @@ function LandoltRing({
 	direction,
 	sizeClass,
 	borderClass,
+	toneClass,
 }: {
 	direction: AcuityDirection;
 	sizeClass: string;
 	borderClass: string;
+	toneClass?: string;
 }) {
 	const openingRotationClass =
 		direction === 'up'
@@ -113,7 +123,7 @@ function LandoltRing({
 	return (
 		<div className="mx-auto flex w-full justify-center py-1">
 			<div
-				className={`relative ${sizeClass} ${borderClass} rounded-full border-foreground/85 bg-transparent`}
+				className={`relative ${sizeClass} ${borderClass} rounded-full ${toneClass ?? 'border-foreground/85'} bg-transparent`}
 			>
 				<div
 					className={`absolute left-1/2 top-1/2 h-[26%] w-[62%] origin-left -translate-y-1/2 rounded-full bg-background ${openingRotationClass}`}
@@ -198,6 +208,13 @@ export function EyeHealthPage() {
 		step,
 		calibrationScale,
 		setCalibrationScale,
+		isLeftContrastStep,
+		isRightContrastStep,
+		leftContrastIndex,
+		rightContrastIndex,
+		leftContrastTargets,
+		rightContrastTargets,
+		answerContrast,
 		isLeftLandoltStep,
 		isRightLandoltStep,
 		leftTestIndex,
@@ -218,6 +235,9 @@ export function EyeHealthPage() {
 		goBack,
 		restart,
 		classification,
+		contrastCorrectCount,
+		leftContrastCorrectCount,
+		rightContrastCorrectCount,
 		acuityCorrectCount,
 		leftCorrectCount,
 		rightCorrectCount,
@@ -256,6 +276,45 @@ export function EyeHealthPage() {
 			total: totalSteps,
 		},
 	);
+	const contrastContent = ((content.fullScreen as Record<string, unknown>)
+		.contrast as
+		| {
+				title?: string;
+				eyeLeft?: string;
+				eyeRight?: string;
+				counter?: string;
+				helper?: string;
+		  }
+		| undefined) ?? {
+		title: undefined,
+		eyeLeft: undefined,
+		eyeRight: undefined,
+		counter: undefined,
+		helper: undefined,
+	};
+	const resultsContentExtended = content.fullScreen.results as Record<
+		string,
+		unknown
+	>;
+	const contrastTitle = contrastContent.title ?? 'Prueba de contraste';
+	const contrastEyeLeft =
+		contrastContent.eyeLeft ?? 'Contraste para ojo izquierdo';
+	const contrastEyeRight =
+		contrastContent.eyeRight ?? 'Contraste para ojo derecho';
+	const contrastCounterTemplate =
+		contrastContent.counter ?? 'Figura {current} de {total}';
+	const contrastHelper =
+		contrastContent.helper ??
+		'La figura tendra menos contraste en cada paso. Selecciona la direccion de la abertura.';
+	const resultsContrastLabel =
+		(resultsContentExtended.contrastLabel as string | undefined) ??
+		'Sensibilidad al contraste';
+	const resultsContrastValue =
+		(resultsContentExtended.contrastValue as string | undefined) ??
+		'{correct} de {total}';
+	const resultsContrastPerEye =
+		(resultsContentExtended.contrastPerEye as string | undefined) ??
+		'Izquierdo: {left} | Derecho: {right}';
 
 	const currentLandolt = useMemo(() => {
 		if (isLeftLandoltStep && leftTestIndex >= 0) {
@@ -282,13 +341,43 @@ export function EyeHealthPage() {
 		rightTargets,
 	]);
 
+	const currentContrast = useMemo(() => {
+		if (isLeftContrastStep && leftContrastIndex >= 0) {
+			return {
+				eye: 'left' as const,
+				index: leftContrastIndex,
+				target: leftContrastTargets[leftContrastIndex] ?? 'up',
+			};
+		}
+
+		if (isRightContrastStep && rightContrastIndex >= 0) {
+			return {
+				eye: 'right' as const,
+				index: rightContrastIndex,
+				target: rightContrastTargets[rightContrastIndex] ?? 'up',
+			};
+		}
+
+		return null;
+	}, [
+		isLeftContrastStep,
+		leftContrastIndex,
+		leftContrastTargets,
+		isRightContrastStep,
+		rightContrastIndex,
+		rightContrastTargets,
+	]);
+
 	const transition = prefersReducedMotion
 		? { duration: 0 }
 		: { duration: 0.26, ease: 'easeInOut' as const };
 
 	const acuityPercent = Math.round((acuityCorrectCount / 20) * 100);
+	const contrastPercent = Math.round((contrastCorrectCount / 10) * 100);
 	const colorPercent = Math.round((colorCorrectCount / 13) * 100);
-	const overallPercent = Math.round((acuityPercent + colorPercent) / 2);
+	const overallPercent = Math.round(
+		(acuityPercent + colorPercent + contrastPercent) / 3,
+	);
 	const astigmatismFlag =
 		astigmatismLeftDifferent === true || astigmatismRightDifferent === true;
 
@@ -489,6 +578,40 @@ export function EyeHealthPage() {
 								</div>
 							)}
 
+							{currentContrast && (
+								<>
+									<div className="space-y-3 text-center">
+										<p className="text-muted-foreground text-xs uppercase tracking-[0.14em]">
+											{currentContrast.eye === 'left'
+												? contrastEyeLeft
+												: contrastEyeRight}
+										</p>
+										<h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+											{contrastTitle}
+										</h1>
+										<p className="text-muted-foreground text-sm">
+											{formatEyeHealthText(contrastCounterTemplate, {
+												current: currentContrast.index + 1,
+												total: 5,
+											})}
+										</p>
+										<p className="text-muted-foreground text-xs">
+											{contrastHelper}
+										</p>
+									</div>
+
+									<LandoltRing
+										direction={currentContrast.target}
+										sizeClass="size-[2.4rem]"
+										borderClass="border-[3px]"
+										toneClass={
+											CONTRAST_BORDER_TONE_CLASSES[currentContrast.index] ??
+											'border-foreground/30'
+										}
+									/>
+								</>
+							)}
+
 							{currentLandolt && (
 								<>
 									<div className="space-y-3 text-center">
@@ -525,17 +648,66 @@ export function EyeHealthPage() {
 								</>
 							)}
 
+							{stepIndex === step.LEFT_APERTURE_INTRO && (
+								<div className="space-y-4 text-center">
+									<div className="mx-auto flex w-full max-w-md items-center gap-3 text-primary/80">
+										<div className="h-px flex-1 bg-primary/30" />
+										<p className="text-[11px] font-semibold uppercase tracking-[0.18em]">
+											Cambio de prueba
+										</p>
+										<div className="h-px flex-1 bg-primary/30" />
+									</div>
+									<h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+										Ahora empieza la prueba de abertura
+									</h1>
+									<p className="text-muted-foreground mx-auto max-w-xl text-balance text-base leading-relaxed sm:text-lg">
+										Terminaste contraste. En esta fase selecciona la direccion
+										exacta de la abertura.
+									</p>
+								</div>
+							)}
+
 							{stepIndex === step.COVER_RIGHT && (
 								<>
 									<div className="mx-auto rounded-full border border-border/70 bg-card/75 p-5">
 										<HandRaisedIcon className="size-16 text-foreground" />
 									</div>
 									<div className="space-y-4 text-center">
+										<div className="mx-auto flex w-full max-w-md items-center gap-3 text-primary/80">
+											<div className="h-px flex-1 bg-primary/30" />
+											<p className="text-[11px] font-semibold uppercase tracking-[0.18em]">
+												Cambio de ojo
+											</p>
+											<div className="h-px flex-1 bg-primary/30" />
+										</div>
 										<h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
 											{content.fullScreen.coverRight.title}
 										</h1>
+										<p className="text-muted-foreground mx-auto max-w-md text-sm sm:text-base">
+											Ahora tapa el otro ojo para continuar con la siguiente
+											serie.
+										</p>
 									</div>
 								</>
+							)}
+
+							{stepIndex === step.RIGHT_APERTURE_INTRO && (
+								<div className="space-y-4 text-center">
+									<div className="mx-auto flex w-full max-w-md items-center gap-3 text-primary/80">
+										<div className="h-px flex-1 bg-primary/30" />
+										<p className="text-[11px] font-semibold uppercase tracking-[0.18em]">
+											Cambio de prueba
+										</p>
+										<div className="h-px flex-1 bg-primary/30" />
+									</div>
+									<h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+										Ahora empieza la prueba de abertura
+									</h1>
+									<p className="text-muted-foreground mx-auto max-w-xl text-balance text-base leading-relaxed sm:text-lg">
+										Terminaste contraste. En esta fase selecciona la direccion
+										exacta de la abertura.
+									</p>
+								</div>
 							)}
 
 							{stepIndex === step.ISHIHARA_INTRO && (
@@ -688,7 +860,7 @@ export function EyeHealthPage() {
 										</p>
 									</div>
 
-									<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+									<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 										<div className="rounded-xl border border-border/70 bg-card/70 p-4">
 											<div className="flex items-center gap-2">
 												<CheckBadgeIcon className="size-4 text-primary" />
@@ -723,13 +895,36 @@ export function EyeHealthPage() {
 											<div className="flex items-center gap-2">
 												<InformationCircleIcon className="size-4 text-primary" />
 												<p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
+													{resultsContrastLabel}
+												</p>
+											</div>
+											<p className="mt-2 text-xl font-semibold">
+												{contrastPercent}%
+											</p>
+											<p className="text-sm font-medium">
+												{formatEyeHealthText(resultsContrastValue, {
+													correct: contrastCorrectCount,
+													total: 10,
+												})}
+											</p>
+											<p className="text-muted-foreground mt-2 text-xs">
+												{formatEyeHealthText(resultsContrastPerEye, {
+													left: leftContrastCorrectCount,
+													right: rightContrastCorrectCount,
+												})}
+											</p>
+										</div>
+
+										<div className="rounded-xl border border-border/70 bg-card/70 p-4">
+											<div className="flex items-center gap-2">
+												<InformationCircleIcon className="size-4 text-primary" />
+												<p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
 													{content.fullScreen.results.colorLabel}
 												</p>
 											</div>
 											<p className="mt-2 text-xl font-semibold">
 												{colorPercent}%
 											</p>
-											<p className="text-sm font-medium"></p>
 											<p className="text-sm font-medium">
 												{formatEyeHealthText(
 													content.fullScreen.results.colorValue,
@@ -775,6 +970,16 @@ export function EyeHealthPage() {
 												{rightCorrectCount} / 10
 											</p>
 											<p className="text-muted-foreground">
+												Contraste izquierdo
+											</p>
+											<p className="text-right font-medium">
+												{leftContrastCorrectCount} / 5
+											</p>
+											<p className="text-muted-foreground">Contraste derecho</p>
+											<p className="text-right font-medium">
+												{rightContrastCorrectCount} / 5
+											</p>
+											<p className="text-muted-foreground">
 												Percepcion de color
 											</p>
 											<p className="text-right font-medium">
@@ -796,6 +1001,28 @@ export function EyeHealthPage() {
 							renderSingleAction(content.fullScreen.coverLeft.cta, goNext)}
 						{stepIndex === step.DISTANCE &&
 							renderSingleAction(content.fullScreen.distance.cta, goNext)}
+						{stepIndex === step.LEFT_APERTURE_INTRO &&
+							renderSingleAction('Comenzar abertura', goNext)}
+
+						{currentContrast && (
+							<div className="sticky bottom-0 mt-auto border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 backdrop-blur">
+								<div className="grid grid-cols-4 gap-2">
+									{landoltOptions.map((option) => (
+										<Button
+											key={`contrast-${option.direction}`}
+											type="button"
+											variant="outline"
+											className="h-11 px-0"
+											onClick={() => answerContrast(option.direction)}
+											aria-label={option.label}
+										>
+											<option.Icon className="size-4" />
+											<span className="sr-only">{option.label}</span>
+										</Button>
+									))}
+								</div>
+							</div>
+						)}
 
 						{currentLandolt && (
 							<div className="sticky bottom-0 mt-auto border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 backdrop-blur">
@@ -819,6 +1046,8 @@ export function EyeHealthPage() {
 
 						{stepIndex === step.COVER_RIGHT &&
 							renderSingleAction(content.fullScreen.coverRight.cta, goNext)}
+						{stepIndex === step.RIGHT_APERTURE_INTRO &&
+							renderSingleAction('Comenzar abertura', goNext)}
 						{stepIndex === step.ISHIHARA_INTRO &&
 							renderSingleAction(content.fullScreen.ishiharaIntro.cta, goNext)}
 

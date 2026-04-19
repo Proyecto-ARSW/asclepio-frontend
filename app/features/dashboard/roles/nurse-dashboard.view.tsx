@@ -859,6 +859,7 @@ export function NurseDashboardView({
 					</div>
 					<Button
 						type="button"
+						aria-label={m.a11yNurseCallNextBtn({}, { locale })}
 						onClick={handleCallNext}
 						disabled={actionLoading === 'call-next'}
 						className="gap-2 shrink-0"
@@ -1220,6 +1221,7 @@ export function NurseDashboardView({
 								type="button"
 								size="sm"
 								variant="outline"
+								aria-label={m.a11yNurseAttendTurnBtn({}, { locale })}
 								onClick={onAttend}
 								disabled={attending}
 								className="gap-1 text-xs"
@@ -1231,6 +1233,7 @@ export function NurseDashboardView({
 								type="button"
 								size="sm"
 								variant="destructive"
+								aria-label={m.a11yNurseCancelTurnBtn({}, { locale })}
 								onClick={onCancel}
 								disabled={cancelling}
 								className="gap-1 text-xs"

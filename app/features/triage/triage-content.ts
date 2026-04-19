@@ -9,12 +9,16 @@ export interface TriageContent {
 		text: string;
 		voice: string;
 	};
+	formTitle: string;
 	patient: {
 		patientIdLabel: string;
+		patientIdDesc: string;
 		textLabel: string;
 		textPlaceholder: string;
+		textDesc: string;
 		audioLabel: string;
 		audioHint: string;
+		audioDesc: string;
 		startRecording: string;
 		stopRecording: string;
 		send: string;
@@ -36,25 +40,38 @@ export interface TriageContent {
 	};
 	forms: {
 		vitalSigns: {
+			formLabel: string;
 			temperature: string;
+			temperatureDesc: string;
 			heartRate: string;
+			heartRateDesc: string;
 			respiratoryRate: string;
+			respiratoryRateDesc: string;
 			systolicBp: string;
+			systolicBpDesc: string;
 			diastolicBp: string;
+			diastolicBpDesc: string;
 			oxygenSaturation: string;
+			oxygenSaturationDesc: string;
 			weight: string;
+			weightDesc: string;
 			height: string;
+			heightDesc: string;
 			submit: string;
 			saving: string;
 		};
 		comment: {
+			formLabel: string;
 			label: string;
+			commentDesc: string;
 			placeholder: string;
 			submit: string;
 			sending: string;
 		};
 		close: {
+			formLabel: string;
 			label: string;
+			closeReasonDesc: string;
 			placeholder: string;
 			submit: string;
 			sending: string;
@@ -72,6 +89,7 @@ export function getTriageContent(
 ): TriageContent {
 	const options = { locale } as const;
 	return {
+		formTitle: m.a11yTriageNewForm({}, options),
 		title: m.triageTitle({}, options),
 		subtitle: m.triageSubtitle({}, options),
 		newTriageMenu: m.triageNewMenu({}, options),
@@ -81,10 +99,13 @@ export function getTriageContent(
 		},
 		patient: {
 			patientIdLabel: m.triagePatientIdLabel({}, options),
+			patientIdDesc: m.a11yTriagePatientIdDesc({}, options),
 			textLabel: m.triageTextLabel({}, options),
+			textDesc: m.a11yTriageTextDesc({}, options),
 			textPlaceholder: m.triageTextPlaceholder({}, options),
 			audioLabel: m.triageAudioLabel({}, options),
 			audioHint: m.triageAudioHint({}, options),
+			audioDesc: m.a11yTriageAudioDesc({}, options),
 			startRecording: m.triageAudioStart({}, options),
 			stopRecording: m.triageAudioStop({}, options),
 			send: m.triageSubmit({}, options),
@@ -106,25 +127,38 @@ export function getTriageContent(
 		},
 		forms: {
 			vitalSigns: {
+				formLabel: m.a11yTriageVitalsForm({}, options),
 				temperature: m.triageVitalTemperature({}, options),
+				temperatureDesc: m.a11yTriageTemperatureDesc({}, options),
 				heartRate: m.triageVitalHeartRate({}, options),
+				heartRateDesc: m.a11yTriageHeartRateDesc({}, options),
 				respiratoryRate: m.triageVitalRespiratoryRate({}, options),
+				respiratoryRateDesc: m.a11yTriageRespiratoryRateDesc({}, options),
 				systolicBp: m.triageVitalSystolicBp({}, options),
+				systolicBpDesc: m.a11yTriageSystolicBpDesc({}, options),
 				diastolicBp: m.triageVitalDiastolicBp({}, options),
+				diastolicBpDesc: m.a11yTriageDiastolicBpDesc({}, options),
 				oxygenSaturation: m.triageVitalOxygenSaturation({}, options),
+				oxygenSaturationDesc: m.a11yTriageOxygenDesc({}, options),
 				weight: m.triageVitalWeight({}, options),
+				weightDesc: m.a11yTriageWeightDesc({}, options),
 				height: m.triageVitalHeight({}, options),
+				heightDesc: m.a11yTriageHeightDesc({}, options),
 				submit: m.triageSaveVitals({}, options),
 				saving: m.triageSavingVitals({}, options),
 			},
 			comment: {
+				formLabel: m.a11yTriageCommentForm({}, options),
 				label: m.triageCommentLabel({}, options),
+				commentDesc: m.a11yTriageCommentDesc({}, options),
 				placeholder: m.triageCommentPlaceholder({}, options),
 				submit: m.triageCommentSubmit({}, options),
 				sending: m.triageCommentSubmitting({}, options),
 			},
 			close: {
+				formLabel: m.a11yTriageCloseForm({}, options),
 				label: m.triageCloseReasonLabel({}, options),
+				closeReasonDesc: m.a11yTriageCloseReasonDesc({}, options),
 				placeholder: m.triageCloseReasonPlaceholder({}, options),
 				submit: m.triageCloseSubmit({}, options),
 				sending: m.triageCloseSubmitting({}, options),
@@ -137,3 +171,5 @@ export function getTriageContent(
 		},
 	};
 }
+
+// Daniel Useche

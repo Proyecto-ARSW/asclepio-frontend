@@ -31,6 +31,7 @@ export function CloseTriageForm({
 
 	return (
 		<form
+			aria-label={content.forms.close.formLabel}
 			onSubmit={(event) => {
 				event.preventDefault();
 				void form.handleSubmit();
@@ -51,12 +52,14 @@ export function CloseTriageForm({
 						</FieldLabel>
 						<Textarea
 							id={field.name}
+							aria-describedby="triage-close-reason-desc"
 							value={field.state.value}
 							onBlur={field.handleBlur}
 							onChange={(event) => field.handleChange(event.target.value)}
 							placeholder={content.forms.close.placeholder}
 							disabled={disabled}
 						/>
+						<p id="triage-close-reason-desc" className="sr-only">{content.forms.close.closeReasonDesc}</p>
 						<FieldError
 							errors={field.state.meta.errors.map((message) => ({ message }))}
 						/>
@@ -81,3 +84,5 @@ export function CloseTriageForm({
 		</form>
 	);
 }
+
+// Daniel Useche

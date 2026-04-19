@@ -278,7 +278,7 @@ export default function SelectHospitalPage() {
 
 								<form.Field name="hospitalId">
 									{(field) => (
-										<div className="space-y-2">
+										<div role="listbox" aria-label={m.a11ySelectHospitalListRegion({}, { locale })} className="space-y-2">
 											{/* AnimatePresence con mode="wait" para transición
 											    suave entre páginas de resultados */}
 											<AnimatePresence mode="wait">
@@ -304,6 +304,9 @@ export default function SelectHospitalPage() {
 																<motion.button
 																	key={hospital.id}
 																	type="button"
+																	aria-label={m.a11ySelectHospitalItem({ name: hospital.nombre }, { locale })}
+																	role="option"
+																	aria-selected={selected}
 																	onClick={() =>
 																		field.handleChange(hospital.id)
 																	}
@@ -420,6 +423,7 @@ export default function SelectHospitalPage() {
 										<Button
 											type="submit"
 											className="w-full"
+											aria-label={m.a11ySelectHospitalSubmitDesc({}, { locale })}
 											disabled={Boolean(
 												!hydrated || !selectedHospitalId || isSubmitting,
 											)}

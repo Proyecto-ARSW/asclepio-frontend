@@ -51,6 +51,8 @@ import {
 	applyUiPreferences,
 	type ColorMode,
 	DEFAULT_OVERVIEW_BLOCKS,
+	type FontScale,
+	FONT_SCALE_LEVELS,
 	readUiPreferences,
 	saveUiPreferences,
 	type ThemeMode,
@@ -206,6 +208,10 @@ export default function DashboardPage() {
 
 	function handleColorModeChange(colorMode: ColorMode) {
 		setUiPreferences((prev) => ({ ...prev, colorMode }));
+	}
+
+	function handleFontScaleChange(fontScale: FontScale) {
+		setUiPreferences((prev) => ({ ...prev, fontScale }));
 	}
 
 	function handleOverviewBlockToggle(
@@ -392,6 +398,7 @@ export default function DashboardPage() {
 								theme={uiPreferences.theme}
 								colorMode={uiPreferences.colorMode}
 								dyslexiaFont={uiPreferences.dyslexiaFont}
+								fontScale={uiPreferences.fontScale}
 								onThemeChange={handleThemeChange}
 								onColorModeChange={handleColorModeChange}
 								onLanguageChange={handleLanguageChange}
@@ -401,6 +408,7 @@ export default function DashboardPage() {
 										dyslexiaFont: enabled,
 									}))
 								}
+								onFontScaleChange={handleFontScaleChange}
 								overviewBlockChoices={overviewBlockChoices}
 								onOverviewBlockToggle={handleOverviewBlockToggle}
 								onOverviewBlockReset={handleOverviewBlocksReset}
@@ -420,6 +428,7 @@ export default function DashboardPage() {
 							theme={uiPreferences.theme}
 							colorMode={uiPreferences.colorMode}
 							dyslexiaFont={uiPreferences.dyslexiaFont}
+							fontScale={uiPreferences.fontScale}
 							overviewBlocks={uiPreferences.overviewBlocks}
 							overviewBlockChoices={overviewBlockChoices}
 							onThemeChange={handleThemeChange}
@@ -428,6 +437,7 @@ export default function DashboardPage() {
 							onDyslexiaToggle={(enabled) =>
 								setUiPreferences((prev) => ({ ...prev, dyslexiaFont: enabled }))
 							}
+							onFontScaleChange={handleFontScaleChange}
 							onOverviewBlockToggle={handleOverviewBlockToggle}
 							onOverviewBlockReset={handleOverviewBlocksReset}
 						/>
@@ -447,10 +457,12 @@ function SidebarSectionRenderer({
 	theme,
 	colorMode,
 	dyslexiaFont,
+	fontScale,
 	onThemeChange,
 	onColorModeChange,
 	onLanguageChange,
 	onDyslexiaToggle,
+	onFontScaleChange,
 	overviewBlockChoices,
 	onOverviewBlockToggle,
 	onOverviewBlockReset,
@@ -463,10 +475,12 @@ function SidebarSectionRenderer({
 	theme: ThemeMode;
 	colorMode: ColorMode;
 	dyslexiaFont: boolean;
+	fontScale: FontScale;
 	onThemeChange: (theme: ThemeMode) => void;
 	onColorModeChange: (colorMode: ColorMode) => void;
 	onLanguageChange: (locale: AppLocale) => void;
 	onDyslexiaToggle: (enabled: boolean) => void;
+	onFontScaleChange: (fontScale: FontScale) => void;
 	overviewBlockChoices: Array<{ key: OverviewBlockKey; label: string }>;
 	onOverviewBlockToggle: (block: OverviewBlockKey, checked: boolean) => void;
 	onOverviewBlockReset: () => void;
@@ -478,12 +492,14 @@ function SidebarSectionRenderer({
 				theme={theme}
 				colorMode={colorMode}
 				dyslexiaFont={dyslexiaFont}
+				fontScale={fontScale}
 				overviewBlocks={overviewBlocks}
 				overviewBlockChoices={overviewBlockChoices}
 				onThemeChange={onThemeChange}
 				onColorModeChange={onColorModeChange}
 				onLanguageChange={onLanguageChange}
 				onDyslexiaToggle={onDyslexiaToggle}
+				onFontScaleChange={onFontScaleChange}
 				onOverviewBlockToggle={onOverviewBlockToggle}
 				onOverviewBlockReset={onOverviewBlockReset}
 			/>
@@ -649,17 +665,30 @@ const COLOR_MODE_OPTIONS: ColorModeOption[] = [
 	},
 ];
 
+const FONT_SCALE_OPTIONS: Array<{
+	value: FontScale;
+	getLabel: (locale: AppLocale) => string;
+}> = [
+	{ value: 0.875, getLabel: (l) => m.dashboardSettingsFontScaleSmall({}, { locale: l }) },
+	{ value: 1, getLabel: (l) => m.dashboardSettingsFontScaleNormal({}, { locale: l }) },
+	{ value: 1.25, getLabel: (l) => m.dashboardSettingsFontScaleLarge({}, { locale: l }) },
+	{ value: 1.5, getLabel: (l) => m.dashboardSettingsFontScaleXLarge({}, { locale: l }) },
+	{ value: 2, getLabel: (l) => m.dashboardSettingsFontScaleXXLarge({}, { locale: l }) },
+];
+
 function SettingsPanel({
 	locale,
 	theme,
 	colorMode,
 	dyslexiaFont,
+	fontScale,
 	overviewBlocks,
 	overviewBlockChoices,
 	onThemeChange,
 	onColorModeChange,
 	onLanguageChange,
 	onDyslexiaToggle,
+	onFontScaleChange,
 	onOverviewBlockToggle,
 	onOverviewBlockReset,
 }: {
@@ -667,17 +696,19 @@ function SettingsPanel({
 	theme: ThemeMode;
 	colorMode: ColorMode;
 	dyslexiaFont: boolean;
+	fontScale: FontScale;
 	overviewBlocks: OverviewBlockKey[];
 	overviewBlockChoices: Array<{ key: OverviewBlockKey; label: string }>;
 	onThemeChange: (theme: ThemeMode) => void;
 	onColorModeChange: (colorMode: ColorMode) => void;
 	onLanguageChange: (locale: AppLocale) => void;
 	onDyslexiaToggle: (enabled: boolean) => void;
+	onFontScaleChange: (fontScale: FontScale) => void;
 	onOverviewBlockToggle: (block: OverviewBlockKey, checked: boolean) => void;
 	onOverviewBlockReset: () => void;
 }) {
 	return (
-		<Card className="h-fit border-border/70 bg-card/90 shadow-sm">
+		<Card role="region" aria-label={m.a11yDashboardSettingsPanel({}, { locale })} className="h-fit border-border/70 bg-card/90 shadow-sm">
 			<CardHeader>
 				<CardTitle>{m.dashboardSettingsTitle({}, { locale })}</CardTitle>
 				<CardDescription>
@@ -820,6 +851,55 @@ function SettingsPanel({
 						onCheckedChange={(checked) => onDyslexiaToggle(Boolean(checked))}
 					/>
 				</div>
+
+				{/* Selector de escala de fuente: botones tipo "radio card" con la letra A
+				    en tamaño relativo a su nivel. Área mínima 44px para WCAG 2.5.8.
+				    aria-pressed comunica el estado activo a lectores de pantalla. */}
+				<div className="space-y-2">
+					<p className="text-sm font-medium text-foreground">
+						{m.dashboardSettingsFontScaleTitle({}, { locale })}
+					</p>
+					<p className="text-xs text-muted-foreground">
+						{m.dashboardSettingsFontScaleDescription({}, { locale })}
+					</p>
+					<div className="flex flex-wrap gap-2">
+						{FONT_SCALE_OPTIONS.map((option) => {
+							const isActive = fontScale === option.value;
+							const label = option.getLabel(locale);
+							return (
+								<button
+									key={option.value}
+									type="button"
+									aria-pressed={isActive}
+									aria-label={label}
+									onClick={() => onFontScaleChange(option.value)}
+									className={cn(
+										'flex min-h-[52px] min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-lg border px-3 py-2 transition-all',
+										isActive
+											? 'border-primary bg-primary/8 ring-1 ring-primary/40'
+											: 'border-border/60 bg-background/60 hover:border-primary/40 hover:bg-muted/40',
+									)}
+								>
+									<span
+										aria-hidden="true"
+										style={{
+											fontSize: `${option.value}em`,
+											lineHeight: 1,
+											fontWeight: 700,
+										}}
+										className="text-foreground"
+									>
+										A
+									</span>
+									<span className="text-[10px] leading-tight text-muted-foreground">
+										{label}
+									</span>
+								</button>
+							);
+						})}
+					</div>
+				</div>
+
 				<div className="space-y-2 rounded-lg border border-border/70 bg-muted/30 p-3">
 					<div className="flex items-center justify-between gap-2">
 						<p className="text-sm font-medium text-foreground">

@@ -734,7 +734,7 @@ function PlatformSlider({ locale }: { locale: AppLocale }) {
 	const slide = slides[currentIndex];
 
 	return (
-		<section className="px-4 pb-14 sm:px-6 lg:px-8">
+		<section aria-label={m.a11yLandmarkPlatform({}, { locale })} className="px-4 pb-14 sm:px-6 lg:px-8">
 			<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card/80 px-6 py-12 shadow-sm backdrop-blur lg:px-10">
 				{/* Encabezado de la sección */}
 				<RevealSection className="mx-auto mb-10 max-w-2xl text-center">
@@ -1536,7 +1536,7 @@ export default function HomePage() {
 			</section>
 
 			{/* ── INTEGRACIONES ── */}
-			<section className="px-4 pb-14 sm:px-6 lg:px-8">
+			<section aria-label={m.a11yLandmarkIntegrations({}, { locale })} className="px-4 pb-14 sm:px-6 lg:px-8">
 				<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card px-6 py-12 shadow-sm">
 					<RevealSection>
 						<h2 className="mx-auto max-w-xl text-center text-4xl font-bold tracking-tight text-foreground">
@@ -1582,7 +1582,7 @@ export default function HomePage() {
 			</section>
 
 			{/* ── CTA BANNER ── */}
-			<section className="px-4 pb-14 sm:px-6 lg:px-8">
+			<section aria-label={m.a11yLandmarkCta({}, { locale })} className="px-4 pb-14 sm:px-6 lg:px-8">
 				<RevealSection>
 					<div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-linear-to-r from-primary via-secondary to-primary px-6 py-16 text-center shadow-md">
 						<div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.45)_1.5px,transparent_2px)] bg-size-[14px_14px] opacity-45" />
@@ -1604,7 +1604,7 @@ export default function HomePage() {
 			</section>
 
 			{/* ── STATS + TESTIMONIAL ── */}
-			<section className="px-4 pb-20 sm:px-6 lg:px-8">
+			<section aria-label={m.a11yLandmarkStats({}, { locale })} className="px-4 pb-20 sm:px-6 lg:px-8">
 				<div className="mx-auto max-w-7xl space-y-8 rounded-[2rem] border border-border/60 bg-card/80 p-6 shadow-sm backdrop-blur">
 					{/* Stats: cada número entra escalonado */}
 					<div className="mx-auto grid max-w-4xl grid-cols-2 justify-items-center gap-6 text-center sm:grid-cols-4">

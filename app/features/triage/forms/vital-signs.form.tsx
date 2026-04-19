@@ -66,25 +66,28 @@ export function VitalSignsForm({
 		},
 	});
 
-	const fields: Array<{ key: keyof VitalSignsFormValues; label: string }> = [
-		{ key: 'temperature_c', label: content.forms.vitalSigns.temperature },
-		{ key: 'heart_rate_bpm', label: content.forms.vitalSigns.heartRate },
+	const fields: Array<{ key: keyof VitalSignsFormValues; label: string; desc: string }> = [
+		{ key: 'temperature_c', label: content.forms.vitalSigns.temperature, desc: content.forms.vitalSigns.temperatureDesc },
+		{ key: 'heart_rate_bpm', label: content.forms.vitalSigns.heartRate, desc: content.forms.vitalSigns.heartRateDesc },
 		{
 			key: 'respiratory_rate_bpm',
 			label: content.forms.vitalSigns.respiratoryRate,
+			desc: content.forms.vitalSigns.respiratoryRateDesc,
 		},
-		{ key: 'systolic_bp_mmhg', label: content.forms.vitalSigns.systolicBp },
-		{ key: 'diastolic_bp_mmhg', label: content.forms.vitalSigns.diastolicBp },
+		{ key: 'systolic_bp_mmhg', label: content.forms.vitalSigns.systolicBp, desc: content.forms.vitalSigns.systolicBpDesc },
+		{ key: 'diastolic_bp_mmhg', label: content.forms.vitalSigns.diastolicBp, desc: content.forms.vitalSigns.diastolicBpDesc },
 		{
 			key: 'oxygen_saturation_pct',
 			label: content.forms.vitalSigns.oxygenSaturation,
+			desc: content.forms.vitalSigns.oxygenSaturationDesc,
 		},
-		{ key: 'weight_kg', label: content.forms.vitalSigns.weight },
-		{ key: 'height_cm', label: content.forms.vitalSigns.height },
+		{ key: 'weight_kg', label: content.forms.vitalSigns.weight, desc: content.forms.vitalSigns.weightDesc },
+		{ key: 'height_cm', label: content.forms.vitalSigns.height, desc: content.forms.vitalSigns.heightDesc },
 	];
 
 	return (
 		<form
+			aria-label={content.forms.vitalSigns.formLabel}
 			onSubmit={(event) => {
 				event.preventDefault();
 				void form.handleSubmit();
@@ -111,11 +114,13 @@ export function VitalSignsForm({
 								<Input
 									id={field.name}
 									type="number"
+									aria-describedby={`vital-${item.key}-desc`}
 									value={field.state.value}
 									onBlur={field.handleBlur}
 									onChange={(event) => field.handleChange(event.target.value)}
 									disabled={disabled}
 								/>
+								<p id={`vital-${item.key}-desc`} className="sr-only">{item.desc}</p>
 								<FieldError
 									errors={field.state.meta.errors.map((message) => ({
 										message,
@@ -143,3 +148,5 @@ export function VitalSignsForm({
 		</form>
 	);
 }
+
+// Daniel Useche

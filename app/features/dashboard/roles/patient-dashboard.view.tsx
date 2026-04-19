@@ -1547,6 +1547,7 @@ export function PatientDashboardView({
 
 					<Button
 						type="button"
+						aria-label={m.a11yPatientBookAppointmentBtn({}, { locale })}
 						onClick={handleBook}
 						disabled={
 							actionLoading === 'book' || !booking.medicoId || !booking.slot
@@ -2152,6 +2153,7 @@ export function PatientDashboardView({
 																type="button"
 																size="sm"
 																variant="destructive"
+																aria-label={m.a11yPatientCancelAppointmentBtn({}, { locale })}
 																onClick={() => handleCancelAppointment(a.id)}
 																disabled={actionLoading === `cancel-${a.id}`}
 																className="shrink-0 gap-1 text-xs"
@@ -2234,6 +2236,7 @@ export function PatientDashboardView({
 											<Button
 												type="button"
 												variant="destructive"
+												aria-label={m.a11yPatientCancelAppointmentBtn({}, { locale })}
 												onClick={() => handleCancelMyTurn(myCurrentTurn.id)}
 												disabled={actionLoading === 'cancel-my-turn'}
 												size="sm"

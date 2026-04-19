@@ -2608,6 +2608,10 @@ export function DoctorDashboardView({
 		compact?: boolean;
 	}) {
 		const isPending = a.estado === 'PENDIENTE';
+		const appointmentPatient = patients.find((p) => p.id === a.pacienteId);
+		const appointmentPatientName = appointmentPatient
+			? `${appointmentPatient.nombre} ${appointmentPatient.apellido}`.trim()
+			: a.pacienteId;
 		return (
 			<div className="rounded-xl border border-border/70 bg-background/90 p-3">
 				<div className="flex flex-wrap items-center justify-between gap-2">
@@ -2630,7 +2634,10 @@ export function DoctorDashboardView({
 									type="button"
 									size="sm"
 									variant="outline"
-									aria-label={m.a11yDoctorConfirmAppointmentBtn({ patient: `${a.paciente?.nombre ?? ""} ${a.paciente?.apellido ?? ""}` }, { locale })}
+									aria-label={m.a11yDoctorConfirmAppointmentBtn(
+										{ patient: appointmentPatientName },
+										{ locale },
+									)}
 									onClick={() => handleConfirm(a)}
 									disabled={actionLoading === a.id}
 									className="gap-1 text-xs"
@@ -2644,7 +2651,10 @@ export function DoctorDashboardView({
 									type="button"
 									size="sm"
 									variant="destructive"
-									aria-label={m.a11yDoctorCancelAppointmentBtn({ patient: `${a.paciente?.nombre ?? ""} ${a.paciente?.apellido ?? ""}` }, { locale })}
+									aria-label={m.a11yDoctorCancelAppointmentBtn(
+										{ patient: appointmentPatientName },
+										{ locale },
+									)}
 									onClick={() => handleCancel(a.id)}
 									disabled={actionLoading === `${a.id}-cancel`}
 									className="gap-1 text-xs"

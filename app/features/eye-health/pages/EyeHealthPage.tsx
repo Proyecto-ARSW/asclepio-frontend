@@ -63,33 +63,21 @@ const CONTRAST_BORDER_TONE_CLASSES = [
 	'border-foreground/5',
 ] as const;
 
-function getCalibrationWidthClass(scalePercent: number): string {
-	switch (scalePercent) {
-		case 80:
-			return 'w-[74%] sm:w-[56%]';
-		case 85:
-			return 'w-[80%] sm:w-[60%]';
-		case 90:
-			return 'w-[86%] sm:w-[64%]';
-		case 95:
-			return 'w-[92%] sm:w-[68%]';
-		case 100:
-			return 'w-[98%] sm:w-[72%]';
-		case 105:
-			return 'w-[104%] sm:w-[76%]';
-		case 110:
-			return 'w-[110%] sm:w-[80%]';
-		case 115:
-			return 'w-[116%] sm:w-[84%]';
-		case 120:
-			return 'w-[122%] sm:w-[88%]';
-		case 125:
-			return 'w-[128%] sm:w-[92%]';
-		case 130:
-			return 'w-[134%] sm:w-[96%]';
-		default:
-			return 'w-full sm:w-full';
-	}
+const CALIBRATION_SCALE_MIN = 60;
+const CALIBRATION_SCALE_MAX = 120;
+const CALIBRATION_BASE_WIDTH_PERCENT = 132;
+const CARD_RATIO = 1.586;
+
+function getCalibrationWidthPercent(scalePercent: number): number {
+	const clamped = Math.min(
+		Math.max(scalePercent, CALIBRATION_SCALE_MIN),
+		CALIBRATION_SCALE_MAX,
+	);
+	return (clamped / 100) * CALIBRATION_BASE_WIDTH_PERCENT;
+}
+
+function getCalibrationMobileWidthPercent(scalePercent: number): number {
+	return getCalibrationWidthPercent(scalePercent) / CARD_RATIO;
 }
 
 function LandoltRing({
@@ -447,6 +435,20 @@ export function EyeHealthPage() {
 		</div>
 	);
 
+	const renderFixedSingleAction = (label: string, onClick: () => void) => (
+		<div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 backdrop-blur">
+			<div className="mx-auto w-full max-w-3xl px-4 sm:px-8">
+				<Button
+					type="button"
+					onClick={onClick}
+					className="h-12 w-full rounded-xl text-sm font-semibold"
+				>
+					{label}
+				</Button>
+			</div>
+		</div>
+	);
+
 	return (
 		<main className="relative h-screen overflow-hidden bg-background text-foreground">
 			<div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_10%_12%,color-mix(in_oklch,var(--color-primary)_20%,transparent),transparent_36%),radial-gradient(circle_at_86%_14%,color-mix(in_oklch,var(--color-secondary)_34%,transparent),transparent_34%),linear-gradient(180deg,color-mix(in_oklch,var(--color-background)_96%,white)_0%,var(--color-background)_100%)]" />
@@ -500,7 +502,9 @@ export function EyeHealthPage() {
 							className={`flex min-h-0 flex-1 flex-col gap-8 ${
 								stepIndex === step.RESULTS
 									? 'justify-start pb-8 pt-1'
-									: 'justify-center pb-3'
+									: stepIndex === step.CALIBRATION
+										? 'justify-start pb-[calc(env(safe-area-inset-bottom)+12rem)] pt-1'
+										: 'justify-center pb-3'
 							}`}
 						>
 							{stepIndex === step.BRIGHTNESS && (
@@ -541,8 +545,8 @@ export function EyeHealthPage() {
 										</p>
 										<Slider
 											value={[calibrationScale]}
-											min={80}
-											max={130}
+											min={CALIBRATION_SCALE_MIN}
+											max={CALIBRATION_SCALE_MAX}
 											step={5}
 											onValueChange={(value) => {
 												const next = Array.isArray(value)
@@ -555,16 +559,18 @@ export function EyeHealthPage() {
 										<p className="text-muted-foreground text-sm leading-relaxed">
 											{content.fullScreen.calibration.cardInstruction}
 										</p>
-										<div className="rounded-xl border border-dashed border-border/80 bg-background/80 p-4">
-											<div className="mx-auto flex h-80 w-full items-center justify-center sm:h-auto">
+										<div className="rounded-xl p-2 sm:border sm:border-dashed sm:border-border/80 sm:bg-background/80 sm:p-4">
+											<div className="mx-auto flex w-full items-center justify-center overflow-visible">
 												<div
-													className={`mx-auto aspect-[1.586/1] rounded-md border-2 border-primary/80 bg-primary/10 transition-all rotate-90 sm:rotate-0 ${getCalibrationWidthClass(
-														calibrationScale,
-													)}`}
+													className="mx-auto aspect-[1/1.586] shrink-0 rounded-md border-2 border-primary/80 bg-primary/10 transition-all sm:aspect-[1.586/1]"
+													style={{
+														width: `${getCalibrationMobileWidthPercent(calibrationScale)}%`,
+													}}
 												/>
 											</div>
 										</div>
 									</div>
+									<div aria-hidden="true" className="h-10 w-full shrink-0" />
 								</>
 							)}
 
@@ -1035,7 +1041,10 @@ export function EyeHealthPage() {
 						{stepIndex === step.BRIGHTNESS &&
 							renderSingleAction(content.fullScreen.brightness.cta, goNext)}
 						{stepIndex === step.CALIBRATION &&
-							renderSingleAction(content.fullScreen.calibration.cta, goNext)}
+							renderFixedSingleAction(
+								content.fullScreen.calibration.cta,
+								goNext,
+							)}
 						{stepIndex === step.LENSES &&
 							renderSingleAction(content.fullScreen.lenses.cta, goNext)}
 						{stepIndex === step.COVER_LEFT &&

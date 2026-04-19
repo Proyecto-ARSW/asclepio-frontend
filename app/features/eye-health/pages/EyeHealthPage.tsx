@@ -26,29 +26,29 @@ import {
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 
 const LANDOLT_SIZE_CLASSES = [
-	'size-[8.5rem]',
-	'size-[7.8rem]',
-	'size-[7.2rem]',
-	'size-[6.4rem]',
-	'size-[5.8rem]',
-	'size-[5rem]',
-	'size-[4.5rem]',
-	'size-[4rem]',
-	'size-[3.6rem]',
-	'size-[3.2rem]',
+	'size-[2.9rem]',
+	'size-[2.6rem]',
+	'size-[2.3rem]',
+	'size-[2.1rem]',
+	'size-[1.9rem]',
+	'size-[1.6rem]',
+	'size-[1.1rem]',
+	'size-[0.9rem]',
+	'size-[0.6rem]',
+	'size-[0.4rem]',
 ] as const;
 
 const LANDOLT_BORDER_CLASSES = [
-	'border-[10px]',
-	'border-[10px]',
-	'border-[9px]',
-	'border-[9px]',
-	'border-[8px]',
-	'border-[7px]',
-	'border-[6px]',
-	'border-[6px]',
-	'border-[5px]',
 	'border-[4px]',
+	'border-[4px]',
+	'border-[3px]',
+	'border-[3px]',
+	'border-[2px]',
+	'border-[2px]',
+	'border-[1px]',
+	'border-[1px]',
+	'border-[1px]',
+	'border-[1px]',
 ] as const;
 
 function getCalibrationWidthClass(scalePercent: number): string {
@@ -89,29 +89,31 @@ function LandoltRing({
 	sizeClass: string;
 	borderClass: string;
 }) {
-	const openingClass =
+	const openingRotationClass =
 		direction === 'up'
-			? 'top-[-1px] left-1/2 h-[34%] w-[18%] -translate-x-1/2 rounded-b-md'
-			: direction === 'right'
-				? 'right-[-1px] top-1/2 h-[18%] w-[34%] -translate-y-1/2 rounded-l-md'
-				: direction === 'down'
-					? 'bottom-[-1px] left-1/2 h-[34%] w-[18%] -translate-x-1/2 rounded-t-md'
-					: direction === 'left'
-						? 'left-[-1px] top-1/2 h-[18%] w-[34%] -translate-y-1/2 rounded-r-md'
-						: direction === 'upRight'
-							? 'right-[8%] top-[8%] h-[30%] w-[16%] rotate-45 rounded-sm'
-							: direction === 'downRight'
-								? 'bottom-[8%] right-[8%] h-[30%] w-[16%] -rotate-45 rounded-sm'
-								: direction === 'downLeft'
-									? 'bottom-[8%] left-[8%] h-[30%] w-[16%] rotate-45 rounded-sm'
-									: 'left-[8%] top-[8%] h-[30%] w-[16%] -rotate-45 rounded-sm';
+			? '-rotate-90'
+			: direction === 'upRight'
+				? '-rotate-45'
+				: direction === 'right'
+					? 'rotate-0'
+					: direction === 'downRight'
+						? 'rotate-45'
+						: direction === 'down'
+							? 'rotate-90'
+							: direction === 'downLeft'
+								? 'rotate-[135deg]'
+								: direction === 'left'
+									? 'rotate-180'
+									: '-rotate-[135deg]';
 
 	return (
-		<div className="mx-auto flex w-full justify-center py-3">
+		<div className="mx-auto flex w-full justify-center py-1">
 			<div
 				className={`relative ${sizeClass} ${borderClass} rounded-full border-foreground/85 bg-transparent`}
 			>
-				<div className={`absolute bg-background ${openingClass}`} />
+				<div
+					className={`absolute left-1/2 top-1/2 h-[26%] w-[62%] origin-left -translate-y-1/2 rounded-full bg-background ${openingRotationClass}`}
+				/>
 			</div>
 		</div>
 	);
@@ -126,7 +128,7 @@ export function EyeHealthPage() {
 	const [ishiharaInput, setIshiharaInput] = useState('');
 
 	const {
-		stepIndex,
+		stepIndex: rawStepIndex,
 		totalSteps,
 		progressValue,
 		canGoBack,
@@ -158,6 +160,8 @@ export function EyeHealthPage() {
 		rightCorrectCount,
 		colorCorrectCount,
 	} = useEyeHealthTest();
+
+	const stepIndex = rawStepIndex as number;
 
 	useEffect(() => {
 		if (stepIndex !== step.PROCESSING) return;
@@ -433,11 +437,11 @@ export function EyeHealthPage() {
 										direction={currentLandolt.target}
 										sizeClass={
 											LANDOLT_SIZE_CLASSES[currentLandolt.index] ??
-											'size-[3.6rem]'
+											'size-[1.2rem]'
 										}
 										borderClass={
 											LANDOLT_BORDER_CLASSES[currentLandolt.index] ??
-											'border-[4px]'
+											'border-[1px]'
 										}
 									/>
 								</>

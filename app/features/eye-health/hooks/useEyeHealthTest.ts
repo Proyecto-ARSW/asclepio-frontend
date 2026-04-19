@@ -99,7 +99,9 @@ function hasOwnKey(record: Record<string, string>, key: string) {
 }
 
 export function useEyeHealthTest() {
-	const [stepIndex, setStepIndex] = useState(EYE_HEALTH_STEP.BRIGHTNESS);
+	const [stepIndex, setStepIndex] = useState<number>(
+		EYE_HEALTH_STEP.BRIGHTNESS,
+	);
 	const [calibrationScale, setCalibrationScale] = useState(100);
 	const [leftTargets, setLeftTargets] = useState<AcuityDirection[]>(() =>
 		createLandoltSequence(10),

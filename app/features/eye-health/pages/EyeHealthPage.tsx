@@ -119,6 +119,65 @@ function LandoltRing({
 	);
 }
 
+const ASTIGMATISM_ANGLES = [
+	-90, -67.5, -45, -22.5, 0, 22.5, 45, 67.5, 90,
+] as const;
+
+function AstigmatismFanChart() {
+	const centerX = 120;
+	const centerY = 120;
+	const innerRadius = 28;
+	const outerRadius = 102;
+	const lineOffset = 2.6;
+
+	return (
+		<div className="mx-auto w-full max-w-xs rounded-2xl border border-border/70 bg-white p-3">
+			<svg
+				viewBox="0 0 240 140"
+				className="mx-auto w-full"
+				role="img"
+				aria-label="Carta de lineas para prueba de astigmatismo"
+			>
+				{ASTIGMATISM_ANGLES.flatMap((angle) => {
+					const radians = (angle * Math.PI) / 180;
+					const cos = Math.cos(radians);
+					const sin = Math.sin(radians);
+					const normalX = -sin;
+					const normalY = cos;
+
+					const startX = centerX + cos * innerRadius;
+					const startY = centerY + sin * innerRadius;
+					const endX = centerX + cos * outerRadius;
+					const endY = centerY + sin * outerRadius;
+
+					return [-1, 0, 1].map((lineIndex) => {
+						const shift = lineIndex * lineOffset;
+						return (
+							<line
+								key={`${angle}-${lineIndex}`}
+								x1={startX + normalX * shift}
+								y1={startY + normalY * shift}
+								x2={endX + normalX * shift}
+								y2={endY + normalY * shift}
+								stroke="#111111"
+								strokeWidth="1.7"
+								strokeLinecap="square"
+							/>
+						);
+					});
+				})}
+
+				<path
+					d={`M ${centerX - innerRadius} ${centerY} A ${innerRadius} ${innerRadius} 0 0 1 ${centerX + innerRadius} ${centerY}`}
+					fill="none"
+					stroke="#111111"
+					strokeWidth="2"
+				/>
+			</svg>
+		</div>
+	);
+}
+
 export function EyeHealthPage() {
 	const location = useLocation();
 	const locale = currentLocale(location.pathname);
@@ -564,11 +623,7 @@ export function EyeHealthPage() {
 										</h1>
 									</div>
 
-									<div className="mx-auto max-w-sm rounded-2xl border border-border/70 bg-card/70 p-4">
-										<div className="mx-auto aspect-square w-full max-w-64 rounded-full border border-border/80 bg-[repeating-conic-gradient(color-mix(in_oklch,var(--color-foreground)_68%,transparent)_0deg_2deg,transparent_2deg_12deg)] p-7">
-											<div className="h-full w-full rounded-full border border-border/80 bg-background/75" />
-										</div>
-									</div>
+									<AstigmatismFanChart />
 
 									<p className="text-center text-base font-medium">
 										{content.fullScreen.astigmatism.question}

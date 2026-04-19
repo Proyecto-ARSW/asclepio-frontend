@@ -6,39 +6,39 @@
 		"title": "Salud Ocular | Asclepio"
 	},
 	"page": {
-		"title": "Revision de salud ocular",
-		"subtitle": "Flujo guiado para una autoevaluacion visual inicial. No reemplaza una consulta profesional.",
+		"title": "Revisión de salud ocular",
+		"subtitle": "Flujo guiado para una autoevaluación visual inicial. No reemplaza una consulta profesional.",
 		"homeLink": "Volver al inicio",
 		"restart": "Reiniciar test",
 		"stepCounter": "Paso {current} de {total}",
 		"progressLabel": "Progreso del test"
 	},
 	"common": {
-		"back": "Atras",
+		"back": "Atrás",
 		"continue": "Continuar",
 		"required": "Este campo es obligatorio",
-		"yes": "Si",
+		"yes": "Sí",
 		"no": "No"
 	},
 	"steps": {
 		"calibration": {
-			"title": "Inicio y calibracion",
-			"description": "Sube el brillo al maximo y ajusta la escala para que la tarjeta de referencia coincida con una tarjeta fisica.",
-			"brightnessLabel": "Confirmo que el brillo esta al maximo",
+			"title": "Inicio y calibración",
+			"description": "Sube el brillo al máximo y ajusta la escala para que la tarjeta de referencia coincida con una tarjeta física.",
+			"brightnessLabel": "Confirmo que el brillo está al máximo",
 			"brightnessHint": "Este ajuste mejora la lectura de contraste durante las pruebas.",
-			"brightnessRequired": "Confirma el brillo maximo para continuar",
+			"brightnessRequired": "Confirma el brillo máximo para continuar",
 			"scaleLabel": "Escala visual: {value}%",
 			"scaleHint": "Mueve el slider hasta que el borde de referencia mida igual que tu tarjeta.",
-			"referenceLabel": "Referencia de calibracion",
-			"submit": "Guardar calibracion"
+			"referenceLabel": "Referencia de calibración",
+			"submit": "Guardar calibración"
 		},
 		"acuity": {
 			"title": "Prueba 1: Agudeza visual",
-			"description": "Manten una distancia aproximada de un brazo. Evalua cada ojo por separado tapando el ojo contrario.",
+			"description": "Mantén una distancia aproximada de un brazo. Evalúa cada ojo por separado tapando el ojo contrario.",
 			"distanceHint": "Distancia sugerida: un brazo",
 			"leftEyePrompt": "Tapa el ojo derecho y responde para el ojo izquierdo",
 			"rightEyePrompt": "Tapa el ojo izquierdo y responde para el ojo derecho",
-			"answerLabel": "Selecciona la direccion de la abertura",
+			"answerLabel": "Selecciona la dirección de la abertura",
 			"optionUp": "Arriba",
 			"optionRight": "Derecha",
 			"optionDown": "Abajo",
@@ -46,24 +46,24 @@
 			"submit": "Guardar agudeza"
 		},
 		"colorBlindness": {
-			"title": "Prueba 2: Percepcion de colores (Ishihara)",
-			"description": "Observa cada lamina y escribe el numero que ves. No uses aproximaciones ni texto adicional.",
-			"plateCounter": "Lamina {current} de {total}",
-			"inputLabel": "Numero observado",
-			"inputHint": "Escribe solo numeros, por ejemplo 12",
+			"title": "Prueba 2: Percepción de colores (Ishihara)",
+			"description": "Observa cada lámina y escribe el número que ves. No uses aproximaciones ni texto adicional.",
+			"plateCounter": "Lámina {current} de {total}",
+			"inputLabel": "Número observado",
+			"inputHint": "Escribe solo números, por ejemplo 12",
 			"inputPlaceholder": "Ej: 12",
-			"inputInvalid": "Ingresa un numero valido",
-			"next": "Siguiente lamina",
-			"finish": "Finalizar percepcion de color",
-			"imageAlt": "Lamina Ishihara {index}",
-			"loadingImage": "Cargando lamina..."
+			"inputInvalid": "Ingresa un número válido",
+			"next": "Siguiente lámina",
+			"finish": "Finalizar percepción de color",
+			"imageAlt": "Lámina Ishihara {index}",
+			"loadingImage": "Cargando lámina..."
 		},
 		"astigmatism": {
 			"title": "Prueba 3: Astigmatismo",
-			"description": "Mira la figura radiada. Si algunas lineas se ven mas oscuras, borrosas o mas gruesas, reportalo.",
-			"question": "Todas las lineas se ven con la misma nitidez",
+			"description": "Mira la figura radiada. Si algunas líneas se ven más oscuras, borrosas o más gruesas, repórtalo.",
+			"question": "Todas las líneas se ven con la misma nitidez",
 			"notesLabel": "Observaciones",
-			"notesPlaceholder": "Describe que lineas se ven diferentes (opcional)",
+			"notesPlaceholder": "Describe qué líneas se ven diferentes (opcional)",
 			"submit": "Guardar astigmatismo"
 		},
 		"results": {
@@ -74,15 +74,15 @@
 			"astigmatismStatus": "Riesgo de astigmatismo",
 			"astigmatismRisk": "Posible hallazgo",
 			"astigmatismNoRisk": "Sin hallazgo relevante",
-			"calibrationStatus": "Calibracion",
+			"calibrationStatus": "Calibración",
 			"calibrationReady": "Completada",
-			"interpretationTitle": "Interpretacion",
+			"interpretationTitle": "Interpretación",
 			"levelExcellent": "Excelente",
 			"levelGood": "Bueno",
 			"levelConsult": "Sugerencia de consulta",
 			"excellentDescription": "Tus resultados son consistentes con una percepcion visual estable.",
 			"goodDescription": "Se observan resultados funcionales, pero conviene repetir la prueba en mejores condiciones de luz.",
-			"consultDescription": "Se recomienda una consulta con optometria para una evaluacion profesional.",
+			"consultDescription": "Se recomienda una consulta con optometría para una evaluación profesional.",
 			"saveLoading": "Guardando resultado...",
 			"saveSuccess": "Resultado guardado correctamente",
 			"saveErrorTitle": "No se pudo guardar",
@@ -94,19 +94,19 @@
 	"fullScreen": {
 		"common": {
 			"stepCounter": "Pantalla {current} de {total}",
-			"back": "Atras",
+			"back": "Atrás",
 			"restart": "Reiniciar",
 			"finish": "Finalizar"
 		},
 		"brightness": {
-			"title": "Sube el brillo de tu pantalla al maximo para obtener resultados precisos.",
+			"title": "Sube el brillo de tu pantalla al máximo para obtener resultados precisos.",
 			"description": "Ajustar el brillo mejora la legibilidad de las pruebas visuales.",
 			"cta": "Siguiente paso"
 		},
 		"calibration": {
-			"title": "Ajusta el tamano",
+			"title": "Ajusta el tamaño",
 			"description": "Calibra la referencia visual antes de empezar.",
-			"cardInstruction": "Coloca una tarjeta fisica sobre la pantalla y ajusta hasta que coincidan.",
+			"cardInstruction": "Coloca una tarjeta física sobre la pantalla y ajusta hasta que coincidan.",
 			"scaleLabel": "Escala: {value}%",
 			"cta": "Siguiente paso"
 		},
@@ -115,11 +115,11 @@
 			"cta": "Siguiente"
 		},
 		"coverLeft": {
-			"title": "Tapate el ojo IZQUIERDO.",
+			"title": "Tápate el ojo IZQUIERDO.",
 			"cta": "Siguiente"
 		},
 		"distance": {
-			"title": "Manten el dispositivo a un brazo de distancia.",
+			"title": "Mantén el dispositivo a un brazo de distancia.",
 			"cta": "Todo listo"
 		},
 		"contrast": {
@@ -127,10 +127,10 @@
 			"eyeLeft": "Contraste para ojo izquierdo",
 			"eyeRight": "Contraste para ojo derecho",
 			"counter": "Figura {current} de {total}",
-			"helper": "La figura tendra menos contraste en cada paso. Selecciona la direccion de la abertura."
+			"helper": "La figura tendrá menos contraste en cada paso. Selecciona la dirección de la abertura."
 		},
 		"landolt": {
-			"title": "Selecciona la direccion de la abertura",
+			"title": "Selecciona la dirección de la abertura",
 			"eyeLeft": "Serie para ojo izquierdo",
 			"eyeRight": "Serie para ojo derecho",
 			"counter": "Anillo {current} de {total}",
@@ -145,37 +145,37 @@
 			"optionUpLeft": "Arriba izquierda"
 		},
 		"coverRight": {
-			"title": "Ahora, tapate el ojo DERECHO.",
+			"title": "Ahora, tápate el ojo DERECHO.",
 			"cta": "Siguiente"
 		},
 		"ishiharaIntro": {
 			"title": "Prueba de colores",
-			"description": "Manten ambos ojos abiertos y el dispositivo a un brazo de distancia.",
+			"description": "Mantén ambos ojos abiertos y el dispositivo a un brazo de distancia.",
 			"cta": "Comenzar"
 		},
 		"ishihara": {
-			"title": "Escribe el numero que ves",
-			"counter": "Lamina {current} de {total}",
-			"imageAlt": "Lamina Ishihara {index}",
-			"inputPlaceholder": "Numero",
-			"invalidChars": "Solo se permiten numeros.",
-			"emptyMeansNoSee": "Si dejas vacio, se asumira que no ves ningun numero.",
+			"title": "Escribe el número que ves",
+			"counter": "Lámina {current} de {total}",
+			"imageAlt": "Lámina Ishihara {index}",
+			"inputPlaceholder": "Número",
+			"invalidChars": "Solo se permiten números.",
+			"emptyMeansNoSee": "Si dejas vacío, se asumirá que no ves ningún número.",
 			"cta": "Siguiente"
 		},
 		"astigmatismIntro": {
-			"title": "Tapate un ojo y mira el grafico.",
+			"title": "Tápate un ojo y mira el gráfico.",
 			"cta": "Ver grafico"
 		},
 		"astigmatism": {
 			"title": "Prueba de astigmatismo ({eye})",
 			"eyeLeft": "ojo izquierdo",
 			"eyeRight": "ojo derecho",
-			"question": "Ves algunas lineas mas oscuras o borrosas?",
+			"question": "¿Ves algunas líneas más oscuras o borrosas?",
 			"optionEqual": "Todas se ven igual",
 			"optionDifferent": "Veo lineas distintas"
 		},
 		"processing": {
-			"title": "Analizando tu vision...",
+			"title": "Analizando tu visión...",
 			"description": "Estamos procesando tus respuestas."
 		},
 		"results": {
@@ -187,7 +187,7 @@
 			"contrastLabel": "Sensibilidad al contraste",
 			"contrastValue": "{correct} de {total}",
 			"contrastPerEye": "Izquierdo: {left} | Derecho: {right}",
-			"colorLabel": "Percepcion de colores",
+			"colorLabel": "Percepción de colores",
 			"colorValue": "{correct} de {total}",
 			"classificationLabel": "Resultado general",
 			"levelExcellent": "Excelente",

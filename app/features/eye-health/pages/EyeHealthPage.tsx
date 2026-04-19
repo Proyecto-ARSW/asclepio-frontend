@@ -7,7 +7,11 @@ import {
 	ArrowUpIcon,
 	ArrowUpLeftIcon,
 	ArrowUpRightIcon,
+	CheckBadgeIcon,
+	ExclamationTriangleIcon,
 	HandRaisedIcon,
+	InformationCircleIcon,
+	SparklesIcon,
 	SunIcon,
 } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
@@ -218,6 +222,8 @@ export function EyeHealthPage() {
 		leftCorrectCount,
 		rightCorrectCount,
 		colorCorrectCount,
+		astigmatismLeftDifferent,
+		astigmatismRightDifferent,
 	} = useEyeHealthTest();
 
 	const stepIndex = rawStepIndex as number;
@@ -279,6 +285,19 @@ export function EyeHealthPage() {
 	const transition = prefersReducedMotion
 		? { duration: 0 }
 		: { duration: 0.26, ease: 'easeInOut' as const };
+
+	const acuityPercent = Math.round((acuityCorrectCount / 20) * 100);
+	const colorPercent = Math.round((colorCorrectCount / 13) * 100);
+	const overallPercent = Math.round((acuityPercent + colorPercent) / 2);
+	const astigmatismFlag =
+		astigmatismLeftDifferent === true || astigmatismRightDifferent === true;
+
+	const classificationText =
+		classification === 'excellent'
+			? content.fullScreen.results.levelExcellent
+			: classification === 'good'
+				? content.fullScreen.results.levelGood
+				: content.fullScreen.results.levelConsult;
 
 	const landoltOptions: Array<{
 		direction: AcuityDirection;
@@ -654,12 +673,33 @@ export function EyeHealthPage() {
 										</p>
 									</div>
 
+									<div className="rounded-2xl border border-primary/25 bg-primary/5 p-4">
+										<div className="flex items-center justify-between gap-3">
+											<div className="flex items-center gap-2">
+												<SparklesIcon className="size-5 text-primary" />
+												<p className="text-sm font-semibold">Indice general</p>
+											</div>
+											<p className="text-2xl font-bold text-primary">
+												{overallPercent}%
+											</p>
+										</div>
+										<p className="mt-2 text-sm text-muted-foreground">
+											{classificationText}
+										</p>
+									</div>
+
 									<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 										<div className="rounded-xl border border-border/70 bg-card/70 p-4">
-											<p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
-												{content.fullScreen.results.acuityLabel}
-											</p>
+											<div className="flex items-center gap-2">
+												<CheckBadgeIcon className="size-4 text-primary" />
+												<p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
+													{content.fullScreen.results.acuityLabel}
+												</p>
+											</div>
 											<p className="mt-2 text-xl font-semibold">
+												{acuityPercent}%
+											</p>
+											<p className="text-sm font-medium">
 												{formatEyeHealthText(
 													content.fullScreen.results.acuityValue,
 													{
@@ -680,10 +720,17 @@ export function EyeHealthPage() {
 										</div>
 
 										<div className="rounded-xl border border-border/70 bg-card/70 p-4">
-											<p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
-												{content.fullScreen.results.colorLabel}
-											</p>
+											<div className="flex items-center gap-2">
+												<InformationCircleIcon className="size-4 text-primary" />
+												<p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
+													{content.fullScreen.results.colorLabel}
+												</p>
+											</div>
 											<p className="mt-2 text-xl font-semibold">
+												{colorPercent}%
+											</p>
+											<p className="text-sm font-medium"></p>
+											<p className="text-sm font-medium">
 												{formatEyeHealthText(
 													content.fullScreen.results.colorValue,
 													{
@@ -695,15 +742,43 @@ export function EyeHealthPage() {
 										</div>
 
 										<div className="rounded-xl border border-border/70 bg-card/70 p-4">
-											<p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
-												{content.fullScreen.results.classificationLabel}
-											</p>
+											<div className="flex items-center gap-2">
+												{astigmatismFlag ? (
+													<ExclamationTriangleIcon className="size-4 text-amber-500" />
+												) : (
+													<CheckBadgeIcon className="size-4 text-primary" />
+												)}
+												<p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
+													{content.fullScreen.results.classificationLabel}
+												</p>
+											</div>
 											<p className="mt-2 text-xl font-semibold">
-												{classification === 'excellent'
-													? content.fullScreen.results.levelExcellent
-													: classification === 'good'
-														? content.fullScreen.results.levelGood
-														: content.fullScreen.results.levelConsult}
+												{classificationText}
+											</p>
+											<p className="mt-2 text-xs text-muted-foreground">
+												{astigmatismFlag
+													? 'Astigmatismo: posible senal detectada.'
+													: 'Astigmatismo: sin senal relevante.'}
+											</p>
+										</div>
+									</div>
+
+									<div className="rounded-xl border border-border/70 bg-card/60 p-4 text-sm">
+										<p className="font-semibold">Detalle por ojo</p>
+										<div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:text-sm">
+											<p className="text-muted-foreground">Ojo izquierdo</p>
+											<p className="text-right font-medium">
+												{leftCorrectCount} / 10
+											</p>
+											<p className="text-muted-foreground">Ojo derecho</p>
+											<p className="text-right font-medium">
+												{rightCorrectCount} / 10
+											</p>
+											<p className="text-muted-foreground">
+												Percepcion de color
+											</p>
+											<p className="text-right font-medium">
+												{colorCorrectCount} / 13
 											</p>
 										</div>
 									</div>

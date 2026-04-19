@@ -483,9 +483,15 @@ export function EyeHealthPage() {
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: prefersReducedMotion ? 0 : -8 }}
 						transition={transition}
-						className="flex min-h-0 flex-1 flex-col"
+						className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain"
 					>
-						<div className="flex min-h-0 flex-1 flex-col justify-center gap-8 pb-3">
+						<div
+							className={`flex min-h-0 flex-1 flex-col gap-8 ${
+								stepIndex === step.RESULTS
+									? 'justify-start pb-8 pt-1'
+									: 'justify-center pb-3'
+							}`}
+						>
 							{stepIndex === step.BRIGHTNESS && (
 								<>
 									<div className="mx-auto rounded-full border border-primary/40 bg-primary/10 p-5">
@@ -835,7 +841,7 @@ export function EyeHealthPage() {
 							)}
 
 							{stepIndex === step.RESULTS && (
-								<div className="space-y-5">
+								<div className="space-y-5 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
 									<div className="space-y-2 text-center">
 										<h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
 											{content.fullScreen.results.title}
@@ -987,6 +993,28 @@ export function EyeHealthPage() {
 											</p>
 										</div>
 									</div>
+
+									<div className="mt-2 border-t border-border/70 pt-4">
+										<Link
+											to={localePath('/', locale)}
+											className="inline-flex w-full"
+										>
+											<Button
+												type="button"
+												className="h-12 w-full rounded-xl text-sm font-semibold"
+											>
+												{content.fullScreen.results.cta}
+											</Button>
+										</Link>
+										<Button
+											type="button"
+											variant="ghost"
+											onClick={restart}
+											className="mt-2 h-10 w-full"
+										>
+											{content.fullScreen.common.restart}
+										</Button>
+									</div>
 								</div>
 							)}
 						</div>
@@ -1005,7 +1033,7 @@ export function EyeHealthPage() {
 							renderSingleAction('Comenzar abertura', goNext)}
 
 						{currentContrast && (
-							<div className="sticky bottom-0 mt-auto border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 backdrop-blur">
+							<div className="sticky bottom-0 mt-auto border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 pr-19 backdrop-blur sm:pr-0">
 								<div className="grid grid-cols-4 gap-2">
 									{landoltOptions.map((option) => (
 										<Button
@@ -1025,7 +1053,7 @@ export function EyeHealthPage() {
 						)}
 
 						{currentLandolt && (
-							<div className="sticky bottom-0 mt-auto border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 backdrop-blur">
+							<div className="sticky bottom-0 mt-auto border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 pr-19 backdrop-blur sm:pr-0">
 								<div className="grid grid-cols-4 gap-2">
 									{landoltOptions.map((option) => (
 										<Button
@@ -1115,30 +1143,6 @@ export function EyeHealthPage() {
 										{content.fullScreen.astigmatism.optionDifferent}
 									</Button>
 								</div>
-							</div>
-						)}
-
-						{stepIndex === step.RESULTS && (
-							<div className="sticky bottom-0 mt-auto border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 backdrop-blur">
-								<Link
-									to={localePath('/', locale)}
-									className="mt-2 inline-flex w-full"
-								>
-									<Button
-										type="button"
-										className="h-12 w-full rounded-xl text-sm font-semibold"
-									>
-										{content.fullScreen.results.cta}
-									</Button>
-								</Link>
-								<Button
-									type="button"
-									variant="ghost"
-									onClick={restart}
-									className="mt-2 h-10 w-full"
-								>
-									{content.fullScreen.common.restart}
-								</Button>
 							</div>
 						)}
 					</motion.section>

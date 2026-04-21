@@ -1651,6 +1651,25 @@ export default function HomePage() {
 					</RevealSection>
 				</div>
 			</section>
+
+			<section className="px-4 pb-20 sm:px-6 lg:px-8">
+				<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card/85 px-6 py-8 shadow-sm backdrop-blur">
+					<div className="flex flex-col items-center gap-3 text-center">
+						<p className="text-sm text-muted-foreground">
+							{m.legalCtaDescription({}, { locale })}
+						</p>
+						<Link
+							to={localePath('/legal/terms', locale)}
+							className={cn(
+								buttonVariants({ variant: 'outline', size: 'lg' }),
+								'rounded-full border-primary/30 px-6',
+							)}
+						>
+							{m.homeLandingViewTermsButton({}, { locale })}
+						</Link>
+					</div>
+				</div>
+			</section>
 		</main>
 	);
 }

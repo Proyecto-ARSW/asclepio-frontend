@@ -77,4 +77,13 @@ export const MAPS_API_URL = (
 	import.meta.env.VITE_MAPS_API_URL ?? 'http://localhost:8081'
 ).replace(/\/$/, '');
 
+/**
+ * URL del servicio de búsqueda semántica (FastAPI + pgvector).
+ * Indexa historias clínicas y expone búsqueda vectorial por similitud coseno.
+ * Comparte el JWT_SECRET con NestJS — filtra resultados por hospitalId del token.
+ */
+export const SEARCH_API_URL = (
+	import.meta.env.VITE_SEARCH_API_URL ?? 'http://localhost:3006'
+).replace(/\/$/, '');
+
 // Daniel Useche

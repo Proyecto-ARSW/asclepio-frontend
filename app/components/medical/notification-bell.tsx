@@ -253,7 +253,7 @@ export function NotificationBell({ locale }: NotificationBellProps) {
 						animate={{ opacity: 1, y: 0, scale: 1 }}
 						exit={{ opacity: 0, y: -8, scale: 0.95 }}
 						transition={{ duration: 0.18 }}
-						className="absolute left-1/2 top-full z-50 mt-2 w-[min(22rem,calc(100vw-1rem))] -translate-x-1/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xl sm:left-auto sm:right-0 sm:translate-x-0 sm:w-96"
+						className="fixed inset-x-2 top-16 z-50 w-[min(22rem,calc(100vw-1rem))] overflow-hidden rounded-2xl border border-border bg-card shadow-xl sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2 sm:w-96"
 					>
 						{/* Cabecera del panel */}
 						<div className="flex items-center justify-between border-b border-border px-4 py-3">

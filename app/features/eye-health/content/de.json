@@ -144,8 +144,16 @@
 			"optionLeft": "Links",
 			"optionUpLeft": "Oben links"
 		},
+		"apertureIntro": {
+			"kicker": "Testwechsel",
+			"title": "Jetzt beginnt der Offnungstest",
+			"description": "Der Kontrasttest ist abgeschlossen. Wahle die genaue Offnungsrichtung.",
+			"cta": "Offnung starten"
+		},
 		"coverRight": {
 			"title": "Decke jetzt dein RECHTES Auge ab.",
+			"kicker": "Augenwechsel",
+			"description": "Decke das andere Auge ab, um mit der nachsten Serie fortzufahren.",
 			"cta": "Weiter"
 		},
 		"ishiharaIntro": {
@@ -172,7 +180,8 @@
 			"eyeRight": "rechtes Auge",
 			"question": "Sehen einige Linien dunkler oder unscharfer aus?",
 			"optionEqual": "Alle Linien sehen gleich aus",
-			"optionDifferent": "Ich sehe unterschiedliche Linien"
+			"optionDifferent": "Ich sehe unterschiedliche Linien",
+			"chartAriaLabel": "Liniendiagramm fur den Astigmatismus-Test"
 		},
 		"processing": {
 			"title": "Dein Sehen wird analysiert...",
@@ -181,6 +190,7 @@
 		"results": {
 			"title": "Abschlussbericht",
 			"subtitle": "Zusammenfassung von Sehscharfe, Kontrast, Farbe und Astigmatismus.",
+			"overallLabel": "Gesamtindex",
 			"acuityLabel": "Sehscharfe",
 			"acuityValue": "{correct} von {total}",
 			"acuityPerEye": "Links: {left} | Rechts: {right}",
@@ -193,6 +203,14 @@
 			"levelExcellent": "Exzellent",
 			"levelGood": "Gut",
 			"levelConsult": "Konsultation empfohlen",
+			"astigmatismRiskNote": "Astigmatismus: mogliches Signal erkannt.",
+			"astigmatismNoRiskNote": "Astigmatismus: kein relevantes Signal.",
+			"eyeDetailTitle": "Details pro Auge",
+			"eyeDetailLeft": "Linkes Auge",
+			"eyeDetailRight": "Rechtes Auge",
+			"eyeDetailContrastLeft": "Kontrast links",
+			"eyeDetailContrastRight": "Kontrast rechts",
+			"eyeDetailColor": "Farbwahrnehmung",
 			"cta": "Test beenden",
 			"saving": "Speichern...",
 			"retry": "Speichern erneut versuchen",

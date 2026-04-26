@@ -308,10 +308,10 @@ function SidebarContent({
 					type="button"
 					onClick={onLogout}
 					variant="destructive"
-					className="w-full justify-start gap-3"
+					className="h-10 w-full justify-start gap-3 min-w-0"
 				>
 					<ArrowRightStartOnRectangleIcon className="h-4.5 w-4.5 shrink-0" />
-					{logoutLabel}
+					<span className="truncate">{logoutLabel}</span>
 				</Button>
 			</div>
 		</div>

@@ -144,8 +144,16 @@
 			"optionLeft": "Izquierda",
 			"optionUpLeft": "Arriba izquierda"
 		},
+		"apertureIntro": {
+			"kicker": "Cambio de prueba",
+			"title": "Ahora empieza la prueba de abertura",
+			"description": "Terminaste contraste. En esta fase selecciona la dirección exacta de la abertura.",
+			"cta": "Comenzar abertura"
+		},
 		"coverRight": {
 			"title": "Ahora, tápate el ojo DERECHO.",
+			"kicker": "Cambio de ojo",
+			"description": "Ahora tapa el otro ojo para continuar con la siguiente serie.",
 			"cta": "Siguiente"
 		},
 		"ishiharaIntro": {
@@ -172,7 +180,8 @@
 			"eyeRight": "ojo derecho",
 			"question": "¿Ves algunas líneas más oscuras o borrosas?",
 			"optionEqual": "Todas se ven igual",
-			"optionDifferent": "Veo lineas distintas"
+			"optionDifferent": "Veo lineas distintas",
+			"chartAriaLabel": "Carta de líneas para prueba de astigmatismo"
 		},
 		"processing": {
 			"title": "Analizando tu visión...",
@@ -181,6 +190,7 @@
 		"results": {
 			"title": "Reporte final",
 			"subtitle": "Resumen de agudeza, contraste, daltonismo y astigmatismo.",
+			"overallLabel": "Índice general",
 			"acuityLabel": "Agudeza visual",
 			"acuityValue": "{correct} de {total}",
 			"acuityPerEye": "Izquierdo: {left} | Derecho: {right}",
@@ -193,6 +203,14 @@
 			"levelExcellent": "Excelente",
 			"levelGood": "Bueno",
 			"levelConsult": "Sugerencia de consulta",
+			"astigmatismRiskNote": "Astigmatismo: posible señal detectada.",
+			"astigmatismNoRiskNote": "Astigmatismo: sin señal relevante.",
+			"eyeDetailTitle": "Detalle por ojo",
+			"eyeDetailLeft": "Ojo izquierdo",
+			"eyeDetailRight": "Ojo derecho",
+			"eyeDetailContrastLeft": "Contraste izquierdo",
+			"eyeDetailContrastRight": "Contraste derecho",
+			"eyeDetailColor": "Percepción de color",
 			"cta": "Finalizar prueba",
 			"saving": "Guardando...",
 			"retry": "Reintentar guardado",

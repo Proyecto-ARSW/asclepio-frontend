@@ -178,6 +178,15 @@ function isValidEmail(email: string): boolean {
 	return email.includes('@') && email.includes('.');
 }
 
+function isStrongPassword(password: string): boolean {
+	return (
+		password.length >= 8 &&
+		/[A-Z]/.test(password) &&
+		/[a-z]/.test(password) &&
+		/[^A-Za-z0-9]/.test(password)
+	);
+}
+
 // Variantes para animar el contenido al cambiar de step
 // 'easeOut' / 'easeIn' as const: TypeScript infiere string sin ello, pero motion exige el tipo literal Easing
 const stepVariants = {
@@ -346,7 +355,7 @@ export default function RegisterPage() {
 			return content.register.errors.requiredLastName;
 		if (!isValidEmail(nextValues.email.trim()))
 			return content.register.errors.requiredEmail;
-		if (nextValues.password.length < 6)
+		if (!isStrongPassword(nextValues.password))
 			return content.register.errors.requiredPassword;
 		return null;
 	}
@@ -450,7 +459,10 @@ export default function RegisterPage() {
 							</motion.div>
 							<CardTitle>{content.register.title}</CardTitle>
 							<CardDescription>{content.register.subtitle}</CardDescription>
-							<nav aria-label={m.a11yRegisterStepIndicator({}, { locale })} className="flex flex-wrap items-center justify-center gap-3 pt-1">
+							<nav
+								aria-label={m.a11yRegisterStepIndicator({}, { locale })}
+								className="flex flex-wrap items-center justify-center gap-3 pt-1"
+							>
 								<StepIndicator
 									step={step}
 									index={1}
@@ -501,7 +513,9 @@ export default function RegisterPage() {
 																<FieldLabel htmlFor={field.name}>
 																	{content.register.labels.nombre}
 																</FieldLabel>
-																<p id="reg-nombre-desc" className="sr-only">{m.a11yRegisterNombreDesc({}, { locale })}</p>
+																<p id="reg-nombre-desc" className="sr-only">
+																	{m.a11yRegisterNombreDesc({}, { locale })}
+																</p>
 																<div className="relative">
 																	<UserIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 																	<Input
@@ -530,7 +544,9 @@ export default function RegisterPage() {
 																<FieldLabel htmlFor={field.name}>
 																	{content.register.labels.apellido}
 																</FieldLabel>
-																<p id="reg-apellido-desc" className="sr-only">{m.a11yRegisterApellidoDesc({}, { locale })}</p>
+																<p id="reg-apellido-desc" className="sr-only">
+																	{m.a11yRegisterApellidoDesc({}, { locale })}
+																</p>
 																<div className="relative">
 																	<UserIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 																	<Input
@@ -561,7 +577,9 @@ export default function RegisterPage() {
 															<FieldLabel htmlFor={field.name}>
 																{content.register.labels.email}
 															</FieldLabel>
-															<p id="reg-email-desc" className="sr-only">{m.a11yRegisterEmailDesc({}, { locale })}</p>
+															<p id="reg-email-desc" className="sr-only">
+																{m.a11yRegisterEmailDesc({}, { locale })}
+															</p>
 															<div className="relative">
 																<EnvelopeIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 																<Input
@@ -591,7 +609,9 @@ export default function RegisterPage() {
 															<FieldLabel htmlFor={field.name}>
 																{content.register.labels.password}
 															</FieldLabel>
-															<p id="reg-password-desc" className="sr-only">{m.a11yRegisterPasswordDesc({}, { locale })}</p>
+															<p id="reg-password-desc" className="sr-only">
+																{m.a11yRegisterPasswordDesc({}, { locale })}
+															</p>
 															<div className="relative">
 																<LockClosedIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 																<Input
@@ -624,7 +644,9 @@ export default function RegisterPage() {
 															<FieldLabel htmlFor={field.name}>
 																{content.register.labels.telefono}
 															</FieldLabel>
-															<p id="reg-telefono-desc" className="sr-only">{m.a11yRegisterTelefonoDesc({}, { locale })}</p>
+															<p id="reg-telefono-desc" className="sr-only">
+																{m.a11yRegisterTelefonoDesc({}, { locale })}
+															</p>
 															<div className="relative">
 																<PhoneIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 																<Input
@@ -858,7 +880,9 @@ export default function RegisterPage() {
 																<FieldLabel htmlFor={field.name}>
 																	{content.register.labels.eps}
 																</FieldLabel>
-																<p id="reg-eps-desc" className="sr-only">{m.a11yRegisterEpsDesc({}, { locale })}</p>
+																<p id="reg-eps-desc" className="sr-only">
+																	{m.a11yRegisterEpsDesc({}, { locale })}
+																</p>
 																<Input
 																	id={field.name}
 																	type="text"
@@ -881,7 +905,9 @@ export default function RegisterPage() {
 															<FieldLabel htmlFor={field.name}>
 																{content.register.labels.alergias}
 															</FieldLabel>
-															<p id="reg-alergias-desc" className="sr-only">{m.a11yRegisterAlergiasDesc({}, { locale })}</p>
+															<p id="reg-alergias-desc" className="sr-only">
+																{m.a11yRegisterAlergiasDesc({}, { locale })}
+															</p>
 															<Input
 																id={field.name}
 																type="text"
@@ -942,7 +968,11 @@ export default function RegisterPage() {
 												type="submit"
 												className="flex-1"
 												disabled={isSubmitting}
-												aria-label={step < 3 ? m.a11yRegisterNavNext({}, { locale }) : m.a11yRegisterNavSubmit({}, { locale })}
+												aria-label={
+													step < 3
+														? m.a11yRegisterNavNext({}, { locale })
+														: m.a11yRegisterNavSubmit({}, { locale })
+												}
 											>
 												{step < 3
 													? content.register.navigation.next

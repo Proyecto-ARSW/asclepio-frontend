@@ -829,13 +829,9 @@ export default function RegisterPage() {
 																	{content.register.labels.tipoSangre}
 																</FieldLabel>
 																<Select
-																	value={field.state.value || '__none__'}
+																	value={field.state.value ?? ''}
 																	onValueChange={(value) =>
-																		field.handleChange(
-																			!value || value === '__none__'
-																				? ''
-																				: value,
-																		)
+																		field.handleChange(value ?? '')
 																	}
 																>
 																	<SelectTrigger className="w-full">
@@ -847,18 +843,6 @@ export default function RegisterPage() {
 																		/>
 																	</SelectTrigger>
 																	<SelectContent>
-																		<SelectItem
-																			value="__none__"
-																			label={
-																				content.register.placeholders
-																					.tipoSangreDefault
-																			}
-																		>
-																			{
-																				content.register.placeholders
-																					.tipoSangreDefault
-																			}
-																		</SelectItem>
 																		{content.register.bloodTypes.map(
 																			(bloodType) => (
 																				<SelectItem

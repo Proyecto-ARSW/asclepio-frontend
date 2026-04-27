@@ -4,6 +4,7 @@ import {
 	CheckCircleIcon,
 	ClipboardDocumentListIcon,
 	ClockIcon,
+	MagnifyingGlassIcon,
 	PlusIcon,
 	QueueListIcon,
 	TrashIcon,
@@ -40,7 +41,11 @@ import {
 	gqlQuery,
 	gqlQueryWithFallback,
 } from '@/lib/graphql-client';
+import { getValidAccessTokenFromStorage } from '@/lib/auth-session';
+import { SEARCH_API_URL } from '@/lib/env';
 import type { DashboardSection, RoleViewProps } from './dashboard-role.types';
+import { DoctorAnatomySection } from './doctor-anatomy.section';
+import { ClinicalRecordCard } from '@/components/medical/clinical-record-card';
 import { RoleDashboardShell } from './role-dashboard-shell';
 
 // ─── Tipos GraphQL ────────────────────────────────────────────────────────────
@@ -73,10 +78,21 @@ interface Disponibilidad {
 
 interface HistorialEntry {
 	id: string;
+	pacienteId: string;
 	diagnostico: string;
 	tratamiento: string;
 	observaciones: string | null;
 	creadoEn: string;
+}
+
+// Resultado devuelto por asclepio-search: búsqueda semántica sobre historias clínicas indexadas.
+// record_id === historial.id, así se cruza con el estado local de historial.
+interface ClinicalSearchResult {
+	record_id: string;
+	patient_id: string;
+	similarity: number;
+	notes_snippet: string;
+	updated_at: string;
 }
 
 interface PatientOption {
@@ -187,6 +203,7 @@ const DOCTOR_HISTORIAL_QUERY = `
 	query DoctorHistorial($medicoId: ID!) {
 		historialByMedico(medicoId: $medicoId) {
 			id
+			pacienteId
 			diagnostico
 			tratamiento
 			observaciones
@@ -639,6 +656,16 @@ export function DoctorDashboardView({
 	const [consultorioInput, setConsultorioInput] = useState('');
 	const [patientSearch, setPatientSearch] = useState('');
 
+	// ── Búsqueda semántica de historial (asclepio-search) ──
+	// historialSearch: texto del input; searchResults: lo que devuelve el servicio;
+	// historialFilter: filtro local por tipo de campo visible en la tarjeta.
+	const [historialSearch, setHistorialSearch] = useState('');
+	const [searchResults, setSearchResults] = useState<ClinicalSearchResult[]>([]);
+	const [searchLoading, setSearchLoading] = useState(false);
+	const [historialFilter, setHistorialFilter] = useState<
+		'all' | 'diagnostico' | 'tratamiento' | 'observaciones'
+	>('all');
+
 	// ── Búsqueda de disponibilidad de enfermeros ──
 	const [hospitalNurses, setHospitalNurses] = useState<NurseForLookup[]>([]);
 	const [nurseSearch, setNurseSearch] = useState('');
@@ -856,6 +883,37 @@ export function DoctorDashboardView({
 			.then((res) => setMedicineOptions(res.medicines))
 			.catch(() => {});
 	}, [section, medicineOptions.length]);
+
+	// Búsqueda semántica en asclepio-search con debounce de 400ms.
+	// Se activa solo en la sección historial y cuando el query tiene ≥3 chars
+	// (mínimo requerido por el backend para generar un embedding significativo).
+	// El JWT se lee del localStorage via getValidAccessTokenFromStorage — misma
+	// fuente que usa api.ts, así no necesitamos prop-drill del token.
+	useEffect(() => {
+		if (section !== 'historial') return;
+		if (!historialSearch.trim() || historialSearch.length < 3) {
+			setSearchResults([]);
+			return;
+		}
+		const timer = setTimeout(async () => {
+			setSearchLoading(true);
+			try {
+				const token = getValidAccessTokenFromStorage();
+				const res = await fetch(
+					`${SEARCH_API_URL}/search?q=${encodeURIComponent(historialSearch)}&limit=20`,
+					{ headers: { Authorization: `Bearer ${token ?? ''}` } },
+				);
+				if (!res.ok) throw new Error(`search ${res.status}`);
+				const data = (await res.json()) as { results?: ClinicalSearchResult[] };
+				setSearchResults(data.results ?? []);
+			} catch {
+				setSearchResults([]);
+			} finally {
+				setSearchLoading(false);
+			}
+		}, 400);
+		return () => clearTimeout(timer);
+	}, [historialSearch, section]);
 
 	// Cargar enfermeros al entrar en disponibilidad.
 	// El backend solo expone `nurses` (sin filtro de hospital), así que cargamos
@@ -1362,6 +1420,18 @@ export function DoctorDashboardView({
 				return ConsentimientosSection();
 			case 'recetas':
 				return RecetasSection();
+			case 'anatomy3d':
+				// Sección educativa: el médico muestra modelos 3D al paciente
+				// como apoyo visual durante la consulta (corazón, esqueleto, ADN).
+				return (
+					<DoctorAnatomySection
+						locale={locale}
+						isDark={
+							typeof document !== 'undefined' &&
+							document.documentElement.classList.contains('dark')
+						}
+					/>
+				);
 			default:
 				return null;
 		}
@@ -2394,25 +2464,45 @@ export function DoctorDashboardView({
 
 	// ── Sección de historial médico ──
 	function HistorialSection() {
-		const patientOptions = [
-			...new Set(appointments.map((a) => a.pacienteId)),
-		].map((pacienteId) => {
-			const patient = patients.find((item) => item.id === pacienteId);
-			const fullName =
-				`${patient?.nombre ?? ''} ${patient?.apellido ?? ''}`.trim();
-			return {
-				id: pacienteId,
-				label: fullName || pacienteId,
-			};
-		});
+		const isEs = locale === 'es';
+		const patientOptions = patients.map((patient) => ({
+			id: patient.id,
+			label: `${patient.nombre ?? ''} ${patient.apellido ?? ''}`.trim() || patient.id,
+		}));
 		const patientSelectId = 'doctor-historial-patient';
 		const diagnosisInputId = 'doctor-historial-diagnosis';
 		const treatmentInputId = 'doctor-historial-treatment';
 		const observationsInputId = 'doctor-historial-observations';
 
+		// Mapa de record_id → similarity para cruzar resultados de búsqueda con historial local.
+		// Se recalcula solo cuando cambian searchResults (useMemo en el padre sería equivalente).
+		const searchMap = new Map(searchResults.map((r) => [r.record_id, r.similarity]));
+		const isSearchActive = historialSearch.trim().length >= 3;
+
+		// Entradas que se mostrarán: si hay búsqueda activa, filtrar y ordenar por similitud;
+		// si no, mostrar todo aplicando el filtro de tipo de campo seleccionado.
+		let visibleEntries = historial;
+		if (isSearchActive && searchResults.length > 0) {
+			visibleEntries = historial
+				.filter((e) => searchMap.has(e.id))
+				.sort((a, b) => (searchMap.get(b.id) ?? 0) - (searchMap.get(a.id) ?? 0));
+		}
+		// Filtro local por tipo de campo (solo si no hay búsqueda activa)
+		if (!isSearchActive && historialFilter !== 'all') {
+			visibleEntries = visibleEntries.filter((e) => !!e[historialFilter]);
+		}
+
+		// Configuración de los pills de filtro
+		const FILTERS: { key: typeof historialFilter; labelEs: string; labelEn: string }[] = [
+			{ key: 'all', labelEs: 'Todos', labelEn: 'All' },
+			{ key: 'diagnostico', labelEs: 'Diagnóstico', labelEn: 'Diagnosis' },
+			{ key: 'tratamiento', labelEs: 'Tratamiento', labelEn: 'Treatment' },
+			{ key: 'observaciones', labelEs: 'Observaciones', labelEn: 'Observations' },
+		];
+
 		return (
-			<div className="space-y-4">
-				{/* Formulario para crear nueva entrada de historial */}
+			<div className="space-y-5">
+				{/* ── Formulario para crear nueva entrada de historial ── */}
 				<Card className="border-border/70">
 					<CardHeader className="pb-2">
 						<CardTitle className="text-base">
@@ -2423,13 +2513,12 @@ export function DoctorDashboardView({
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-3">
-						{/* Seleccionar paciente (extraído de las citas del médico) */}
 						<div className="space-y-1">
 							<label
 								htmlFor={patientSelectId}
 								className="text-xs font-medium text-muted-foreground"
 							>
-								{m.dashboardPatientSelectDoctor({}, { locale })}
+								{m.dashboardDoctorSelectPatientPlaceholder({}, { locale })}
 							</label>
 							<Select
 								value={newHistorial.pacienteId}
@@ -2475,10 +2564,7 @@ export function DoctorDashboardView({
 										diagnostico: e.target.value,
 									}))
 								}
-								placeholder={m.dashboardDoctorHistorialDiagnostico(
-									{},
-									{ locale },
-								)}
+								placeholder={m.dashboardDoctorHistorialDiagnostico({}, { locale })}
 							/>
 						</div>
 						<div className="space-y-1">
@@ -2497,10 +2583,7 @@ export function DoctorDashboardView({
 										tratamiento: e.target.value,
 									}))
 								}
-								placeholder={m.dashboardDoctorHistorialTratamiento(
-									{},
-									{ locale },
-								)}
+								placeholder={m.dashboardDoctorHistorialTratamiento({}, { locale })}
 							/>
 						</div>
 						<div className="space-y-1">
@@ -2519,10 +2602,7 @@ export function DoctorDashboardView({
 										observaciones: e.target.value,
 									}))
 								}
-								placeholder={m.dashboardDoctorHistorialObservaciones(
-									{},
-									{ locale },
-								)}
+								placeholder={m.dashboardDoctorHistorialObservaciones({}, { locale })}
 							/>
 						</div>
 						<Button
@@ -2543,42 +2623,109 @@ export function DoctorDashboardView({
 					</CardContent>
 				</Card>
 
-				{/* Lista de historial existente */}
-				<div className="space-y-2">
+				{/* ── Búsqueda semántica ── */}
+				{/* El input llama al servicio asclepio-search con debounce 400ms definido en el useEffect del padre.
+				    La búsqueda vectorial encuentra registros por similitud semántica, no solo por texto exacto. */}
+				<div className="space-y-3">
+					<div className="relative">
+						<MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+						<Input
+							value={historialSearch}
+							onChange={(e) => setHistorialSearch(e.target.value)}
+							placeholder={
+								isEs
+									? 'Buscar en historias clínicas...'
+									: 'Search clinical records...'
+							}
+							className="pl-9"
+						/>
+						{/* Indicador de estado de búsqueda */}
+						{searchLoading && (
+							<span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground animate-pulse">
+								{isEs ? 'Buscando...' : 'Searching...'}
+							</span>
+						)}
+					</div>
+
+					{/* Pills de filtro por tipo de campo — solo visibles cuando no hay búsqueda activa */}
+					{!isSearchActive && (
+						<div className="flex flex-wrap items-center gap-2">
+							{/* Label que contextualiza al médico qué parte del historial está filtrando */}
+							<span className="text-xs font-medium text-muted-foreground">
+								{isEs ? 'Ver:' : 'Show:'}
+							</span>
+							{FILTERS.map(({ key, labelEs, labelEn }) => (
+								<button
+									key={key}
+									type="button"
+									onClick={() => setHistorialFilter(key)}
+									className={`rounded-full border px-3 py-0.5 text-xs font-medium transition-colors ${
+										historialFilter === key
+											? 'bg-primary text-primary-foreground border-primary'
+											: 'border-border/70 text-muted-foreground hover:border-primary/50 hover:text-foreground'
+									}`}
+								>
+									{isEs ? labelEs : labelEn}
+								</button>
+							))}
+						</div>
+					)}
+
+					{/* Texto contextual: indica al médico exactamente qué está viendo */}
+					<p className="text-xs text-muted-foreground">
+						{isSearchActive
+							? searchLoading
+								? isEs
+									? 'Buscando registros similares...'
+									: 'Searching similar records...'
+								: isEs
+									? `${visibleEntries.length} resultado(s) para "${historialSearch}"`
+									: `${visibleEntries.length} result(s) for "${historialSearch}"`
+							: historialFilter === 'all'
+								? isEs
+									? `${visibleEntries.length} registro(s) — historial completo`
+									: `${visibleEntries.length} record(s) — full history`
+								: isEs
+									? `Mostrando solo: ${FILTERS.find((f) => f.key === historialFilter)?.[isEs ? 'labelEs' : 'labelEn'] ?? ''}`
+									: `Showing only: ${FILTERS.find((f) => f.key === historialFilter)?.labelEn ?? ''}`}
+					</p>
+				</div>
+
+				{/* ── Lista de historial ── */}
+				<div className="space-y-3">
 					{loading ? (
 						[1, 2, 3].map((i) => (
-							<Skeleton key={i} className="h-20 rounded-xl" />
+							<Skeleton key={i} className="h-28 rounded-xl" />
 						))
-					) : historial.length === 0 ? (
+					) : visibleEntries.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
-							{m.dashboardPatientHistorialEmpty({}, { locale })}
+							{isSearchActive
+								? isEs
+									? 'Sin coincidencias. Intenta otra búsqueda.'
+									: 'No matches. Try a different search.'
+								: m.dashboardPatientHistorialEmpty({}, { locale })}
 						</p>
 					) : (
-						historial.map((entry) => (
-							<div
-								key={entry.id}
-								className="rounded-xl border border-border/70 bg-background/90 p-3"
-							>
-								<div className="flex items-start justify-between gap-2">
-									<div className="space-y-1">
-										<p className="text-sm font-medium text-foreground">
-											{entry.diagnostico}
-										</p>
-										<p className="text-xs text-muted-foreground">
-											{entry.tratamiento}
-										</p>
-										{entry.observaciones && (
-											<p className="text-xs text-muted-foreground/70">
-												{entry.observaciones}
-											</p>
-										)}
-									</div>
-									<Badge variant="outline" className="shrink-0">
-										{new Date(entry.creadoEn).toLocaleDateString(locale)}
-									</Badge>
-								</div>
-							</div>
-						))
+						visibleEntries.map((entry, index) => {
+							// Lookup del nombre del paciente para mostrarlo en la tarjeta
+							const patient = patients.find((p) => p.id === entry.pacienteId);
+							const patientName = patient
+								? `${patient.nombre} ${patient.apellido}`.trim()
+								: entry.pacienteId;
+							return (
+								<ClinicalRecordCard
+									key={entry.id}
+									entry={entry}
+									patientName={patientName}
+									locale={locale}
+									similarityScore={
+										isSearchActive ? searchMap.get(entry.id) : undefined
+									}
+									// Escalonar la animación de entrada para efecto cascada visual
+									delay={index * 0.05}
+								/>
+							);
+						})
 					)}
 				</div>
 			</div>
@@ -2595,6 +2742,10 @@ export function DoctorDashboardView({
 		compact?: boolean;
 	}) {
 		const isPending = a.estado === 'PENDIENTE';
+		const appointmentPatient = patients.find((p) => p.id === a.pacienteId);
+		const appointmentPatientName = appointmentPatient
+			? `${appointmentPatient.nombre} ${appointmentPatient.apellido}`.trim()
+			: a.pacienteId;
 		return (
 			<div className="rounded-xl border border-border/70 bg-background/90 p-3">
 				<div className="flex flex-wrap items-center justify-between gap-2">
@@ -2617,6 +2768,10 @@ export function DoctorDashboardView({
 									type="button"
 									size="sm"
 									variant="outline"
+									aria-label={m.a11yDoctorConfirmAppointmentBtn(
+										{ patient: appointmentPatientName },
+										{ locale },
+									)}
 									onClick={() => handleConfirm(a)}
 									disabled={actionLoading === a.id}
 									className="gap-1 text-xs"
@@ -2630,6 +2785,10 @@ export function DoctorDashboardView({
 									type="button"
 									size="sm"
 									variant="destructive"
+									aria-label={m.a11yDoctorCancelAppointmentBtn(
+										{ patient: appointmentPatientName },
+										{ locale },
+									)}
 									onClick={() => handleCancel(a.id)}
 									disabled={actionLoading === `${a.id}-cancel`}
 									className="gap-1 text-xs"
@@ -2771,6 +2930,7 @@ export function DoctorDashboardView({
 		queue: m.dashboardSidebarQueue({}, { locale }),
 		disponibilidad: m.dashboardDoctorDisponibilidadTitle({}, { locale }),
 		historial: m.dashboardDoctorHistorialTitle({}, { locale }),
+		anatomy3d: m.dashboardSidebarAnatomy3d({}, { locale }),
 	};
 
 	return (

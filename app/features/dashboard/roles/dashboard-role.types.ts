@@ -22,6 +22,7 @@ export type DashboardSection =
 	| 'historial'
 	| 'consentimientos'
 	| 'recetas'
+	| 'anatomy3d'
 	| 'profile'
 	| 'settings';
 

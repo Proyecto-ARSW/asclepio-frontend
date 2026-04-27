@@ -482,7 +482,10 @@ export default function NearbyHospitalsPage() {
 						{/* ── Map container ──
 						    Mobile: toma 45% del viewport disponible
 						    Desktop: llena TODO el espacio (el panel flota encima) */}
-						<div className="relative h-[45vh] shrink-0 lg:absolute lg:inset-0 lg:h-auto">
+						<section
+							aria-label={m.a11yLandmarkMap({}, { locale })}
+							className="relative h-[45vh] shrink-0 lg:absolute lg:inset-0 lg:h-auto"
+						>
 							<Suspense fallback={<MapSkeleton />}>
 								<NearbyHospitalsMap
 									userLat={userLat}
@@ -510,7 +513,7 @@ export default function NearbyHospitalsPage() {
 							{/* ── Floating radius selector ──
 							    Se posiciona sobre el mapa como control flotante.
 							    En mobile: abajo del mapa. En desktop: arriba-izquierda. */}
-							<div className="absolute bottom-3 left-3 right-3 z-[1001] lg:bottom-auto lg:right-auto lg:top-3">
+							<div className="absolute bottom-3 left-3 right-3 z-1001 lg:bottom-auto lg:right-auto lg:top-3">
 								{/* Desktop: opciones de radio siempre visibles en línea */}
 								<div className="hidden lg:flex flex-wrap items-center gap-1.5 rounded-xl border border-border/40 bg-background/85 px-3 py-2 shadow-lg backdrop-blur-xl">
 									<span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -589,17 +592,18 @@ export default function NearbyHospitalsPage() {
 									</AnimatePresence>
 								</div>
 							</div>
-						</div>
+						</section>
 
 						{/* ── Hospital panel ──
 						    Mobile: ocupa el espacio restante debajo del mapa, scrollable.
 						    Desktop: flota como overlay a la derecha con efecto glassmorphism.
 						    El z-[1001] lo pone por encima de los controles internos de Leaflet. */}
-						<div
+						<section
+							aria-label={m.a11yLandmarkHospitalsList({}, { locale })}
 							className={cn(
 								'flex flex-1 flex-col overflow-hidden border-t border-border/40 bg-background',
-								'lg:absolute lg:inset-y-0 lg:right-0 lg:w-[400px] lg:border-l lg:border-t-0',
-								'lg:bg-background/80 lg:backdrop-blur-xl lg:z-[1001]',
+								'lg:absolute lg:inset-y-0 lg:right-0 lg:w-100 lg:border-l lg:border-t-0',
+								'lg:bg-background/80 lg:backdrop-blur-xl lg:z-1001',
 							)}
 						>
 							{/* Panel header */}
@@ -693,7 +697,7 @@ export default function NearbyHospitalsPage() {
 												<div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted/50">
 													<BuildingOffice2Icon className="h-7 w-7 text-muted-foreground/50" />
 												</div>
-												<p className="max-w-[200px] text-sm text-muted-foreground">
+												<p className="max-w-50 text-sm text-muted-foreground">
 													{m.nearbyHospitalsEmpty({}, { locale })}
 												</p>
 											</motion.div>
@@ -809,7 +813,7 @@ export default function NearbyHospitalsPage() {
 										type="button"
 										disabled={currentPage === 0}
 										onClick={() => setCurrentPage((p) => p - 1)}
-										aria-label="Página anterior"
+										aria-label={m.a11yNearbyHospitalsPrevPage({}, { locale })}
 										className={cn(
 											'grid h-8 w-8 place-items-center rounded-lg transition-colors',
 											currentPage === 0
@@ -826,7 +830,7 @@ export default function NearbyHospitalsPage() {
 										type="button"
 										disabled={currentPage >= totalPages - 1}
 										onClick={() => setCurrentPage((p) => p + 1)}
-										aria-label="Página siguiente"
+										aria-label={m.a11yNearbyHospitalsNextPage({}, { locale })}
 										className={cn(
 											'grid h-8 w-8 place-items-center rounded-lg transition-colors',
 											currentPage >= totalPages - 1
@@ -838,7 +842,7 @@ export default function NearbyHospitalsPage() {
 									</button>
 								</div>
 							)}
-						</div>
+						</section>
 					</motion.div>
 				)}
 			</div>

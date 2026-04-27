@@ -68,6 +68,8 @@
 	--shadow-2xl: 0px 4px 15px 0px hsl(180 20% 20% / 0.13);
 	--tracking-normal: -0.01em;
 	--spacing: 0.25rem;
+	--font-scale: 1;
+	font-size: calc(16px * var(--font-scale));
 }
 
 .dark {

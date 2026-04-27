@@ -1169,8 +1169,8 @@ export function AdminDashboardView({
 						type="button"
 						onClick={applyUserFilters}
 						size="icon-sm"
-						aria-label={m.dashboardAdminSearchPlaceholder({}, { locale })}
-						title={m.dashboardAdminSearchPlaceholder({}, { locale })}
+						aria-label={m.a11yAdminSearchUsers({}, { locale })}
+						title={m.a11yAdminSearchUsers({}, { locale })}
 					>
 						<PaperAirplaneIcon className="h-4 w-4" />
 					</Button>
@@ -1228,6 +1228,7 @@ export function AdminDashboardView({
 								type="button"
 								variant="destructive"
 								size="sm"
+								aria-label={m.a11yAdminDeleteUserBtn({ name: `${u.nombre} ${u.apellido}` }, { locale })}
 								disabled={savingUserId === u.id || u.id === user.id}
 								onClick={() => {
 									if (
@@ -1303,6 +1304,7 @@ export function AdminDashboardView({
 		historial: m.dashboardSidebarHistorial({}, { locale }),
 		consentimientos: m.dashboardSidebarConsentimientos({}, { locale }),
 		recetas: m.dashboardSidebarRecetas({}, { locale }),
+		anatomy3d: m.dashboardSidebarAnatomy3d({}, { locale }),
 		profile: m.dashboardSidebarProfile({}, { locale }),
 	} as const satisfies Record<Exclude<DashboardSection, 'settings'>, string>;
 

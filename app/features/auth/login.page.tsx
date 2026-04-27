@@ -311,6 +311,9 @@ export default function LoginPage() {
 												<FieldLabel htmlFor={field.name}>
 													{content.login.emailLabel}
 												</FieldLabel>
+												<p id="login-email-desc" className="sr-only">
+													{m.a11yLoginEmailDesc({}, { locale })}
+												</p>
 												<Input
 													id={field.name}
 													type="email"
@@ -319,6 +322,7 @@ export default function LoginPage() {
 													onBlur={field.handleBlur}
 													onChange={(e) => field.handleChange(e.target.value)}
 													placeholder={content.login.emailPlaceholder}
+													aria-describedby="login-email-desc"
 													required
 												/>
 												<FieldError
@@ -354,6 +358,9 @@ export default function LoginPage() {
 												<FieldLabel htmlFor={field.name}>
 													{content.login.passwordLabel}
 												</FieldLabel>
+												<p id="login-password-desc" className="sr-only">
+													{m.a11yLoginPasswordDesc({}, { locale })}
+												</p>
 												<Input
 													id={field.name}
 													type="password"
@@ -362,6 +369,7 @@ export default function LoginPage() {
 													onBlur={field.handleBlur}
 													onChange={(e) => field.handleChange(e.target.value)}
 													placeholder={content.login.passwordPlaceholder}
+													aria-describedby="login-password-desc"
 													required
 												/>
 												<FieldError
@@ -377,6 +385,7 @@ export default function LoginPage() {
 								<form.Field name="submitError">
 									{(field) => (
 										// AnimatePresence hace que el error entre/salga con fade
+										<div role="status" aria-live="polite" aria-label={m.a11yLoginErrorRegion({}, { locale })}>
 										<AnimatePresence>
 											{field.state.value ? (
 												<motion.div
@@ -394,6 +403,7 @@ export default function LoginPage() {
 												</motion.div>
 											) : null}
 										</AnimatePresence>
+										</div>
 									)}
 								</form.Field>
 

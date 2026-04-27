@@ -26,10 +26,20 @@ import {
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, redirect, useLocation } from 'react-router';
+import { Link, redirect, useLocation, useNavigate } from 'react-router';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { buttonVariants } from '@/components/ui/button/button.component';
 import { Card, CardContent } from '@/components/ui/card/card.component';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu/dropdown-menu.component';
+import { getEyeHealthContent } from '@/features/eye-health/content/eye-health-content';
 import { LanguageSwitcher } from '@/features/i18n/language-switcher';
 import {
 	type AppLocale,
@@ -48,13 +58,11 @@ import {
 	hasValidAccessTokenInStorage,
 } from '@/lib/auth-session';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/store/auth.store';
 
 export async function clientLoader() {
 	if (typeof window === 'undefined') return null;
 	const locale = currentLocale(window.location.pathname);
-	if (hasValidAccessTokenInStorage()) {
-		return redirect(localePath('/dashboard', locale));
-	}
 	if (getStoredPreToken()) {
 		return redirect(localePath('/select-hospital', locale));
 	}
@@ -146,7 +154,7 @@ function TypewriterTitle({
 			    opacity [1,1,0,0] con linear simula un step de encendido/apagado. */}
 			{!prefersReduced && inView && !done && (
 				<motion.span
-					className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[0.1em] bg-primary"
+					className="ml-0.5 inline-block h-[1em] w-0.5 translate-y-[0.1em] bg-primary"
 					animate={{ opacity: [1, 1, 0, 0] }}
 					transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
 					aria-hidden="true"
@@ -734,7 +742,10 @@ function PlatformSlider({ locale }: { locale: AppLocale }) {
 	const slide = slides[currentIndex];
 
 	return (
-		<section className="px-4 pb-14 sm:px-6 lg:px-8">
+		<section
+			aria-label={m.a11yLandmarkPlatform({}, { locale })}
+			className="px-4 pb-14 sm:px-6 lg:px-8"
+		>
 			<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card/80 px-6 py-12 shadow-sm backdrop-blur lg:px-10">
 				{/* Encabezado de la sección */}
 				<RevealSection className="mx-auto mb-10 max-w-2xl text-center">
@@ -950,16 +961,55 @@ function getCapabilities(locale: AppLocale) {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
+	const navigate = useNavigate();
 	const location = useLocation();
 	const locale = currentLocale(location.pathname) as AppLocale;
 	const prefersReducedMotion = useReducedMotion();
+	const { user, selectedHospital, logout } = useAuthStore();
 	const [isDarkMode, setIsDarkMode] = useState(false);
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+	const [authHydrated, setAuthHydrated] = useState(false);
+	const [hasActiveSession, setHasActiveSession] = useState(false);
+	const eyeHealthContent = getEyeHealthContent(locale);
+	type HomeNavItem =
+		| {
+				id: 'home' | 'about' | 'services';
+				label: string;
+				kind: 'section';
+				sectionId: 'home' | 'about' | 'services';
+		  }
+		| {
+				id: 'eye-health';
+				label: string;
+				kind: 'route';
+				to: string;
+		  };
 
-	const navItems = [
-		{ id: 'home', label: m.homeLandingNavHome({}, { locale }) },
-		{ id: 'about', label: m.homeLandingNavAbout({}, { locale }) },
-		{ id: 'services', label: m.homeLandingNavServices({}, { locale }) },
+	const navItems: HomeNavItem[] = [
+		{
+			id: 'home',
+			label: m.homeLandingNavHome({}, { locale }),
+			kind: 'section',
+			sectionId: 'home',
+		},
+		{
+			id: 'about',
+			label: m.homeLandingNavAbout({}, { locale }),
+			kind: 'section',
+			sectionId: 'about',
+		},
+		{
+			id: 'services',
+			label: m.homeLandingNavServices({}, { locale }),
+			kind: 'section',
+			sectionId: 'services',
+		},
+		{
+			id: 'eye-health',
+			label: eyeHealthContent.nav.eyeHealth,
+			kind: 'route',
+			to: localePath('/salud-ocular', locale),
+		},
 	];
 
 	const services = getServicesData(locale);
@@ -993,6 +1043,14 @@ export default function HomePage() {
 	];
 
 	const capabilities = getCapabilities(locale);
+	const landingDashboardLabel = 'Dashboard';
+	const isAuthenticated = authHydrated && hasActiveSession;
+	const displayName = user
+		? `${user.nombre ?? ''} ${user.apellido ?? ''}`.trim() || user.email
+		: '';
+	const selectedHospitalName = selectedHospital?.nombre ?? '';
+	const displayInitials =
+		(user?.nombre?.[0] ?? '') + (user?.apellido?.[0] ?? '');
 
 	const scrollToSection = (id: string) => {
 		if (typeof document === 'undefined') return;
@@ -1007,6 +1065,26 @@ export default function HomePage() {
 		setIsDarkMode(document.documentElement.classList.contains('dark'));
 	}, []);
 
+	useEffect(() => {
+		const rehydrateResult = useAuthStore.persist.rehydrate();
+		const finalizeHydration = () => {
+			setAuthHydrated(true);
+			setHasActiveSession(hasValidAccessTokenInStorage());
+		};
+
+		if (rehydrateResult instanceof Promise) {
+			void rehydrateResult.finally(finalizeHydration);
+			return;
+		}
+
+		finalizeHydration();
+	}, []);
+
+	useEffect(() => {
+		if (!authHydrated) return;
+		setHasActiveSession(hasValidAccessTokenInStorage());
+	}, [authHydrated]);
+
 	function handleThemeToggle() {
 		if (typeof document === 'undefined') return;
 		const currentlyDark = document.documentElement.classList.contains('dark');
@@ -1015,6 +1093,13 @@ export default function HomePage() {
 		applyUiPreferences({ ...currentPrefs, theme: nextTheme });
 		saveUiPreferences({ ...currentPrefs, theme: nextTheme });
 		setIsDarkMode(!currentlyDark);
+	}
+
+	function handleLandingLogout() {
+		logout();
+		setHasActiveSession(false);
+		setMobileMenuOpen(false);
+		navigate(localePath('/', locale));
 	}
 
 	return (
@@ -1100,13 +1185,22 @@ export default function HomePage() {
 						<ul className="hidden items-center gap-2 text-sm md:flex">
 							{navItems.map((item) => (
 								<li key={item.id}>
-									<button
-										type="button"
-										onClick={() => scrollToSection(item.id)}
-										className="rounded-full px-3 py-2 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
-									>
-										{item.label}
-									</button>
+									{item.kind === 'route' ? (
+										<Link
+											to={item.to}
+											className="inline-flex rounded-full px-3 py-2 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
+										>
+											{item.label}
+										</Link>
+									) : (
+										<button
+											type="button"
+											onClick={() => scrollToSection(item.sectionId)}
+											className="rounded-full px-3 py-2 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
+										>
+											{item.label}
+										</button>
+									)}
 								</li>
 							))}
 						</ul>
@@ -1131,25 +1225,85 @@ export default function HomePage() {
 								locale={locale}
 								triggerClassName="h-8 shrink-0 rounded-full bg-card/90 px-2.5 text-xs font-semibold backdrop-blur"
 							/>
-							<Link
-								to={localePath('/register', locale)}
-								className={cn(
-									buttonVariants({ variant: 'ghost', size: 'sm' }),
-									'h-8 shrink-0 rounded-full px-3',
-								)}
-							>
-								{m.homeLandingGetStarted({}, { locale })}
-							</Link>
-							<Link
-								to={localePath('/login', locale)}
-								className={cn(
-									buttonVariants({ size: 'sm' }),
-									'h-8 shrink-0 rounded-full px-3',
-								)}
-							>
-								{m.homeLandingContactUs({}, { locale })}
-								<ArrowRightIcon className="h-3.5 w-3.5" />
-							</Link>
+							{isAuthenticated ? (
+								<>
+									<div className="flex items-center gap-2">
+										<div className="max-w-52 text-right">
+											<p className="truncate text-xs font-semibold text-foreground">
+												{displayName}
+											</p>
+											{selectedHospitalName && (
+												<p className="truncate text-[11px] text-muted-foreground">
+													{selectedHospitalName}
+												</p>
+											)}
+										</div>
+										<DropdownMenu>
+											<DropdownMenuTrigger
+												className={cn(
+													buttonVariants({ variant: 'outline', size: 'sm' }),
+													'h-9 w-9 shrink-0 rounded-full px-0 text-xs font-bold uppercase',
+												)}
+												aria-label={
+													displayName || m.homeLandingBrand({}, { locale })
+												}
+											>
+												{displayInitials || 'U'}
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end" className="w-56">
+												<DropdownMenuGroup>
+													<DropdownMenuLabel className="space-y-0.5">
+														<p className="truncate text-sm font-semibold text-foreground">
+															{displayName}
+														</p>
+														{selectedHospitalName && (
+															<p className="truncate text-xs text-muted-foreground">
+																{selectedHospitalName}
+															</p>
+														)}
+													</DropdownMenuLabel>
+												</DropdownMenuGroup>
+												<DropdownMenuSeparator />
+												<DropdownMenuItem
+													onClick={() => {
+														navigate(localePath('/dashboard', locale));
+													}}
+												>
+													{landingDashboardLabel}
+												</DropdownMenuItem>
+												<DropdownMenuItem
+													variant="destructive"
+													onClick={handleLandingLogout}
+												>
+													{m.dashboardSidebarLogout({}, { locale })}
+												</DropdownMenuItem>
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</div>
+								</>
+							) : (
+								<>
+									<Link
+										to={localePath('/register', locale)}
+										className={cn(
+											buttonVariants({ variant: 'ghost', size: 'sm' }),
+											'h-8 shrink-0 rounded-full px-3',
+										)}
+									>
+										{m.homeLandingGetStarted({}, { locale })}
+									</Link>
+									<Link
+										to={localePath('/login', locale)}
+										className={cn(
+											buttonVariants({ size: 'sm' }),
+											'h-8 shrink-0 rounded-full px-3',
+										)}
+									>
+										{m.homeLandingContactUs({}, { locale })}
+										<ArrowRightIcon className="h-3.5 w-3.5" />
+									</Link>
+								</>
+							)}
 						</div>
 					</nav>
 
@@ -1167,38 +1321,77 @@ export default function HomePage() {
 								<div className="mt-1 space-y-4 border-t border-border/60 pt-4">
 									<div className="flex flex-col gap-1.5">
 										{navItems.map((item) => (
-											<button
-												key={item.id}
-												type="button"
-												onClick={() => scrollToSection(item.id)}
-												className="w-full rounded-xl border border-border bg-background px-4 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-											>
-												{item.label}
-											</button>
+											<div key={item.id}>
+												{item.kind === 'route' ? (
+													<Link
+														to={item.to}
+														onClick={() => setMobileMenuOpen(false)}
+														className="inline-flex w-full rounded-xl border border-border bg-background px-4 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+													>
+														{item.label}
+													</Link>
+												) : (
+													<button
+														type="button"
+														onClick={() => scrollToSection(item.sectionId)}
+														className="w-full rounded-xl border border-border bg-background px-4 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+													>
+														{item.label}
+													</button>
+												)}
+											</div>
 										))}
 									</div>
 									<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-										<Link
-											to={localePath('/register', locale)}
-											onClick={() => setMobileMenuOpen(false)}
-											className={cn(
-												buttonVariants({ variant: 'ghost', size: 'sm' }),
-												'justify-center rounded-full px-4',
-											)}
-										>
-											{m.homeLandingGetStarted({}, { locale })}
-										</Link>
-										<Link
-											to={localePath('/login', locale)}
-											onClick={() => setMobileMenuOpen(false)}
-											className={cn(
-												buttonVariants({ size: 'sm' }),
-												'justify-center rounded-full px-4',
-											)}
-										>
-											{m.homeLandingContactUs({}, { locale })}
-											<ArrowRightIcon className="h-3.5 w-3.5" />
-										</Link>
+										{isAuthenticated ? (
+											<>
+												<Link
+													to={localePath('/dashboard', locale)}
+													onClick={() => setMobileMenuOpen(false)}
+													className={cn(
+														buttonVariants({ size: 'sm' }),
+														'justify-center rounded-full px-4',
+													)}
+												>
+													{landingDashboardLabel}
+													<ArrowRightIcon className="h-3.5 w-3.5" />
+												</Link>
+												<button
+													type="button"
+													onClick={handleLandingLogout}
+													className={cn(
+														buttonVariants({ variant: 'ghost', size: 'sm' }),
+														'justify-center rounded-full px-4',
+													)}
+												>
+													{m.dashboardSidebarLogout({}, { locale })}
+												</button>
+											</>
+										) : (
+											<>
+												<Link
+													to={localePath('/register', locale)}
+													onClick={() => setMobileMenuOpen(false)}
+													className={cn(
+														buttonVariants({ variant: 'ghost', size: 'sm' }),
+														'justify-center rounded-full px-4',
+													)}
+												>
+													{m.homeLandingGetStarted({}, { locale })}
+												</Link>
+												<Link
+													to={localePath('/login', locale)}
+													onClick={() => setMobileMenuOpen(false)}
+													className={cn(
+														buttonVariants({ size: 'sm' }),
+														'justify-center rounded-full px-4',
+													)}
+												>
+													{m.homeLandingContactUs({}, { locale })}
+													<ArrowRightIcon className="h-3.5 w-3.5" />
+												</Link>
+											</>
+										)}
 									</div>
 								</div>
 							</motion.div>
@@ -1283,13 +1476,19 @@ export default function HomePage() {
 
 						<div className="flex flex-wrap gap-3">
 							<Link
-								to={localePath('/register', locale)}
+								to={
+									isAuthenticated
+										? localePath('/dashboard', locale)
+										: localePath('/register', locale)
+								}
 								className={cn(
 									buttonVariants({ size: 'lg' }),
 									'inline-flex rounded-full px-5 transition-all duration-300 hover:-translate-y-0.5',
 								)}
 							>
-								{m.homeLandingHeroCta({}, { locale })}
+								{isAuthenticated
+									? landingDashboardLabel
+									: m.homeLandingHeroCta({}, { locale })}
 								<ArrowRightIcon className="h-4 w-4" />
 							</Link>
 							{/* Botón de acceso rápido a hospitales cercanos — usa variant outline
@@ -1536,7 +1735,10 @@ export default function HomePage() {
 			</section>
 
 			{/* ── INTEGRACIONES ── */}
-			<section className="px-4 pb-14 sm:px-6 lg:px-8">
+			<section
+				aria-label={m.a11yLandmarkIntegrations({}, { locale })}
+				className="px-4 pb-14 sm:px-6 lg:px-8"
+			>
 				<div className="mx-auto max-w-7xl rounded-[2rem] border border-border/60 bg-card px-6 py-12 shadow-sm">
 					<RevealSection>
 						<h2 className="mx-auto max-w-xl text-center text-4xl font-bold tracking-tight text-foreground">
@@ -1582,7 +1784,10 @@ export default function HomePage() {
 			</section>
 
 			{/* ── CTA BANNER ── */}
-			<section className="px-4 pb-14 sm:px-6 lg:px-8">
+			<section
+				aria-label={m.a11yLandmarkCta({}, { locale })}
+				className="px-4 pb-14 sm:px-6 lg:px-8"
+			>
 				<RevealSection>
 					<div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-linear-to-r from-primary via-secondary to-primary px-6 py-16 text-center shadow-md">
 						<div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.45)_1.5px,transparent_2px)] bg-size-[14px_14px] opacity-45" />
@@ -1590,13 +1795,19 @@ export default function HomePage() {
 							{m.homeLandingCtaTitle({}, { locale })}
 						</h2>
 						<Link
-							to={localePath('/register', locale)}
+							to={
+								isAuthenticated
+									? localePath('/dashboard', locale)
+									: localePath('/register', locale)
+							}
 							className={cn(
 								buttonVariants({ variant: 'secondary', size: 'lg' }),
 								'mt-6 inline-flex rounded-full border border-white/30 bg-white/90 px-5 text-primary transition-all duration-500 motion-reduce:transition-none hover:-translate-y-0.5 hover:bg-white',
 							)}
 						>
-							{m.homeLandingCtaButton({}, { locale })}
+							{isAuthenticated
+								? landingDashboardLabel
+								: m.homeLandingCtaButton({}, { locale })}
 							<ArrowRightIcon className="h-4 w-4" />
 						</Link>
 					</div>
@@ -1604,7 +1815,10 @@ export default function HomePage() {
 			</section>
 
 			{/* ── STATS + TESTIMONIAL ── */}
-			<section className="px-4 pb-20 sm:px-6 lg:px-8">
+			<section
+				aria-label={m.a11yLandmarkStats({}, { locale })}
+				className="px-4 pb-20 sm:px-6 lg:px-8"
+			>
 				<div className="mx-auto max-w-7xl space-y-8 rounded-[2rem] border border-border/60 bg-card/80 p-6 shadow-sm backdrop-blur">
 					{/* Stats: cada número entra escalonado */}
 					<div className="mx-auto grid max-w-4xl grid-cols-2 justify-items-center gap-6 text-center sm:grid-cols-4">

@@ -267,6 +267,7 @@ export default function TriagePage() {
 							<Button
 								type="button"
 								variant="outline"
+								aria-label={m.a11yTriagePdfDownload({}, { locale })}
 								onClick={() => {
 									void handleDownloadPdf();
 								}}
@@ -387,7 +388,7 @@ export default function TriagePage() {
 								</section>
 
 								{procedureIsClosed && (
-									<Alert>
+									<Alert role="alert" aria-label={m.a11yTriageStatusClosed({}, { locale })}>
 										<AlertDescription>
 											{content.detail.closedLabel}
 										</AlertDescription>
@@ -467,3 +468,5 @@ export default function TriagePage() {
 		</div>
 	);
 }
+
+// Daniel Useche

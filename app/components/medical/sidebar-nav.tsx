@@ -7,6 +7,7 @@ import {
 	ClipboardDocumentListIcon,
 	ClockIcon,
 	Cog6ToothIcon,
+	CubeTransparentIcon,
 	DocumentCheckIcon,
 	DocumentTextIcon,
 	HomeIcon,
@@ -24,6 +25,7 @@ import {
 	ClipboardDocumentListIcon as ClipboardDocumentListIconSolid,
 	ClockIcon as ClockIconSolid,
 	Cog6ToothIcon as Cog6ToothIconSolid,
+	CubeTransparentIcon as CubeTransparentIconSolid,
 	DocumentCheckIcon as DocumentCheckIconSolid,
 	DocumentTextIcon as DocumentTextIconSolid,
 	HomeIcon as HomeIconSolid,
@@ -54,6 +56,7 @@ export type NavSection =
 	| 'historial'
 	| 'consentimientos'
 	| 'recetas'
+	| 'anatomy3d'
 	| 'profile'
 	| 'settings';
 
@@ -110,6 +113,13 @@ const navItems: NavItem[] = [
 		icon: DocumentTextIcon,
 		iconActive: DocumentTextIconSolid,
 	},
+	// Anatomía 3D interactiva — visor de modelos que el médico usa para
+	// explicar al paciente órganos, sistemas y estructuras durante la consulta.
+	{
+		key: 'anatomy3d',
+		icon: CubeTransparentIcon,
+		iconActive: CubeTransparentIconSolid,
+	},
 	// Perfil personal del paciente
 	{ key: 'profile', icon: UserIcon, iconActive: UserIconSolid },
 	{ key: 'settings', icon: Cog6ToothIcon, iconActive: Cog6ToothIconSolid },
@@ -148,6 +158,7 @@ const defaultSectionLabels: Record<NavSection, string> = {
 	historial: '',
 	consentimientos: '',
 	recetas: '',
+	anatomy3d: '',
 	profile: '',
 	settings: '',
 };
@@ -180,6 +191,7 @@ function SidebarContent({
 		historial: m.dashboardSidebarHistorial({}, { locale }),
 		consentimientos: m.dashboardSidebarConsentimientos({}, { locale }),
 		recetas: m.dashboardSidebarRecetas({}, { locale }),
+		anatomy3d: m.dashboardSidebarAnatomy3d({}, { locale }),
 		profile: m.dashboardSidebarProfile({}, { locale }),
 		settings: m.dashboardSidebarSettings({}, { locale }),
 		...labels?.sections,

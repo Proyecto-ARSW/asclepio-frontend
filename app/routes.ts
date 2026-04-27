@@ -17,6 +17,7 @@ export default [
 		route('register', 'features/auth/register.page.tsx'),
 		route('select-hospital', 'features/auth/select-hospital.page.tsx'),
 		route('dashboard', 'features/dashboard/dashboard.page.tsx'),
+		route('salud-ocular', 'features/eye-health/eye-health.page.tsx'),
 		route(
 			'nearby-hospitals',
 			'features/nearby-hospitals/nearby-hospitals.page.tsx',

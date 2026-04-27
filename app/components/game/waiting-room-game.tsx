@@ -1032,7 +1032,8 @@ export function WaitingRoomGame() {
 				: ownByProfileNameLeaderboardIndex;
 
 	const leaderboardPanel = (
-		<div
+		<section
+			aria-label={m.a11yGameLeaderboard({}, { locale })}
 			className={
 				isMobile
 					? 'rounded-xl border border-border/70 bg-background/80 p-2.5 shadow-sm'
@@ -1081,7 +1082,7 @@ export function WaitingRoomGame() {
 					})}
 				</ol>
 			)}
-		</div>
+		</section>
 	);
 
 	return (
@@ -1136,6 +1137,7 @@ export function WaitingRoomGame() {
 			>
 				<canvas
 					ref={canvasRef}
+					aria-label={m.a11yGameCanvas({}, { locale })}
 					className={`block h-full w-full touch-none ${isPlaying ? 'cursor-none' : 'cursor-default'}`}
 				/>
 
@@ -1180,6 +1182,7 @@ export function WaitingRoomGame() {
 												type="text"
 												maxLength={24}
 												autoComplete="nickname"
+												aria-describedby="game-nickname-desc"
 												value={field.state.value}
 												onBlur={field.handleBlur}
 												onChange={(event) =>
@@ -1195,6 +1198,9 @@ export function WaitingRoomGame() {
 													message,
 												}))}
 											/>
+											<p id="game-nickname-desc" className="sr-only">
+												{m.a11yGameNicknameDesc({}, { locale })}
+											</p>
 										</Field>
 									)}
 								</setupForm.Field>
@@ -1316,3 +1322,5 @@ export function WaitingRoomGame() {
 		</div>
 	);
 }
+
+// Daniel Useche

@@ -103,17 +103,17 @@ function tipoLabel(tipo: string, locale: AppLocale): string {
 }
 
 function timeAgo(dateStr: string, locale: AppLocale): string {
+	const opts = { locale } as const;
 	const now = Date.now();
 	const then = new Date(dateStr).getTime();
 	const diffMs = now - then;
 	const mins = Math.floor(diffMs / 60_000);
-	if (mins < 1) return locale === 'es' ? 'Ahora' : 'Just now';
-	if (mins < 60)
-		return locale === 'es' ? `Hace ${mins} min` : `${mins} min ago`;
+	if (mins < 1) return m.notifNow({}, opts);
+	if (mins < 60) return m.notifMinAgo({ mins: String(mins) }, opts);
 	const hours = Math.floor(mins / 60);
-	if (hours < 24) return locale === 'es' ? `Hace ${hours}h` : `${hours}h ago`;
+	if (hours < 24) return m.notifHoursAgo({ hours: String(hours) }, opts);
 	const days = Math.floor(hours / 24);
-	return locale === 'es' ? `Hace ${days}d` : `${days}d ago`;
+	return m.notifDaysAgo({ days: String(days) }, opts);
 }
 
 // ─── Componente ───────────────────────────────────────────────────────────────
@@ -229,11 +229,7 @@ export function NotificationBell({ locale }: NotificationBellProps) {
 				variant="outline"
 				size="icon-sm"
 				onClick={handleOpen}
-				aria-label={
-					locale === 'es'
-						? `Notificaciones (${unreadCount} sin leer)`
-						: `Notifications (${unreadCount} unread)`
-				}
+				aria-label={m.notifTitle({}, { locale }) + ` (${unreadCount})`}
 				className="relative"
 			>
 				{unreadCount > 0 ? (
@@ -257,12 +253,12 @@ export function NotificationBell({ locale }: NotificationBellProps) {
 						animate={{ opacity: 1, y: 0, scale: 1 }}
 						exit={{ opacity: 0, y: -8, scale: 0.95 }}
 						transition={{ duration: 0.18 }}
-						className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[92vw] overflow-hidden rounded-2xl border border-border bg-card shadow-xl sm:w-96"
+						className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-1rem))] overflow-hidden rounded-2xl border border-border bg-card shadow-xl sm:w-96"
 					>
 						{/* Cabecera del panel */}
 						<div className="flex items-center justify-between border-b border-border px-4 py-3">
 							<p className="text-sm font-semibold text-foreground">
-								{locale === 'es' ? 'Notificaciones' : 'Notifications'}
+								{m.notifTitle({}, { locale })}
 							</p>
 							<div className="flex items-center gap-1">
 								{unread.length > 0 && (
@@ -274,7 +270,7 @@ export function NotificationBell({ locale }: NotificationBellProps) {
 										className="h-7 gap-1 px-2 text-xs"
 									>
 										<CheckIcon className="h-3 w-3" />
-										{locale === 'es' ? 'Leer todas' : 'Read all'}
+										{m.notifMarkAllRead({}, { locale })}
 									</Button>
 								)}
 								{read.length > 0 && (
@@ -286,7 +282,7 @@ export function NotificationBell({ locale }: NotificationBellProps) {
 										className="h-7 gap-1 px-2 text-xs text-muted-foreground"
 									>
 										<TrashIcon className="h-3 w-3" />
-										{locale === 'es' ? 'Limpiar' : 'Clear'}
+										{m.notifClear({}, { locale })}
 									</Button>
 								)}
 								<Button
@@ -303,7 +299,7 @@ export function NotificationBell({ locale }: NotificationBellProps) {
 						</div>
 
 						{/* Lista de notificaciones — scroll limitado */}
-						<div className="max-h-80 overflow-y-auto">
+						<div className="max-h-[min(20rem,50dvh)] overflow-y-auto">
 							{loading ? (
 								<div className="space-y-2 p-4">
 									{[1, 2, 3].map((i) => (
@@ -317,9 +313,7 @@ export function NotificationBell({ locale }: NotificationBellProps) {
 								<div className="flex flex-col items-center gap-2 py-10">
 									<BellIcon className="h-8 w-8 text-muted-foreground/40" />
 									<p className="text-sm text-muted-foreground">
-										{locale === 'es'
-											? 'No hay notificaciones'
-											: 'No notifications'}
+										{m.notifEmpty({}, { locale })}
 									</p>
 								</div>
 							) : (
@@ -365,9 +359,7 @@ export function NotificationBell({ locale }: NotificationBellProps) {
 													size="icon-sm"
 													onClick={() => handleMarkRead(n.id)}
 													aria-label={
-														locale === 'es'
-															? 'Marcar como leída'
-															: 'Mark as read'
+														m.notifMarkRead({}, { locale })
 													}
 													className="h-6 w-6"
 												>
@@ -379,7 +371,7 @@ export function NotificationBell({ locale }: NotificationBellProps) {
 												variant="ghost"
 												size="icon-sm"
 												onClick={() => handleDelete(n.id)}
-												aria-label={locale === 'es' ? 'Eliminar' : 'Delete'}
+												aria-label={m.notifDelete({}, { locale })}
 												className="h-6 w-6 text-muted-foreground hover:text-destructive"
 											>
 												<TrashIcon className="h-3 w-3" />

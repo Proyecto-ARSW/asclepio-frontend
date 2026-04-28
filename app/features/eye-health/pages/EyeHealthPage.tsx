@@ -14,10 +14,19 @@ import {
 	SparklesIcon,
 	SunIcon,
 } from '@heroicons/react/24/outline';
+import { useForm } from '@tanstack/react-form';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { Button } from '@/components/ui/button/button.component';
+import {
+	Field,
+	FieldDescription,
+	FieldError,
+	FieldLabel,
+} from '@/components/ui/field/field.component';
+import { Input } from '@/components/ui/input/input.component';
+import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import { Slider } from '@/components/ui/slider/slider.component';
 import {
 	formatEyeHealthText,
@@ -28,6 +37,7 @@ import {
 	useEyeHealthTest,
 } from '@/features/eye-health/hooks/useEyeHealthTest';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
+import { gqlMutation } from '@/lib/graphql-client';
 
 const LANDOLT_SIZE_CLASSES = [
 	'size-[2.9rem]',
@@ -125,7 +135,13 @@ const ASTIGMATISM_ANGLES = [
 	-90, -67.5, -45, -22.5, 0, 22.5, 45, 67.5, 90,
 ] as const;
 
-function AstigmatismFanChart() {
+const SAVE_EYE_HEALTH_RESULT = `
+	mutation SaveEyeHealthResult($input: SaveEyeHealthResultInput!) {
+		saveEyeHealthResult(input: $input) { id }
+	}
+`;
+
+function AstigmatismFanChart({ ariaLabel }: { ariaLabel: string }) {
 	const centerX = 120;
 	const centerY = 120;
 	const innerRadius = 28;
@@ -133,12 +149,12 @@ function AstigmatismFanChart() {
 	const lineOffset = 2.6;
 
 	return (
-		<div className="mx-auto w-full max-w-xs rounded-2xl border border-border/70 bg-white p-3">
+		<div className="mx-auto w-full max-w-xs rounded-2xl border border-border/70 bg-card p-3">
 			<svg
 				viewBox="0 0 240 140"
-				className="mx-auto w-full"
+				className="mx-auto w-full text-foreground"
 				role="img"
-				aria-label="Carta de lineas para prueba de astigmatismo"
+				aria-label={ariaLabel}
 			>
 				{ASTIGMATISM_ANGLES.flatMap((angle) => {
 					const radians = (angle * Math.PI) / 180;
@@ -161,7 +177,7 @@ function AstigmatismFanChart() {
 								y1={startY + normalY * shift}
 								x2={endX + normalX * shift}
 								y2={endY + normalY * shift}
-								stroke="#111111"
+								stroke="currentColor"
 								strokeWidth="1.7"
 								strokeLinecap="square"
 							/>
@@ -172,7 +188,7 @@ function AstigmatismFanChart() {
 				<path
 					d={`M ${centerX - innerRadius} ${centerY} A ${innerRadius} ${innerRadius} 0 0 1 ${centerX + innerRadius} ${centerY}`}
 					fill="none"
-					stroke="#111111"
+					stroke="currentColor"
 					strokeWidth="2"
 				/>
 			</svg>
@@ -186,7 +202,24 @@ export function EyeHealthPage() {
 	const content = getEyeHealthContent(locale);
 	const prefersReducedMotion = useReducedMotion();
 	const ishiharaInputRef = useRef<HTMLInputElement>(null);
-	const [ishiharaInput, setIshiharaInput] = useState('');
+	const [ishiharaImageLoaded, setIshiharaImageLoaded] = useState(false);
+	const saveAttemptedRef = useRef(false);
+	const [saveState, setSaveState] = useState<{
+		status: 'idle' | 'saving' | 'success' | 'error';
+		errorMessage?: string;
+	}>({ status: 'idle' });
+
+	const ishiharaForm = useForm({
+		defaultValues: {
+			answer: '',
+		},
+		onSubmit: ({ value }) => {
+			submitIshiharaAnswer(
+				value.answer,
+				content.fullScreen.ishihara.invalidChars,
+			);
+		},
+	});
 
 	const {
 		stepIndex: rawStepIndex,
@@ -235,6 +268,11 @@ export function EyeHealthPage() {
 	} = useEyeHealthTest();
 
 	const stepIndex = rawStepIndex as number;
+	const handleRestart = useCallback(() => {
+		restart();
+		saveAttemptedRef.current = false;
+		setSaveState({ status: 'idle' });
+	}, [restart]);
 
 	useEffect(() => {
 		if (stepIndex !== step.PROCESSING) return;
@@ -248,14 +286,71 @@ export function EyeHealthPage() {
 
 	useEffect(() => {
 		if (!isIshiharaStep || !currentIshiharaFile) return;
-		setIshiharaInput(ishiharaAnswers[currentIshiharaFile] ?? '');
+		ishiharaForm.setFieldValue(
+			'answer',
+			ishiharaAnswers[currentIshiharaFile] ?? '',
+		);
+		setIshiharaImageLoaded(false);
 		const raf = window.requestAnimationFrame(() => {
 			ishiharaInputRef.current?.focus();
 		});
 		return () => {
 			window.cancelAnimationFrame(raf);
 		};
-	}, [isIshiharaStep, currentIshiharaFile, ishiharaAnswers]);
+	}, [isIshiharaStep, currentIshiharaFile, ishiharaAnswers, ishiharaForm]);
+
+	const savePayload = useMemo(
+		() => ({
+			classification,
+			calibrationScale,
+			acuityCorrectCount,
+			contrastCorrectCount,
+			colorCorrectCount,
+			leftCorrectCount,
+			rightCorrectCount,
+			leftContrastCorrectCount,
+			rightContrastCorrectCount,
+			astigmatismLeftDifferent,
+			astigmatismRightDifferent,
+			ishiharaAnswers,
+		}),
+		[
+			classification,
+			calibrationScale,
+			acuityCorrectCount,
+			contrastCorrectCount,
+			colorCorrectCount,
+			leftCorrectCount,
+			rightCorrectCount,
+			leftContrastCorrectCount,
+			rightContrastCorrectCount,
+			astigmatismLeftDifferent,
+			astigmatismRightDifferent,
+			ishiharaAnswers,
+		],
+	);
+
+	const handleSaveResult = useCallback(async () => {
+		setSaveState({ status: 'saving' });
+		try {
+			await gqlMutation(SAVE_EYE_HEALTH_RESULT, { input: savePayload });
+			setSaveState({ status: 'success' });
+		} catch (error) {
+			setSaveState({
+				status: 'error',
+				errorMessage:
+					error instanceof Error
+						? error.message
+						: content.fullScreen.results.saveError,
+			});
+		}
+	}, [content.fullScreen.results.saveError, savePayload]);
+
+	useEffect(() => {
+		if (stepIndex !== step.RESULTS || saveAttemptedRef.current) return;
+		saveAttemptedRef.current = true;
+		void handleSaveResult();
+	}, [handleSaveResult, stepIndex, step.RESULTS]);
 
 	const stepCounter = formatEyeHealthText(
 		content.fullScreen.common.stepCounter,
@@ -264,45 +359,14 @@ export function EyeHealthPage() {
 			total: totalSteps,
 		},
 	);
-	const contrastContent = ((content.fullScreen as Record<string, unknown>)
-		.contrast as
-		| {
-				title?: string;
-				eyeLeft?: string;
-				eyeRight?: string;
-				counter?: string;
-				helper?: string;
-		  }
-		| undefined) ?? {
-		title: undefined,
-		eyeLeft: undefined,
-		eyeRight: undefined,
-		counter: undefined,
-		helper: undefined,
-	};
-	const resultsContentExtended = content.fullScreen.results as Record<
-		string,
-		unknown
-	>;
-	const contrastTitle = contrastContent.title ?? 'Prueba de contraste';
-	const contrastEyeLeft =
-		contrastContent.eyeLeft ?? 'Contraste para ojo izquierdo';
-	const contrastEyeRight =
-		contrastContent.eyeRight ?? 'Contraste para ojo derecho';
-	const contrastCounterTemplate =
-		contrastContent.counter ?? 'Figura {current} de {total}';
-	const contrastHelper =
-		contrastContent.helper ??
-		'La figura tendra menos contraste en cada paso. Selecciona la direccion de la abertura.';
-	const resultsContrastLabel =
-		(resultsContentExtended.contrastLabel as string | undefined) ??
-		'Sensibilidad al contraste';
-	const resultsContrastValue =
-		(resultsContentExtended.contrastValue as string | undefined) ??
-		'{correct} de {total}';
-	const resultsContrastPerEye =
-		(resultsContentExtended.contrastPerEye as string | undefined) ??
-		'Izquierdo: {left} | Derecho: {right}';
+	const contrastTitle = content.fullScreen.contrast.title;
+	const contrastEyeLeft = content.fullScreen.contrast.eyeLeft;
+	const contrastEyeRight = content.fullScreen.contrast.eyeRight;
+	const contrastCounterTemplate = content.fullScreen.contrast.counter;
+	const contrastHelper = content.fullScreen.contrast.helper;
+	const resultsContrastLabel = content.fullScreen.results.contrastLabel;
+	const resultsContrastValue = content.fullScreen.results.contrastValue;
+	const resultsContrastPerEye = content.fullScreen.results.contrastPerEye;
 
 	const currentLandolt = useMemo(() => {
 		if (isLeftLandoltStep && leftTestIndex >= 0) {
@@ -458,7 +522,7 @@ export function EyeHealthPage() {
 						<Link
 							to={localePath('/', locale)}
 							className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/90 px-2.5 py-1 shadow-sm backdrop-blur"
-							aria-label="Ir al inicio"
+							aria-label={content.page.homeLink}
 						>
 							<img
 								src="/favicon.png"
@@ -477,7 +541,12 @@ export function EyeHealthPage() {
 								{content.fullScreen.common.back}
 							</Button>
 						)}
-						<Button type="button" variant="outline" size="sm" onClick={restart}>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={handleRestart}
+						>
 							{content.fullScreen.common.restart}
 						</Button>
 					</div>
@@ -678,16 +747,15 @@ export function EyeHealthPage() {
 									<div className="mx-auto flex w-full max-w-md items-center gap-3 text-primary/80">
 										<div className="h-px flex-1 bg-primary/30" />
 										<p className="text-[11px] font-semibold uppercase tracking-[0.18em]">
-											Cambio de prueba
+											{content.fullScreen.apertureIntro.kicker}
 										</p>
 										<div className="h-px flex-1 bg-primary/30" />
 									</div>
 									<h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-										Ahora empieza la prueba de abertura
+										{content.fullScreen.apertureIntro.title}
 									</h1>
 									<p className="text-muted-foreground mx-auto max-w-xl text-balance text-base leading-relaxed sm:text-lg">
-										Terminaste contraste. En esta fase selecciona la direccion
-										exacta de la abertura.
+										{content.fullScreen.apertureIntro.description}
 									</p>
 								</div>
 							)}
@@ -701,7 +769,7 @@ export function EyeHealthPage() {
 										<div className="mx-auto flex w-full max-w-md items-center gap-3 text-primary/80">
 											<div className="h-px flex-1 bg-primary/30" />
 											<p className="text-[11px] font-semibold uppercase tracking-[0.18em]">
-												Cambio de ojo
+												{content.fullScreen.coverRight.kicker}
 											</p>
 											<div className="h-px flex-1 bg-primary/30" />
 										</div>
@@ -709,8 +777,7 @@ export function EyeHealthPage() {
 											{content.fullScreen.coverRight.title}
 										</h1>
 										<p className="text-muted-foreground mx-auto max-w-md text-sm sm:text-base">
-											Ahora tapa el otro ojo para continuar con la siguiente
-											serie.
+											{content.fullScreen.coverRight.description}
 										</p>
 									</div>
 								</>
@@ -721,16 +788,15 @@ export function EyeHealthPage() {
 									<div className="mx-auto flex w-full max-w-md items-center gap-3 text-primary/80">
 										<div className="h-px flex-1 bg-primary/30" />
 										<p className="text-[11px] font-semibold uppercase tracking-[0.18em]">
-											Cambio de prueba
+											{content.fullScreen.apertureIntro.kicker}
 										</p>
 										<div className="h-px flex-1 bg-primary/30" />
 									</div>
 									<h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-										Ahora empieza la prueba de abertura
+										{content.fullScreen.apertureIntro.title}
 									</h1>
 									<p className="text-muted-foreground mx-auto max-w-xl text-balance text-base leading-relaxed sm:text-lg">
-										Terminaste contraste. En esta fase selecciona la direccion
-										exacta de la abertura.
+										{content.fullScreen.apertureIntro.description}
 									</p>
 								</div>
 							)}
@@ -764,6 +830,14 @@ export function EyeHealthPage() {
 									</div>
 
 									<div className="mx-auto w-full max-w-sm rounded-2xl border border-border/70 bg-card/70 p-3">
+										{!ishiharaImageLoaded && (
+											<div className="space-y-2">
+												<Skeleton className="aspect-square w-full rounded-lg" />
+												<p className="text-muted-foreground text-xs">
+													{content.steps.colorBlindness.loadingImage}
+												</p>
+											</div>
+										)}
 										<img
 											src={`/images/ishihara/${currentIshiharaFile}`}
 											alt={formatEyeHealthText(
@@ -772,40 +846,53 @@ export function EyeHealthPage() {
 													index: (ishiharaIndex >= 0 ? ishiharaIndex : 0) + 1,
 												},
 											)}
-											className="mx-auto aspect-square w-full rounded-lg object-contain"
+											className={`mx-auto aspect-square w-full rounded-lg object-contain transition-opacity duration-200 ${
+												ishiharaImageLoaded ? 'opacity-100' : 'opacity-0'
+											}`}
+											onLoad={() => setIshiharaImageLoaded(true)}
 										/>
 									</div>
 
 									<form
 										onSubmit={(event) => {
 											event.preventDefault();
-											submitIshiharaAnswer(
-												ishiharaInput,
-												content.fullScreen.ishihara.invalidChars,
-											);
+											void ishiharaForm.handleSubmit();
 										}}
 										className="space-y-2"
 									>
-										<input
-											ref={ishiharaInputRef}
-											inputMode="numeric"
-											autoComplete="off"
-											className="h-16 w-full rounded-xl border border-border bg-background px-4 text-center text-2xl font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
-											placeholder={content.fullScreen.ishihara.inputPlaceholder}
-											value={ishiharaInput}
-											onChange={(event) => {
-												setIshiharaInput(event.target.value);
-												clearValidationError();
-											}}
-										/>
-										<p className="text-muted-foreground text-center text-xs">
-											{content.fullScreen.ishihara.emptyMeansNoSee}
-										</p>
-										{validationError && (
-											<p className="text-destructive text-center text-sm">
-												{validationError}
-											</p>
-										)}
+										<ishiharaForm.Field name="answer">
+											{(field) => (
+												<Field>
+													<FieldLabel htmlFor="eye-health-ishihara-answer">
+														{content.fullScreen.ishihara.title}
+													</FieldLabel>
+													<FieldDescription>
+														{content.fullScreen.ishihara.emptyMeansNoSee}
+													</FieldDescription>
+													<Input
+														id="eye-health-ishihara-answer"
+														ref={ishiharaInputRef}
+														inputMode="numeric"
+														autoComplete="off"
+														className="h-16 text-center text-2xl font-semibold"
+														placeholder={
+															content.fullScreen.ishihara.inputPlaceholder
+														}
+														value={field.state.value}
+														onBlur={field.handleBlur}
+														onChange={(event) => {
+															field.handleChange(event.target.value);
+															clearValidationError();
+														}}
+													/>
+													{validationError && (
+														<FieldError
+															errors={[{ message: validationError }]}
+														/>
+													)}
+												</Field>
+											)}
+										</ishiharaForm.Field>
 									</form>
 								</div>
 							)}
@@ -839,7 +926,9 @@ export function EyeHealthPage() {
 										</h1>
 									</div>
 
-									<AstigmatismFanChart />
+									<AstigmatismFanChart
+										ariaLabel={content.fullScreen.astigmatism.chartAriaLabel}
+									/>
 
 									<p className="text-center text-base font-medium">
 										{content.fullScreen.astigmatism.question}
@@ -874,7 +963,9 @@ export function EyeHealthPage() {
 										<div className="flex items-center justify-between gap-3">
 											<div className="flex items-center gap-2">
 												<SparklesIcon className="size-5 text-primary" />
-												<p className="text-sm font-semibold">Indice general</p>
+												<p className="text-sm font-semibold">
+													{content.fullScreen.results.overallLabel}
+												</p>
 											</div>
 											<p className="text-2xl font-bold text-primary">
 												{overallPercent}%
@@ -977,41 +1068,84 @@ export function EyeHealthPage() {
 											</p>
 											<p className="mt-2 text-xs text-muted-foreground">
 												{astigmatismFlag
-													? 'Astigmatismo: posible senal detectada.'
-													: 'Astigmatismo: sin senal relevante.'}
+													? content.fullScreen.results.astigmatismRiskNote
+													: content.fullScreen.results.astigmatismNoRiskNote}
 											</p>
 										</div>
 									</div>
 
 									<div className="rounded-xl border border-border/70 bg-card/60 p-4 text-sm">
-										<p className="font-semibold">Detalle por ojo</p>
+										<p className="font-semibold">
+											{content.fullScreen.results.eyeDetailTitle}
+										</p>
 										<div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:text-sm">
-											<p className="text-muted-foreground">Ojo izquierdo</p>
+											<p className="text-muted-foreground">
+												{content.fullScreen.results.eyeDetailLeft}
+											</p>
 											<p className="text-right font-medium">
 												{leftCorrectCount} / 10
 											</p>
-											<p className="text-muted-foreground">Ojo derecho</p>
+											<p className="text-muted-foreground">
+												{content.fullScreen.results.eyeDetailRight}
+											</p>
 											<p className="text-right font-medium">
 												{rightCorrectCount} / 10
 											</p>
 											<p className="text-muted-foreground">
-												Contraste izquierdo
+												{content.fullScreen.results.eyeDetailContrastLeft}
 											</p>
 											<p className="text-right font-medium">
 												{leftContrastCorrectCount} / 5
 											</p>
-											<p className="text-muted-foreground">Contraste derecho</p>
+											<p className="text-muted-foreground">
+												{content.fullScreen.results.eyeDetailContrastRight}
+											</p>
 											<p className="text-right font-medium">
 												{rightContrastCorrectCount} / 5
 											</p>
 											<p className="text-muted-foreground">
-												Percepcion de color
+												{content.fullScreen.results.eyeDetailColor}
 											</p>
 											<p className="text-right font-medium">
 												{colorCorrectCount} / 13
 											</p>
 										</div>
 									</div>
+
+									{saveState.status !== 'idle' && (
+										<div className="rounded-xl border border-border/70 bg-card/60 p-4 text-sm">
+											{saveState.status === 'saving' && (
+												<p className="text-muted-foreground">
+													{content.fullScreen.results.saving}
+												</p>
+											)}
+											{saveState.status === 'success' && (
+												<p className="text-foreground">
+													{content.fullScreen.results.saveSuccess}
+												</p>
+											)}
+											{saveState.status === 'error' && (
+												<div className="space-y-2">
+													<p className="text-destructive">
+														{content.fullScreen.results.saveError}
+														{saveState.errorMessage
+															? ` (${saveState.errorMessage})`
+															: ''}
+													</p>
+													<Button
+														type="button"
+														variant="outline"
+														onClick={() => {
+															saveAttemptedRef.current = false;
+															void handleSaveResult();
+														}}
+													>
+														{content.fullScreen.results.retry}
+													</Button>
+												</div>
+											)}
+										</div>
+									)}
 
 									<div className="mt-2 border-t border-border/70 pt-4">
 										<Link
@@ -1028,7 +1162,7 @@ export function EyeHealthPage() {
 										<Button
 											type="button"
 											variant="ghost"
-											onClick={restart}
+											onClick={handleRestart}
 											className="mt-2 h-10 w-full"
 										>
 											{content.fullScreen.common.restart}
@@ -1052,7 +1186,7 @@ export function EyeHealthPage() {
 						{stepIndex === step.DISTANCE &&
 							renderSingleAction(content.fullScreen.distance.cta, goNext)}
 						{stepIndex === step.LEFT_APERTURE_INTRO &&
-							renderSingleAction('Comenzar abertura', goNext)}
+							renderSingleAction(content.fullScreen.apertureIntro.cta, goNext)}
 
 						{currentContrast && (
 							<div className="sticky bottom-0 mt-auto border-t border-border/70 bg-background/94 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-4 pr-19 backdrop-blur sm:pr-0">
@@ -1097,7 +1231,7 @@ export function EyeHealthPage() {
 						{stepIndex === step.COVER_RIGHT &&
 							renderSingleAction(content.fullScreen.coverRight.cta, goNext)}
 						{stepIndex === step.RIGHT_APERTURE_INTRO &&
-							renderSingleAction('Comenzar abertura', goNext)}
+							renderSingleAction(content.fullScreen.apertureIntro.cta, goNext)}
 						{stepIndex === step.ISHIHARA_INTRO &&
 							renderSingleAction(content.fullScreen.ishiharaIntro.cta, goNext)}
 
@@ -1106,10 +1240,7 @@ export function EyeHealthPage() {
 								<Button
 									type="button"
 									onClick={() => {
-										submitIshiharaAnswer(
-											ishiharaInput,
-											content.fullScreen.ishihara.invalidChars,
-										);
+										void ishiharaForm.handleSubmit();
 									}}
 									className="h-12 w-full rounded-xl text-sm font-semibold"
 								>

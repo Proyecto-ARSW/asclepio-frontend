@@ -144,8 +144,16 @@
 			"optionLeft": "Esquerda",
 			"optionUpLeft": "Acima esquerda"
 		},
+		"apertureIntro": {
+			"kicker": "Mudança de teste",
+			"title": "Agora começa o teste de abertura",
+			"description": "O contraste terminou. Nesta fase selecione a direção exata da abertura.",
+			"cta": "Iniciar abertura"
+		},
 		"coverRight": {
 			"title": "Agora, cubra o olho DIREITO.",
+			"kicker": "Mudanca de olho",
+			"description": "Cubra o outro olho para continuar com a proxima serie.",
 			"cta": "Proximo"
 		},
 		"ishiharaIntro": {
@@ -171,8 +179,9 @@
 			"eyeLeft": "olho esquerdo",
 			"eyeRight": "olho direito",
 			"question": "Algumas linhas parecem mais escuras ou borradas?",
-			"optionEqual": "Todas as linhas parecem iguais",
-			"optionDifferent": "Vejo linhas diferentes"
+			"optionEqual": "Todas parecem iguais",
+			"optionDifferent": "Vejo linhas diferentes",
+			"chartAriaLabel": "Gráfico de linhas para teste de astigmatismo"
 		},
 		"processing": {
 			"title": "Analisando sua visao...",
@@ -181,6 +190,7 @@
 		"results": {
 			"title": "Relatorio final",
 			"subtitle": "Resumo de acuidade, contraste, cores e astigmatismo.",
+			"overallLabel": "Indice geral",
 			"acuityLabel": "Acuidade visual",
 			"acuityValue": "{correct} de {total}",
 			"acuityPerEye": "Esquerdo: {left} | Direito: {right}",
@@ -193,6 +203,14 @@
 			"levelExcellent": "Excelente",
 			"levelGood": "Bom",
 			"levelConsult": "Sugestao de consulta",
+			"astigmatismRiskNote": "Astigmatismo: possível sinal detectado.",
+			"astigmatismNoRiskNote": "Astigmatismo: sem sinal relevante.",
+			"eyeDetailTitle": "Detalhe por olho",
+			"eyeDetailLeft": "Olho esquerdo",
+			"eyeDetailRight": "Olho direito",
+			"eyeDetailContrastLeft": "Contraste esquerdo",
+			"eyeDetailContrastRight": "Contraste direito",
+			"eyeDetailColor": "Percepção de cor",
 			"cta": "Finalizar teste",
 			"saving": "Salvando...",
 			"retry": "Tentar novamente",

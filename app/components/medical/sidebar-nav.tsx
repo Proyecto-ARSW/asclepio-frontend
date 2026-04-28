@@ -308,10 +308,12 @@ function SidebarContent({
 					type="button"
 					onClick={onLogout}
 					variant="destructive"
-					className="w-full justify-start gap-3"
+					className="h-10 w-full justify-start gap-3 min-w-0 overflow-hidden"
 				>
 					<ArrowRightStartOnRectangleIcon className="h-4.5 w-4.5 shrink-0" />
-					{logoutLabel}
+					<span className="min-w-0 flex-1 truncate whitespace-nowrap text-left">
+						{logoutLabel}
+					</span>
 				</Button>
 			</div>
 		</div>
@@ -365,7 +367,7 @@ export function SidebarNav(props: SidebarNavProps) {
 					mobileOpen
 						? // Cuando está abierto mostramos solo icono para evitar overflow en
 							// pantallas estrechas (< 320 px): el texto añadiría ~80 px extra.
-							'top-1/2 left-64 -translate-y-1/2 h-11 w-11 rounded-l-none rounded-r-2xl border-l-0 p-0 hover:translate-x-1'
+							'top-1/2 left-68 -translate-y-1/2 h-11 w-11 rounded-l-none rounded-r-2xl border-l-0 p-0 hover:translate-x-1'
 						: 'bottom-5 left-1/2 h-11 -translate-x-1/2 gap-2 rounded-full px-4 hover:scale-[1.03] hover:shadow-[0_24px_45px_-18px_var(--color-primary)] sm:left-5 sm:translate-x-0'
 				}`}
 			>
@@ -421,7 +423,7 @@ export function SidebarNav(props: SidebarNavProps) {
 		<aside
 			id="sidebar-aside"
 			aria-label={m.dashboardSidebarBrandName({}, { locale })}
-			className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-sidebar text-sidebar-foreground transition-transform duration-200 ease-in-out lg:hidden ${
+			className={`fixed inset-y-0 left-0 z-50 w-68 border-r border-border bg-sidebar text-sidebar-foreground transition-transform duration-200 ease-in-out lg:hidden ${
 				mobileOpen ? 'translate-x-0' : '-translate-x-full'
 			}`}
 		>
@@ -451,7 +453,7 @@ export function SidebarNav(props: SidebarNavProps) {
 			{/* Sidebar de escritorio: estático, fuera del portal, sin position:fixed */}
 			<aside
 				aria-label={m.dashboardSidebarBrandName({}, { locale })}
-				className="hidden lg:flex lg:static lg:shrink-0 lg:w-64 border-r border-border bg-sidebar text-sidebar-foreground"
+				className="hidden lg:flex lg:static lg:shrink-0 lg:w-68 border-r border-border bg-sidebar text-sidebar-foreground"
 			>
 				<SidebarContent {...props} />
 			</aside>

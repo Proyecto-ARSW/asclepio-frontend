@@ -57,6 +57,14 @@ interface Appointment {
 
 interface Patient {
 	id: string;
+	usuarioId?: string;
+	nombre: string;
+	apellido: string;
+}
+
+interface Doctor {
+	id: string;
+	usuarioId: string;
 	nombre: string;
 	apellido: string;
 }
@@ -116,6 +124,18 @@ const PATIENTS_QUERY = `
 	query ReceptionistPatients {
 		patients {
 			id
+			usuarioId
+			nombre
+			apellido
+		}
+	}
+`;
+
+const DOCTORS_QUERY = `
+	query ReceptionistDoctors($hospitalId: Int) {
+		doctors(hospitalId: $hospitalId) {
+			id
+			usuarioId
 			nombre
 			apellido
 		}
@@ -282,6 +302,7 @@ export function ReceptionistDashboardView({
 	const [turns, setTurns] = useState<Turno[]>([]);
 	const [appointments, setAppointments] = useState<Appointment[]>([]);
 	const [patients, setPatients] = useState<Patient[]>([]);
+	const [doctors, setDoctors] = useState<Doctor[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -320,14 +341,24 @@ export function ReceptionistDashboardView({
 		setLoading(true);
 		setError('');
 		try {
-			const [, patientsRes] = await Promise.all([
+			const [, patientsRes, doctorsRes] = await Promise.all([
 				loadMainData(),
-				// Cargar pacientes solo para la sección de crear turnos
-				section === 'queue'
+				// Cargar pacientes/medicos para mostrar nombres en citas y turnos
+				section === 'queue' ||
+				section === 'overview' ||
+				section === 'appointments'
 					? gqlQuery<{ patients: Patient[] }>(PATIENTS_QUERY)
 					: Promise.resolve({ patients: [] as Patient[] }),
+				section === 'queue' ||
+				section === 'overview' ||
+				section === 'appointments'
+					? gqlQuery<{ doctors: Doctor[] }>(DOCTORS_QUERY, {
+							hospitalId: selectedHospitalId ?? null,
+						})
+					: Promise.resolve({ doctors: [] as Doctor[] }),
 			]);
 			setPatients(patientsRes.patients);
+			setDoctors(doctorsRes.doctors ?? []);
 
 			if (section === 'overview' || section === 'appointments') {
 				try {
@@ -350,7 +381,7 @@ export function ReceptionistDashboardView({
 		} finally {
 			setLoading(false);
 		}
-	}, [loadAppointmentsData, loadMainData, locale, section]);
+	}, [loadAppointmentsData, loadMainData, locale, section, selectedHospitalId]);
 
 	useEffect(() => {
 		void loadData();
@@ -434,6 +465,26 @@ export function ReceptionistDashboardView({
 		if (!patient) return '';
 		return `${patient.nombre} ${patient.apellido}`.trim();
 	}, [newTurn.pacienteId, patients]);
+
+	const patientById = useMemo(() => {
+		const map = new Map<string, Patient>();
+		for (const patient of patients) {
+			map.set(patient.id, patient);
+			if (patient.usuarioId) {
+				map.set(patient.usuarioId, patient);
+			}
+		}
+		return map;
+	}, [patients]);
+
+	const doctorById = useMemo(() => {
+		const map = new Map<string, Doctor>();
+		for (const doctor of doctors) {
+			map.set(doctor.id, doctor);
+			map.set(doctor.usuarioId, doctor);
+		}
+		return map;
+	}, [doctors]);
 
 	// ── Acción: crear turno ──
 	async function handleCreateTurn() {
@@ -784,6 +835,14 @@ export function ReceptionistDashboardView({
 						// Solo las citas activas (PENDIENTE/CONFIRMADA) admiten acciones
 						const isActive =
 							a.estado === 'PENDIENTE' || a.estado === 'CONFIRMADA';
+						const patient = patientById.get(a.pacienteId);
+						const doctor = doctorById.get(a.medicoId);
+						const patientLabel = patient
+							? `${patient.nombre} ${patient.apellido}`
+							: a.pacienteId;
+						const doctorLabel = doctor
+							? `${doctor.nombre} ${doctor.apellido}`
+							: a.medicoId;
 						return (
 							<div
 								key={a.id}
@@ -792,6 +851,9 @@ export function ReceptionistDashboardView({
 								<div className="min-w-0 flex-1">
 									<p className="truncate text-sm font-medium text-foreground">
 										{new Date(a.fechaHora).toLocaleString(locale)}
+									</p>
+									<p className="truncate text-xs text-muted-foreground">
+										{patientLabel} - {doctorLabel}
 									</p>
 									<p className="truncate text-xs text-muted-foreground">
 										{a.motivo || a.id}
@@ -808,7 +870,10 @@ export function ReceptionistDashboardView({
 												type="button"
 												size="sm"
 												variant="outline"
-												aria-label={m.a11yReceptionistAttendTurnBtn({}, { locale })}
+												aria-label={m.a11yReceptionistAttendTurnBtn(
+													{},
+													{ locale },
+												)}
 												className="gap-1 text-xs"
 												disabled={
 													actionLoading === `complete-appt-${a.id}` ||

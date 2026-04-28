@@ -144,8 +144,16 @@
 			"optionLeft": "Left",
 			"optionUpLeft": "Up left"
 		},
+		"apertureIntro": {
+			"kicker": "Test switch",
+			"title": "Now the opening test begins",
+			"description": "Contrast is complete. In this phase select the exact opening direction.",
+			"cta": "Start opening"
+		},
 		"coverRight": {
 			"title": "Now cover your RIGHT eye.",
+			"kicker": "Eye switch",
+			"description": "Cover the other eye to continue with the next series.",
 			"cta": "Next"
 		},
 		"ishiharaIntro": {
@@ -172,7 +180,8 @@
 			"eyeRight": "right eye",
 			"question": "Do some lines look darker or blurrier?",
 			"optionEqual": "All lines look the same",
-			"optionDifferent": "I see different lines"
+			"optionDifferent": "I see different lines",
+			"chartAriaLabel": "Line chart for astigmatism test"
 		},
 		"processing": {
 			"title": "Analyzing your vision...",
@@ -181,6 +190,7 @@
 		"results": {
 			"title": "Final report",
 			"subtitle": "Summary of acuity, contrast, color, and astigmatism.",
+			"overallLabel": "Overall index",
 			"acuityLabel": "Visual acuity",
 			"acuityValue": "{correct} of {total}",
 			"acuityPerEye": "Left: {left} | Right: {right}",
@@ -193,6 +203,14 @@
 			"levelExcellent": "Excellent",
 			"levelGood": "Good",
 			"levelConsult": "Consultation suggested",
+			"astigmatismRiskNote": "Astigmatism: possible signal detected.",
+			"astigmatismNoRiskNote": "Astigmatism: no relevant signal.",
+			"eyeDetailTitle": "Eye detail",
+			"eyeDetailLeft": "Left eye",
+			"eyeDetailRight": "Right eye",
+			"eyeDetailContrastLeft": "Left contrast",
+			"eyeDetailContrastRight": "Right contrast",
+			"eyeDetailColor": "Color perception",
 			"cta": "Finish test",
 			"saving": "Saving...",
 			"retry": "Retry save",

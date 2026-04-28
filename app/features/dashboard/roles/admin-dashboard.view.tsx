@@ -117,6 +117,9 @@ interface AdminGqlData {
 	}>;
 }
 
+type AdminPatient = AdminGqlData['patients'][number];
+type AdminDoctor = AdminGqlData['doctors'][number];
+
 interface UpdateUserRoleData {
 	updateUser: {
 		id: string;
@@ -573,16 +576,23 @@ export function AdminDashboardView({
 		[specialtyOptions],
 	);
 
-	const patientById = useMemo(
-		() =>
-			new Map((data?.patients ?? []).map((patient) => [patient.id, patient])),
-		[data?.patients],
-	);
+	const patientById = useMemo(() => {
+		const map = new Map<string, AdminPatient>();
+		for (const patient of data?.patients ?? []) {
+			map.set(patient.id, patient);
+			map.set(patient.usuarioId, patient);
+		}
+		return map;
+	}, [data?.patients]);
 
-	const doctorById = useMemo(
-		() => new Map((data?.doctors ?? []).map((doctor) => [doctor.id, doctor])),
-		[data?.doctors],
-	);
+	const doctorById = useMemo(() => {
+		const map = new Map<string, AdminDoctor>();
+		for (const doctor of data?.doctors ?? []) {
+			map.set(doctor.id, doctor);
+			map.set(doctor.usuarioId, doctor);
+		}
+		return map;
+	}, [data?.doctors]);
 
 	const patientsOnly = useMemo(
 		() =>
@@ -1228,7 +1238,10 @@ export function AdminDashboardView({
 								type="button"
 								variant="destructive"
 								size="sm"
-								aria-label={m.a11yAdminDeleteUserBtn({ name: `${u.nombre} ${u.apellido}` }, { locale })}
+								aria-label={m.a11yAdminDeleteUserBtn(
+									{ name: `${u.nombre} ${u.apellido}` },
+									{ locale },
+								)}
 								disabled={savingUserId === u.id || u.id === user.id}
 								onClick={() => {
 									if (

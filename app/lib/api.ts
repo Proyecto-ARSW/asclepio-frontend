@@ -35,7 +35,7 @@ function isNetworkError(error: unknown): boolean {
 	return error instanceof TypeError;
 }
 
-function getStoredToken(): string | null {
+export function getStoredToken(): string | null {
 	const accessToken = getValidAccessTokenFromStorage();
 	if (accessToken) return accessToken;
 	return getStoredPreToken();

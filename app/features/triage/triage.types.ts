@@ -48,8 +48,11 @@ export interface TriageTextInputRequest {
 }
 
 export interface TriageVoiceInputRequest {
-	patient_id: string;
-	audio: File;
+	patient_id?: string;
+	audio?: File;
+	audio_base64?: string;
+	file_name?: string;
+	mime_type?: string;
 }
 
 export interface TriageProcedureResponse {

@@ -26,6 +26,10 @@ export interface TriageContent {
 		successTitle: string;
 		procedureId: string;
 		downloadPdf: string;
+		browserNotSupported: string;
+		audioClear: string;
+		recordingActive: string;
+		recordedLabel: string;
 	};
 	detail: {
 		heading: string;
@@ -106,6 +110,10 @@ export function getTriageContent(
 			audioLabel: m.triageAudioLabel({}, options),
 			audioHint: m.triageAudioHint({}, options),
 			audioDesc: m.a11yTriageAudioDesc({}, options),
+			browserNotSupported: m.triageBrowserNotSupported({}, options),
+			audioClear: m.triageAudioClear({}, options),
+			recordingActive: m.triageRecordingActive({}, options),
+			recordedLabel: m.triageRecordedLabel({}, options),
 			startRecording: m.triageAudioStart({}, options),
 			stopRecording: m.triageAudioStop({}, options),
 			send: m.triageSubmit({}, options),

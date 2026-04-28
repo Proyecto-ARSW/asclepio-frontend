@@ -1,7 +1,4 @@
-import {
-	ArrowPathIcon,
-	DocumentArrowDownIcon,
-} from '@heroicons/react/24/outline';
+import { ArrowPathIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 import { Link, redirect, useNavigate, useParams } from 'react-router';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
@@ -14,23 +11,28 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
+import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import { Field, FieldLabel } from '@/components/ui/field/field.component';
 import { Input } from '@/components/ui/input/input.component';
-import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import { CloseTriageForm } from '@/features/triage/forms/close-triage.form';
 import { NewTriageForm } from '@/features/triage/forms/new-triage.form';
+import { PatientTriageForm } from '@/features/triage/forms/patient-triage.form';
 import { TriageCommentForm } from '@/features/triage/forms/triage-comment.form';
 import { VitalSignsForm } from '@/features/triage/forms/vital-signs.form';
 import {
 	addTriageComment,
+	addTriageCommentToISIS,
 	closeTriageProcedure,
+	closeTriageProcedureToISIS,
 	downloadTriagePdf,
 	getTriageProcedure,
-	sendTriageTextInput,
-	sendTriageVoiceInput,
+	getTriageProcedureFromISIS,
+	sendTriageTextInputToISIS,
+	sendTriageVoiceInputToISIS,
 	updateTriageVitalSigns,
+	updateTriageVitalSignsToISIS,
 } from '@/features/triage/triage.api';
 import type { TriageVitalSigns } from '@/features/triage/triage.types';
 import { getTriageContent } from '@/features/triage/triage-content';
@@ -107,7 +109,10 @@ export default function TriagePage() {
 		setDetailError('');
 		setActionFeedback('');
 		try {
-			const data = await getTriageProcedure(nextProcedureId.trim());
+			const data =
+				role === 'PACIENTE'
+					? await getTriageProcedureFromISIS(nextProcedureId.trim())
+					: await getTriageProcedure(nextProcedureId.trim());
 			setProcedure(data);
 			setProcedureId(nextProcedureId.trim());
 			navigate(localePath(`/triage/${nextProcedureId.trim()}`, locale), {
@@ -120,20 +125,26 @@ export default function TriagePage() {
 		}
 	}
 
-	async function handleTextSubmit(payload: {
-		patient_id: string;
-		text: string;
-	}) {
-		const response = await sendTriageTextInput(payload);
+	async function handleTextSubmit(payload: { text: string }) {
+		const response = await sendTriageTextInputToISIS({
+			patient_id: user.id,
+			text: payload.text,
+		});
 		setActionFeedback(content.patient.successTitle);
 		await loadProcedure(response.procedure_id);
 	}
 
 	async function handleVoiceSubmit(payload: {
-		patient_id: string;
-		audio: File;
+		audio_base64: string;
+		file_name: string;
+		mime_type: string;
 	}) {
-		const response = await sendTriageVoiceInput(payload);
+		const response = await sendTriageVoiceInputToISIS({
+			patient_id: user.id,
+			audio_base64: payload.audio_base64,
+			file_name: payload.file_name,
+			mime_type: payload.mime_type,
+		});
 		setActionFeedback(content.patient.successTitle);
 		await loadProcedure(response.procedure_id);
 	}
@@ -228,11 +239,11 @@ export default function TriagePage() {
 							<CardDescription>{content.subtitle}</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<NewTriageForm
-								content={content}
-								onSubmitText={handleTextSubmit}
-								onSubmitVoice={handleVoiceSubmit}
-							/>
+						<PatientTriageForm
+							content={content}
+							onSubmitText={handleTextSubmit}
+							onSubmitVoice={handleVoiceSubmit}
+						/>
 						</CardContent>
 					</Card>
 				)}

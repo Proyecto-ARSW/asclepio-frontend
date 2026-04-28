@@ -1,6 +1,15 @@
-import { ArrowPathIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
-import { useState } from 'react';
+import {
+	ArrowLeftIcon,
+	ArrowPathIcon,
+	BeakerIcon,
+	CheckBadgeIcon,
+	ClipboardDocumentListIcon,
+	ClockIcon,
+	ExclamationTriangleIcon,
+} from '@heroicons/react/24/outline';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, redirect, useNavigate, useParams } from 'react-router';
+import type { AppLocale } from '@/features/i18n/locale-path';
 import { Alert, AlertDescription } from '@/components/ui/alert/alert.component';
 import { Badge } from '@/components/ui/badge/badge.component';
 import { Button } from '@/components/ui/button/button.component';
@@ -12,36 +21,33 @@ import {
 	CardTitle,
 } from '@/components/ui/card/card.component';
 import { Skeleton } from '@/components/ui/skeleton/skeleton.component';
-import { Field, FieldLabel } from '@/components/ui/field/field.component';
-import { Input } from '@/components/ui/input/input.component';
 import { currentLocale, localePath } from '@/features/i18n/locale-path';
 import { m } from '@/features/i18n/paraglide/messages';
 import { CloseTriageForm } from '@/features/triage/forms/close-triage.form';
-import { NewTriageForm } from '@/features/triage/forms/new-triage.form';
 import { PatientTriageForm } from '@/features/triage/forms/patient-triage.form';
 import { TriageCommentForm } from '@/features/triage/forms/triage-comment.form';
 import { VitalSignsForm } from '@/features/triage/forms/vital-signs.form';
 import {
-	addTriageComment,
 	addTriageCommentToISIS,
-	closeTriageProcedure,
 	closeTriageProcedureToISIS,
-	downloadTriagePdf,
-	getTriageProcedure,
+	getMyProceduresFromISIS,
 	getTriageProcedureFromISIS,
+	getTriageRecordsFromISIS,
 	sendTriageTextInputToISIS,
 	sendTriageVoiceInputToISIS,
-	updateTriageVitalSigns,
 	updateTriageVitalSignsToISIS,
 } from '@/features/triage/triage.api';
-import type { TriageVitalSigns } from '@/features/triage/triage.types';
+import type {
+	ISISTriageIntakeResponse,
+	TriageProcedure,
+	TriageVitalSigns,
+} from '@/features/triage/triage.types';
 import { getTriageContent } from '@/features/triage/triage-content';
 import { mapTriageErrorToMessage } from '@/features/triage/triage-errors';
 import { useAuthStore } from '@/store/auth.store';
 import type { Route } from './+types/triage.page';
 
 const ALLOWED_ROLES = ['PACIENTE', 'ENFERMERO', 'MEDICO'] as const;
-
 type AllowedRole = (typeof ALLOWED_ROLES)[number];
 
 function isAllowedRole(role: string | undefined): role is AllowedRole {
@@ -49,8 +55,7 @@ function isAllowedRole(role: string | undefined): role is AllowedRole {
 }
 
 function isClosed(status: string | undefined): boolean {
-	if (!status) return false;
-	return status.toLowerCase() === 'closed';
+	return status?.toLowerCase() === 'closed';
 }
 
 export async function clientLoader() {
@@ -77,61 +82,452 @@ export function meta(_: Route.MetaArgs) {
 	return [{ title: m.pageTitleTriage({}, { locale }) }];
 }
 
-export default function TriagePage() {
-	const locale = currentLocale();
-	const content = getTriageContent(locale);
-	const navigate = useNavigate();
-	const { procedureId: routeProcedureId } = useParams();
-	const { user } = useAuthStore();
+/* ─── PRIORIDAD BADGE ────────────────────────────────────────────────────────── */
 
-	const [procedureId, setProcedureId] = useState(routeProcedureId ?? '');
-	const [loadingDetail, setLoadingDetail] = useState(false);
-	const [detailError, setDetailError] = useState('');
-	const [actionFeedback, setActionFeedback] = useState('');
-	const [procedure, setProcedure] = useState<Awaited<
-		ReturnType<typeof getTriageProcedure>
-	> | null>(null);
+const NIVEL_COLOR: Record<number, string> = {
+	1: 'border-red-500/40 bg-red-500/10 text-red-400',
+	2: 'border-orange-500/40 bg-orange-500/10 text-orange-400',
+	3: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400',
+	4: 'border-green-500/40 bg-green-500/10 text-green-400',
+	5: 'border-blue-500/40 bg-blue-500/10 text-blue-400',
+};
+const NIVEL_LABEL: Record<number, string> = {
+	1: 'Crítico',
+	2: 'Muy urgente',
+	3: 'Urgente',
+	4: 'Poco urgente',
+	5: 'No urgente',
+};
 
-	if (!user || !isAllowedRole(user.rol)) {
-		return null;
-	}
+function PriorityBadge({ level }: { level: number }) {
+	const cls = NIVEL_COLOR[level] ?? 'border-border bg-muted text-muted-foreground';
+	return (
+		<span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${cls}`}>
+			N{level} · {NIVEL_LABEL[level] ?? '?'}
+		</span>
+	);
+}
 
-	const role = user.rol;
-	const procedureIsClosed = isClosed(procedure?.status);
+/* ─── CARD DE PROCEDIMIENTO EN COLA ─────────────────────────────────────────── */
+
+function ProcedureCard({
+	procedure,
+	isSelected,
+	onSelect,
+	locale,
+}: {
+	procedure: TriageProcedure;
+	isSelected: boolean;
+	onSelect: () => void;
+	locale: AppLocale;
+}) {
+	const ph = procedure.preliminary_history;
+	const nivel = ph?.nivelPrioridad ?? 3;
+	const isCritical = nivel <= 2;
+
+	return (
+		<button
+			type="button"
+			onClick={onSelect}
+			className={`w-full text-left rounded-xl border px-4 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+				isSelected
+					? 'border-primary bg-primary/10'
+					: isCritical
+						? 'border-red-500/40 bg-red-500/5 hover:bg-red-500/10'
+						: 'border-border/70 bg-background/90 hover:bg-muted/40'
+			}`}
+		>
+			<div className="flex items-start justify-between gap-2">
+				<div className="flex-1 min-w-0">
+					<div className="flex items-center gap-2 flex-wrap">
+						<PriorityBadge level={nivel} />
+						{isCritical && <span className="flex size-2 rounded-full bg-red-500 animate-pulse" />}
+						<Badge variant="outline" className="text-xs font-mono">
+							{procedure.procedure_id.slice(-8)}
+						</Badge>
+					</div>
+					{ph?.sintomas?.length ? (
+						<p className="text-xs text-muted-foreground mt-1 truncate">
+							{ph.sintomas.slice(0, 3).join(' · ')}
+							{ph.sintomas.length > 3 && ` +${ph.sintomas.length - 3}`}
+						</p>
+					) : null}
+					<div className="flex items-center gap-2 mt-1 flex-wrap">
+						<Badge
+							variant={isClosed(procedure.status) ? 'destructive' : 'secondary'}
+							className="text-xs"
+						>
+							{procedure.status}
+						</Badge>
+						{procedure.created_at && (
+							<span className="text-xs text-muted-foreground flex items-center gap-1">
+								<ClockIcon className="size-3" />
+								{new Date(procedure.created_at).toLocaleTimeString(locale, {
+									hour: '2-digit',
+									minute: '2-digit',
+								})}
+							</span>
+						)}
+					</div>
+				</div>
+			</div>
+		</button>
+	);
+}
+
+/* ─── DETALLE DEL PROCEDIMIENTO ──────────────────────────────────────────────── */
+
+function ProcedureDetail({
+	procedure,
+	role,
+	content,
+	locale,
+	onRefresh,
+}: {
+	procedure: TriageProcedure;
+	role: AllowedRole;
+	content: ReturnType<typeof getTriageContent>;
+	locale: AppLocale;
+	onRefresh: () => void;
+}) {
+	const [error, setError] = useState('');
+	const [feedback, setFeedback] = useState('');
+	const procedureIsClosed = isClosed(procedure.status);
 	const canEditVitals = role === 'ENFERMERO' && !procedureIsClosed;
-	const canComment =
-		(role === 'ENFERMERO' || role === 'MEDICO') && !procedureIsClosed;
+	const canComment = (role === 'ENFERMERO' || role === 'MEDICO') && !procedureIsClosed;
 	const canClose = role === 'MEDICO' && !procedureIsClosed;
 
-	async function loadProcedure(nextProcedureId: string) {
-		if (!nextProcedureId.trim()) return;
-		setLoadingDetail(true);
-		setDetailError('');
-		setActionFeedback('');
+	const ph = procedure.preliminary_history;
+	const vitals = procedure.vital_signs;
+
+	async function handleSaveVitals(nextVitals: TriageVitalSigns) {
+		setError('');
+		setFeedback('');
 		try {
-			const data =
-				role === 'PACIENTE'
-					? await getTriageProcedureFromISIS(nextProcedureId.trim())
-					: await getTriageProcedure(nextProcedureId.trim());
-			setProcedure(data);
-			setProcedureId(nextProcedureId.trim());
-			navigate(localePath(`/triage/${nextProcedureId.trim()}`, locale), {
-				replace: true,
+			await updateTriageVitalSignsToISIS(procedure.procedure_id, {
+				vital_signs: nextVitals,
 			});
-		} catch (error) {
-			setDetailError(mapTriageErrorToMessage(error, locale));
-		} finally {
-			setLoadingDetail(false);
+			setFeedback(content.detail.refresh);
+			onRefresh();
+		} catch (e) {
+			setError(mapTriageErrorToMessage(e, locale));
 		}
 	}
 
+	async function handleComment(comment: string) {
+		setError('');
+		setFeedback('');
+		try {
+			await addTriageCommentToISIS(procedure.procedure_id, { comment });
+			onRefresh();
+		} catch (e) {
+			setError(mapTriageErrorToMessage(e, locale));
+		}
+	}
+
+	async function handleClose(closeReason: string) {
+		setError('');
+		try {
+			await closeTriageProcedureToISIS(procedure.procedure_id, {
+				close_reason: closeReason,
+			});
+			onRefresh();
+		} catch (e) {
+			setError(mapTriageErrorToMessage(e, locale));
+		}
+	}
+
+	return (
+		<div className="space-y-4">
+			{feedback && (
+				<Alert>
+					<AlertDescription>{feedback}</AlertDescription>
+				</Alert>
+			)}
+			{error && (
+				<Alert variant="destructive">
+					<AlertDescription>{error}</AlertDescription>
+				</Alert>
+			)}
+
+			{/* Header del procedimiento */}
+			<div className="flex flex-wrap gap-2 items-center">
+				<Badge variant="outline" className="font-mono text-xs">
+					{content.patient.procedureId}: {procedure.procedure_id}
+				</Badge>
+				<Badge variant={procedureIsClosed ? 'destructive' : 'secondary'}>
+					{procedure.status}
+				</Badge>
+				{ph?.nivelPrioridad && <PriorityBadge level={ph.nivelPrioridad} />}
+			</div>
+
+			{procedureIsClosed && (
+				<Alert role="alert">
+					<CheckBadgeIcon className="size-4" />
+					<AlertDescription>{content.detail.closedLabel}</AlertDescription>
+				</Alert>
+			)}
+
+			{/* Historial preliminar */}
+			{ph && (
+				<section
+					aria-label={content.detail.triageData}
+					className="rounded-xl border border-border/70 p-4 space-y-3"
+				>
+					<h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+						<ClipboardDocumentListIcon className="size-4 text-muted-foreground" />
+						{content.detail.triageData}
+					</h3>
+
+					{ph.sintomas?.length > 0 && (
+						<div>
+							<p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+								{content.queue.symptoms}
+							</p>
+							<div className="flex flex-wrap gap-1.5">
+								{ph.sintomas.map((s, i) => (
+									<Badge key={i} variant="outline" className="text-xs">
+										{s}
+									</Badge>
+								))}
+							</div>
+						</div>
+					)}
+
+					{ph.posiblesCausas?.length > 0 && (
+						<div>
+							<p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+								{content.queue.possibleCauses}
+							</p>
+							<div className="flex flex-wrap gap-1.5">
+								{ph.posiblesCausas.map((c, i) => (
+									<Badge key={i} variant="secondary" className="text-xs">
+										{c}
+									</Badge>
+								))}
+							</div>
+						</div>
+					)}
+
+					{ph.comentariosIA && (
+						<div>
+							<p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+								{content.queue.aiComments}
+							</p>
+							<p className="text-sm text-muted-foreground">{ph.comentariosIA}</p>
+						</div>
+					)}
+
+					{ph.advertenciaIA && (
+						<p className="text-xs text-amber-400/90 flex items-start gap-1.5 mt-1">
+							<ExclamationTriangleIcon className="size-3.5 mt-0.5 shrink-0" />
+							{ph.advertenciaIA}
+						</p>
+					)}
+
+					{procedure.confidence_score != null && (
+						<p className="text-xs text-muted-foreground">
+							{content.queue.confidence}: {(procedure.confidence_score * 100).toFixed(0)}%
+						</p>
+					)}
+
+					{procedure.transcript && (
+						<div>
+							<p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+								{content.detail.transcript}
+							</p>
+							<p className="text-sm text-muted-foreground italic">&ldquo;{procedure.transcript}&rdquo;</p>
+						</div>
+					)}
+				</section>
+			)}
+
+			{/* Signos vitales (solo lectura si ya existen) */}
+			{vitals && (
+				<section
+					aria-label={content.detail.vitalSigns}
+					className="rounded-xl border border-border/70 p-4 space-y-2"
+				>
+					<h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+						<BeakerIcon className="size-4 text-muted-foreground" />
+						{content.detail.vitalSigns}
+					</h3>
+					<div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+						{(
+							[
+								['T°', vitals.temperature_c, '°C'],
+								['FC', vitals.heart_rate_bpm, 'lpm'],
+								['FR', vitals.respiratory_rate_bpm, 'rpm'],
+								['TAS', vitals.systolic_bp_mmhg, 'mmHg'],
+								['TAD', vitals.diastolic_bp_mmhg, 'mmHg'],
+								['SpO₂', vitals.oxygen_saturation_pct, '%'],
+								['Peso', vitals.weight_kg, 'kg'],
+								['Talla', vitals.height_cm, 'cm'],
+							] as [string, number | undefined, string][]
+						)
+							.filter(([, v]) => v != null)
+							.map(([label, value, unit]) => (
+								<div
+									key={label}
+									className="rounded-lg border border-border/60 bg-muted/30 px-2 py-2 text-center"
+								>
+									<p className="text-[10px] text-muted-foreground">{label}</p>
+									<p className="font-mono text-sm font-semibold text-foreground">
+										{value}
+										<span className="text-[10px] text-muted-foreground ml-0.5">{unit}</span>
+									</p>
+								</div>
+							))}
+					</div>
+				</section>
+			)}
+
+			{/* Comentarios existentes */}
+			{(procedure.comments?.length ?? 0) > 0 && (
+				<section
+					aria-label={content.detail.comments}
+					className="rounded-xl border border-border/70 p-4 space-y-2"
+				>
+					<h3 className="text-sm font-semibold text-foreground">{content.detail.comments}</h3>
+					<ul className="space-y-2">
+						{procedure.comments!.map((c) => (
+							<li key={c.id} className="rounded-lg bg-muted/40 px-3 py-2">
+								<p className="text-xs text-muted-foreground">
+									{c.author_role} · {new Date(c.created_at).toLocaleString(locale)}
+								</p>
+								<p className="text-sm text-foreground mt-0.5">{c.comment}</p>
+							</li>
+						))}
+					</ul>
+				</section>
+			)}
+
+			{/* Formularios según rol */}
+			{role === 'ENFERMERO' && (
+				<section className="space-y-4 rounded-xl border border-border/70 p-4">
+					<VitalSignsForm
+						content={content}
+						initialValues={procedure.vital_signs}
+						disabled={!canEditVitals}
+						onSubmit={handleSaveVitals}
+					/>
+					<TriageCommentForm
+						content={content}
+						disabled={!canComment}
+						onSubmit={handleComment}
+					/>
+				</section>
+			)}
+
+			{role === 'MEDICO' && (
+				<section className="space-y-4 rounded-xl border border-border/70 p-4">
+					<TriageCommentForm
+						content={content}
+						disabled={!canComment}
+						onSubmit={handleComment}
+					/>
+					<CloseTriageForm
+						content={content}
+						disabled={!canClose}
+						onSubmit={handleClose}
+					/>
+				</section>
+			)}
+		</div>
+	);
+}
+
+/* ─── RECOMMENDATION CARD (paciente post-submit) ─────────────────────────────── */
+
+function RecommendationCard({
+	intake,
+	content,
+}: {
+	intake: ISISTriageIntakeResponse;
+	content: ReturnType<typeof getTriageContent>;
+}) {
+	return (
+		<Card className="border-primary/40 bg-primary/5">
+			<CardHeader className="pb-2">
+				<CardTitle className="text-base flex items-center gap-2">
+					<CheckBadgeIcon className="size-5 text-primary" />
+					{content.patient.recommendationTitle}
+				</CardTitle>
+				<CardDescription className="font-mono text-xs">
+					ID: {intake.procedure_id}
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<p className="text-sm text-foreground whitespace-pre-wrap">{intake.recommendation}</p>
+			</CardContent>
+		</Card>
+	);
+}
+
+/* ─── VISTA PACIENTE ─────────────────────────────────────────────────────────── */
+
+function PatientView({
+	content,
+	locale,
+}: {
+	content: ReturnType<typeof getTriageContent>;
+	locale: AppLocale;
+}) {
+	const navigate = useNavigate();
+	const { procedureId: routeProcedureId } = useParams();
+
+	const [intake, setIntake] = useState<ISISTriageIntakeResponse | null>(null);
+	const [procedure, setProcedure] = useState<TriageProcedure | null>(null);
+	const [myProcedures, setMyProcedures] = useState<TriageProcedure[]>([]);
+	const [loadingProcedure, setLoadingProcedure] = useState(false);
+	const [loadingList, setLoadingList] = useState(false);
+	const [error, setError] = useState('');
+
+	useEffect(() => {
+		setLoadingList(true);
+		getMyProceduresFromISIS(10)
+			.then(setMyProcedures)
+			.catch(() => setMyProcedures([]))
+			.finally(() => setLoadingList(false));
+	}, []);
+
+	useEffect(() => {
+		if (routeProcedureId) {
+			setLoadingProcedure(true);
+			getTriageProcedureFromISIS(routeProcedureId)
+				.then(setProcedure)
+				.catch(() => {})
+				.finally(() => setLoadingProcedure(false));
+		}
+	}, [routeProcedureId]);
+
 	async function handleTextSubmit(payload: { text: string }) {
-		const response = await sendTriageTextInputToISIS({
-			patient_id: user.id,
-			text: payload.text,
+		setError('');
+		const response = await sendTriageTextInputToISIS({ text: payload.text });
+		setIntake(response);
+		navigate(localePath(`/triage/${response.procedure_id}`, locale), { replace: true });
+		setLoadingProcedure(true);
+		try {
+			const detail = await getTriageProcedureFromISIS(response.procedure_id);
+			setProcedure(detail);
+		} catch {
+			/* el intake ya tiene la recomendación */
+		} finally {
+			setLoadingProcedure(false);
+		}
+		setMyProcedures((prev) => {
+			const already = prev.find((p) => p.procedure_id === response.procedure_id);
+			if (already) return prev;
+			return [
+				{
+					procedure_id: response.procedure_id,
+					patient_id: response.patient_id,
+					status: response.status,
+					triage_data: {},
+				} as TriageProcedure,
+				...prev,
+			];
 		});
-		setActionFeedback(content.patient.successTitle);
-		await loadProcedure(response.procedure_id);
 	}
 
 	async function handleVoiceSubmit(payload: {
@@ -139,81 +535,359 @@ export default function TriagePage() {
 		file_name: string;
 		mime_type: string;
 	}) {
-		const response = await sendTriageVoiceInputToISIS({
-			patient_id: user.id,
-			audio_base64: payload.audio_base64,
-			file_name: payload.file_name,
-			mime_type: payload.mime_type,
-		});
-		setActionFeedback(content.patient.successTitle);
-		await loadProcedure(response.procedure_id);
-	}
-
-	async function handleDownloadPdf() {
-		if (!procedureId) return;
-		setActionFeedback('');
-		setDetailError('');
+		setError('');
+		const response = await sendTriageVoiceInputToISIS(payload);
+		setIntake(response);
+		navigate(localePath(`/triage/${response.procedure_id}`, locale), { replace: true });
+		setLoadingProcedure(true);
 		try {
-			const blob = await downloadTriagePdf(procedureId);
-			const objectUrl = URL.createObjectURL(blob);
-			const anchor = document.createElement('a');
-			anchor.href = objectUrl;
-			anchor.download = `triage-${procedureId}.pdf`;
-			anchor.click();
-			URL.revokeObjectURL(objectUrl);
-		} catch (error) {
-			setDetailError(mapTriageErrorToMessage(error, locale));
+			const detail = await getTriageProcedureFromISIS(response.procedure_id);
+			setProcedure(detail);
+		} catch {
+			/* ok */
+		} finally {
+			setLoadingProcedure(false);
 		}
 	}
 
-	async function handleSaveVitals(vitals: TriageVitalSigns) {
-		if (!procedure) return;
-		if (!canEditVitals) {
-			setDetailError(content.errors.actionNotAllowed);
-			return;
+	async function handleSelectProcedure(id: string) {
+		setLoadingProcedure(true);
+		setIntake(null);
+		setError('');
+		navigate(localePath(`/triage/${id}`, locale), { replace: true });
+		try {
+			setProcedure(await getTriageProcedureFromISIS(id));
+		} catch (e) {
+			setError(mapTriageErrorToMessage(e, locale));
+		} finally {
+			setLoadingProcedure(false);
 		}
-
-		setDetailError('');
-		await updateTriageVitalSigns(procedure.procedure_id, {
-			patient_id: procedure.patient_id,
-			vital_signs: vitals,
-		});
-		await loadProcedure(procedure.procedure_id);
 	}
 
-	async function handleComment(comment: string) {
-		if (!procedure) return;
-		if (!canComment) {
-			setDetailError(content.errors.actionNotAllowed);
-			return;
+	return (
+		<div className="space-y-4">
+			{/* Formulario de entrada */}
+			<Card className="border-border/70 bg-card/95">
+				<CardHeader className="pb-3">
+					<CardTitle className="text-base">{content.newTriageMenu}</CardTitle>
+					<CardDescription>{content.subtitle}</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<PatientTriageForm
+						content={content}
+						onSubmitText={handleTextSubmit}
+						onSubmitVoice={handleVoiceSubmit}
+					/>
+					{error && (
+						<Alert variant="destructive" className="mt-3">
+							<AlertDescription>{error}</AlertDescription>
+						</Alert>
+					)}
+				</CardContent>
+			</Card>
+
+			{/* Recomendación post-submit */}
+			{intake && <RecommendationCard intake={intake} content={content} />}
+
+			{/* Detalle del procedimiento actual */}
+			{loadingProcedure ? (
+				<div className="space-y-3">
+					<Skeleton className="h-24 rounded-xl" />
+					<Skeleton className="h-24 rounded-xl" />
+				</div>
+			) : procedure ? (
+				<Card className="border-border/70 bg-card/95">
+					<CardHeader className="pb-3">
+						<CardTitle className="text-base">{content.detail.heading}</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<ProcedureDetail
+							procedure={procedure}
+							role="PACIENTE"
+							content={content}
+							locale={locale}
+							onRefresh={() => {
+								setLoadingProcedure(true);
+								getTriageProcedureFromISIS(procedure.procedure_id)
+									.then(setProcedure)
+									.catch(() => {})
+									.finally(() => setLoadingProcedure(false));
+							}}
+						/>
+					</CardContent>
+				</Card>
+			) : null}
+
+			{/* Mis procedimientos recientes */}
+			<Card className="border-border/70 bg-card/95">
+				<CardHeader className="pb-3">
+					<CardTitle className="text-base">{content.patient.myProceduresTitle}</CardTitle>
+				</CardHeader>
+				<CardContent>
+					{loadingList ? (
+						<div className="space-y-2">
+							{Array.from({ length: 3 }).map((_, i) => (
+								<Skeleton key={i} className="h-16 rounded-xl" />
+							))}
+						</div>
+					) : myProcedures.length === 0 ? (
+						<p className="text-sm text-muted-foreground">{content.patient.myProceduresEmpty}</p>
+					) : (
+						<ul className="space-y-2">
+							{myProcedures.map((p) => (
+								<li key={p.procedure_id}>
+									<ProcedureCard
+										procedure={p}
+										isSelected={p.procedure_id === procedure?.procedure_id}
+										onSelect={() => void handleSelectProcedure(p.procedure_id)}
+										locale={locale}
+									/>
+								</li>
+							))}
+						</ul>
+					)}
+				</CardContent>
+			</Card>
+		</div>
+	);
+}
+
+/* ─── VISTA ENFERMERO / MÉDICO ───────────────────────────────────────────────── */
+
+function StaffView({
+	role,
+	content,
+	locale,
+}: {
+	role: 'ENFERMERO' | 'MEDICO';
+	content: ReturnType<typeof getTriageContent>;
+	locale: AppLocale;
+}) {
+	const navigate = useNavigate();
+	const { procedureId: routeProcedureId } = useParams();
+
+	const [tab, setTab] = useState<'pending' | 'attended'>('pending');
+	const [pending, setPending] = useState<TriageProcedure[]>([]);
+	const [attended, setAttended] = useState<TriageProcedure[]>([]);
+	const [selectedId, setSelectedId] = useState<string | null>(
+		routeProcedureId ?? null,
+	);
+	const [procedure, setProcedure] = useState<TriageProcedure | null>(null);
+	const [loadingList, setLoadingList] = useState(true);
+	const [loadingDetail, setLoadingDetail] = useState(false);
+	const [listError, setListError] = useState('');
+	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+	const loadLists = useCallback(async () => {
+		try {
+			const attendedStatus = role === 'MEDICO' ? 'closed' : 'resolved';
+			const [pend, att] = await Promise.all([
+				getTriageRecordsFromISIS(100, 'pending'),
+				getTriageRecordsFromISIS(50, attendedStatus),
+			]);
+			setPending(pend);
+			setAttended(att);
+			setListError('');
+		} catch (e) {
+			setListError(mapTriageErrorToMessage(e, locale));
+		} finally {
+			setLoadingList(false);
 		}
-		setDetailError('');
-		await addTriageComment(procedure.procedure_id, {
-			patient_id: procedure.patient_id,
-			comment,
-		});
-		await loadProcedure(procedure.procedure_id);
+	}, [locale, role]);
+
+	useEffect(() => {
+		void loadLists();
+		intervalRef.current = setInterval(() => void loadLists(), 15_000);
+		return () => {
+			if (intervalRef.current) clearInterval(intervalRef.current);
+		};
+	}, [loadLists]);
+
+	useEffect(() => {
+		if (selectedId) {
+			setLoadingDetail(true);
+			getTriageProcedureFromISIS(selectedId)
+				.then(setProcedure)
+				.catch(() => setProcedure(null))
+				.finally(() => setLoadingDetail(false));
+		}
+	}, [selectedId]);
+
+	function selectProcedure(id: string) {
+		setSelectedId(id);
+		navigate(localePath(`/triage/${id}`, locale), { replace: true });
 	}
 
-	async function handleClose(closeReason: string) {
-		if (!procedure) return;
-		if (!canClose) {
-			setDetailError(content.errors.actionNotAllowed);
-			return;
-		}
-		setDetailError('');
-		await closeTriageProcedure(procedure.procedure_id, {
-			patient_id: procedure.patient_id,
-			close_reason: closeReason,
-		});
-		await loadProcedure(procedure.procedure_id);
+	function clearSelection() {
+		setSelectedId(null);
+		setProcedure(null);
+		navigate(localePath('/triage', locale), { replace: true });
 	}
 
-	const vitals = procedure?.vital_signs;
+	const displayList = tab === 'pending' ? pending : attended;
+
+	/* Layout split: lista + detalle */
+	if (selectedId && (loadingDetail || procedure)) {
+		return (
+			<div className="space-y-3">
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					onClick={clearSelection}
+					className="gap-1.5"
+				>
+					<ArrowLeftIcon className="size-4" />
+					{content.queue.title}
+				</Button>
+
+				{loadingDetail ? (
+					<div className="space-y-3">
+						<Skeleton className="h-32 rounded-xl" />
+						<Skeleton className="h-48 rounded-xl" />
+					</div>
+				) : procedure ? (
+					<Card className="border-border/70 bg-card/95">
+						<CardHeader className="pb-3">
+							<CardTitle className="text-base">{content.detail.heading}</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<ProcedureDetail
+								procedure={procedure}
+								role={role}
+								content={content}
+								locale={locale}
+								onRefresh={() => {
+									setLoadingDetail(true);
+									getTriageProcedureFromISIS(selectedId)
+										.then((p) => {
+											setProcedure(p);
+											void loadLists();
+										})
+										.catch(() => {})
+										.finally(() => setLoadingDetail(false));
+								}}
+							/>
+						</CardContent>
+					</Card>
+				) : null}
+			</div>
+		);
+	}
+
+	return (
+		<div className="space-y-4">
+			{/* Tabs + refresh */}
+			<div className="flex items-center justify-between gap-3 flex-wrap">
+				<div className="flex gap-1 rounded-xl border border-border/70 bg-muted/30 p-1">
+					<button
+						type="button"
+						onClick={() => setTab('pending')}
+						className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+							tab === 'pending'
+								? 'bg-background text-foreground shadow-sm'
+								: 'text-muted-foreground hover:text-foreground'
+						}`}
+					>
+						{content.queue.pending}
+						{!loadingList && (
+							<span className="ml-1.5 rounded-full bg-primary/20 px-1.5 text-xs text-primary">
+								{pending.length}
+							</span>
+						)}
+					</button>
+					<button
+						type="button"
+						onClick={() => setTab('attended')}
+						className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+							tab === 'attended'
+								? 'bg-background text-foreground shadow-sm'
+								: 'text-muted-foreground hover:text-foreground'
+						}`}
+					>
+						{content.queue.attended}
+						{!loadingList && (
+							<span className="ml-1.5 rounded-full bg-muted px-1.5 text-xs text-muted-foreground">
+								{attended.length}
+							</span>
+						)}
+					</button>
+				</div>
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					onClick={() => void loadLists()}
+					disabled={loadingList}
+					className="gap-1.5"
+				>
+					<ArrowPathIcon className={`size-4 ${loadingList ? 'animate-spin' : ''}`} />
+					{content.detail.refresh}
+				</Button>
+			</div>
+
+			{listError && (
+				<Alert variant="destructive">
+					<AlertDescription>{listError}</AlertDescription>
+				</Alert>
+			)}
+
+			<div className="lg:grid lg:grid-cols-[1fr_380px] gap-4">
+				{/* Lista */}
+				<Card className="border-border/70 bg-card/95">
+					<CardContent className="p-3 space-y-2">
+						{loadingList ? (
+							Array.from({ length: 4 }).map((_, i) => (
+								<Skeleton key={i} className="h-20 rounded-xl" />
+							))
+						) : displayList.length === 0 ? (
+							<div className="flex flex-col items-center justify-center py-12 text-center gap-2">
+								<ClipboardDocumentListIcon className="size-10 text-muted-foreground/30" />
+								<p className="text-sm text-muted-foreground">
+									{tab === 'pending'
+										? content.queue.empty
+										: content.queue.emptyAttended}
+								</p>
+							</div>
+						) : (
+							displayList.map((p) => (
+								<ProcedureCard
+									key={p.procedure_id}
+									procedure={p}
+									isSelected={p.procedure_id === selectedId}
+									onSelect={() => selectProcedure(p.procedure_id)}
+									locale={locale}
+								/>
+							))
+						)}
+					</CardContent>
+				</Card>
+
+				{/* Panel de selección (desktop) */}
+				<div className="hidden lg:flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 bg-muted/10 p-8 text-center gap-3">
+					<ClipboardDocumentListIcon className="size-10 text-muted-foreground/30" />
+					<p className="text-sm text-muted-foreground">{content.queue.selectProcedure}</p>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+/* ─── PÁGINA PRINCIPAL ───────────────────────────────────────────────────────── */
+
+export default function TriagePage() {
+	const locale = currentLocale();
+	const content = getTriageContent(locale);
+	const { user } = useAuthStore();
+
+	if (!user || !isAllowedRole(user.rol)) return null;
+
+	const role = user.rol;
 
 	return (
 		<div className="min-h-screen bg-background px-4 py-4 sm:px-6 lg:px-8">
 			<div className="mx-auto w-full max-w-6xl space-y-4">
+				{/* Header */}
 				<header className="rounded-2xl border border-border/70 bg-card/95 p-4 shadow-sm">
 					<div className="flex flex-wrap items-start justify-between gap-3">
 						<div>
@@ -221,7 +895,9 @@ export default function TriagePage() {
 								{content.title}
 							</h1>
 							<p className="text-sm text-muted-foreground">
-								{content.subtitle}
+								{role === 'PACIENTE'
+									? content.subtitle
+									: content.queue.title}
 							</p>
 						</div>
 						<Link to={localePath('/dashboard', locale)}>
@@ -232,252 +908,15 @@ export default function TriagePage() {
 					</div>
 				</header>
 
+				{/* Vista según rol */}
 				{role === 'PACIENTE' && (
-					<Card className="border-border/70 bg-card/95">
-						<CardHeader>
-							<CardTitle>{content.newTriageMenu}</CardTitle>
-							<CardDescription>{content.subtitle}</CardDescription>
-						</CardHeader>
-						<CardContent>
-						<PatientTriageForm
-							content={content}
-							onSubmitText={handleTextSubmit}
-							onSubmitVoice={handleVoiceSubmit}
-						/>
-						</CardContent>
-					</Card>
+					<PatientView content={content} locale={locale} />
 				)}
 
-				<Card className="border-border/70 bg-card/95">
-					<CardHeader>
-						<CardTitle>{content.detail.heading}</CardTitle>
-						<CardDescription>{content.detail.status}</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						<div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-							<Field className="w-full">
-								<FieldLabel htmlFor="procedure-id-input">
-									{content.patient.procedureId}
-								</FieldLabel>
-								<Input
-									id="procedure-id-input"
-									value={procedureId}
-									onChange={(event) => setProcedureId(event.target.value)}
-								/>
-							</Field>
-							<Button
-								type="button"
-								onClick={() => {
-									void loadProcedure(procedureId);
-								}}
-								disabled={loadingDetail || !procedureId.trim()}
-							>
-								<ArrowPathIcon className="mr-2 h-4 w-4" />
-								{content.detail.refresh}
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								aria-label={m.a11yTriagePdfDownload({}, { locale })}
-								onClick={() => {
-									void handleDownloadPdf();
-								}}
-								disabled={!procedure}
-							>
-								<DocumentArrowDownIcon className="mr-2 h-4 w-4" />
-								{content.patient.downloadPdf}
-							</Button>
-						</div>
-
-						{actionFeedback && (
-							<Alert>
-								<AlertDescription>{actionFeedback}</AlertDescription>
-							</Alert>
-						)}
-						{detailError && (
-							<Alert variant="destructive">
-								<AlertDescription>{detailError}</AlertDescription>
-							</Alert>
-						)}
-
-						{loadingDetail ? (
-							<div className="space-y-3">
-								<Skeleton className="h-24 rounded-xl" />
-								<Skeleton className="h-24 rounded-xl" />
-							</div>
-						) : !procedure ? (
-							<p className="text-sm text-muted-foreground">
-								{content.detail.empty}
-							</p>
-						) : (
-							<div className="space-y-4">
-								<div className="flex flex-wrap gap-2">
-									<Badge variant="outline">
-										{content.patient.procedureId}: {procedure.procedure_id}
-									</Badge>
-									<Badge
-										variant={procedureIsClosed ? 'destructive' : 'secondary'}
-									>
-										{content.detail.status}: {procedure.status}
-									</Badge>
-								</div>
-
-								<section className="space-y-2 rounded-xl border border-border/70 p-3">
-									<h2 className="text-sm font-semibold text-foreground">
-										{content.detail.triageData}
-									</h2>
-									{procedure.triage_data.sections?.length ? (
-										<ul className="space-y-2">
-											{procedure.triage_data.sections.map((section) => (
-												<li key={`${section.title}-${section.content}`}>
-													<p className="text-sm font-medium text-foreground">
-														{section.title}
-													</p>
-													<p className="text-sm text-muted-foreground">
-														{section.content}
-													</p>
-												</li>
-											))}
-										</ul>
-									) : (
-										<p className="text-sm text-muted-foreground">
-											{procedure.triage_data.summary ?? content.detail.empty}
-										</p>
-									)}
-								</section>
-
-								<section className="space-y-2 rounded-xl border border-border/70 p-3">
-									<h2 className="text-sm font-semibold text-foreground">
-										{content.detail.vitalSigns}
-									</h2>
-									{vitals ? (
-										<div className="grid grid-cols-1 gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-											{Object.entries(vitals).map(([key, value]) => (
-												<p key={key}>
-													<span className="font-medium text-foreground">
-														{key}
-													</span>
-													: {String(value)}
-												</p>
-											))}
-										</div>
-									) : (
-										<p className="text-sm text-muted-foreground">
-											{content.detail.empty}
-										</p>
-									)}
-								</section>
-
-								<section className="space-y-2 rounded-xl border border-border/70 p-3">
-									<h2 className="text-sm font-semibold text-foreground">
-										{content.detail.comments}
-									</h2>
-									{procedure.comments?.length ? (
-										<ul className="space-y-2">
-											{procedure.comments.map((comment) => (
-												<li
-													key={comment.id}
-													className="rounded-lg bg-muted/40 p-2"
-												>
-													<p className="text-xs text-muted-foreground">
-														{comment.author_role} -{' '}
-														{new Date(comment.created_at).toLocaleString(
-															locale,
-														)}
-													</p>
-													<p className="text-sm text-foreground">
-														{comment.comment}
-													</p>
-												</li>
-											))}
-										</ul>
-									) : (
-										<p className="text-sm text-muted-foreground">
-											{content.detail.empty}
-										</p>
-									)}
-								</section>
-
-								{procedureIsClosed && (
-									<Alert role="alert" aria-label={m.a11yTriageStatusClosed({}, { locale })}>
-										<AlertDescription>
-											{content.detail.closedLabel}
-										</AlertDescription>
-									</Alert>
-								)}
-
-								{role === 'ENFERMERO' && (
-									<section className="space-y-3 rounded-xl border border-border/70 p-3">
-										<h2 className="text-sm font-semibold text-foreground">
-											{content.detail.vitalSigns}
-										</h2>
-										<VitalSignsForm
-											content={content}
-											initialValues={procedure.vital_signs}
-											disabled={!canEditVitals}
-											onSubmit={async (nextVitals) => {
-												try {
-													await handleSaveVitals(nextVitals);
-												} catch (error) {
-													setDetailError(
-														mapTriageErrorToMessage(error, locale),
-													);
-												}
-											}}
-										/>
-										<TriageCommentForm
-											content={content}
-											disabled={!canComment}
-											onSubmit={async (comment) => {
-												try {
-													await handleComment(comment);
-												} catch (error) {
-													setDetailError(
-														mapTriageErrorToMessage(error, locale),
-													);
-												}
-											}}
-										/>
-									</section>
-								)}
-
-								{role === 'MEDICO' && (
-									<section className="space-y-3 rounded-xl border border-border/70 p-3">
-										<TriageCommentForm
-											content={content}
-											disabled={!canComment}
-											onSubmit={async (comment) => {
-												try {
-													await handleComment(comment);
-												} catch (error) {
-													setDetailError(
-														mapTriageErrorToMessage(error, locale),
-													);
-												}
-											}}
-										/>
-										<CloseTriageForm
-											content={content}
-											disabled={!canClose}
-											onSubmit={async (reason) => {
-												try {
-													await handleClose(reason);
-												} catch (error) {
-													setDetailError(
-														mapTriageErrorToMessage(error, locale),
-													);
-												}
-											}}
-										/>
-									</section>
-								)}
-							</div>
-						)}
-					</CardContent>
-				</Card>
+				{(role === 'ENFERMERO' || role === 'MEDICO') && (
+					<StaffView role={role} content={content} locale={locale} />
+				)}
 			</div>
 		</div>
 	);
 }
-
-// Daniel Useche

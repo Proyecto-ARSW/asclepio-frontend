@@ -1,6 +1,13 @@
 export type TriageInputMethod = 'text' | 'voice';
 
-export type TriageProcedureStatus = 'open' | 'in_progress' | 'closed' | string;
+export type TriageProcedureStatus =
+	| 'pending'
+	| 'resolved'
+	| 'vital_signs_recorded'
+	| 'closed'
+	| 'open'
+	| 'in_progress'
+	| string;
 
 export interface TriageClinicalSection {
 	title: string;
@@ -26,10 +33,25 @@ export interface TriageVitalSigns {
 	height_cm?: number;
 }
 
+export interface TriagePreliminaryHistory {
+	sintomas: string[];
+	embarazo: boolean;
+	antecedentes: string[];
+	posiblesCausas: string[];
+	comentario: string;
+	nivelPrioridad: number;
+	comentariosIA: string;
+	advertenciaIA: string;
+}
+
 export interface TriageProcedure {
 	procedure_id: string;
 	patient_id: string;
 	status: TriageProcedureStatus;
+	transcript?: string;
+	input_type?: string;
+	preliminary_history?: TriagePreliminaryHistory;
+	confidence_score?: number;
 	triage_data: {
 		chief_complaint?: string;
 		summary?: string;
@@ -40,10 +62,40 @@ export interface TriageProcedure {
 	comments?: TriageComment[];
 	created_at?: string;
 	updated_at?: string;
+	webhook_delivery?: string;
+}
+
+export interface ISISComment {
+	id: string;
+	comment: string;
+	author: string;
+	created_at: string;
+}
+
+export interface ISISProcedureRecord {
+	procedure_id: string;
+	patient_id: string;
+	transcript: string;
+	input_type: 'text' | 'audio';
+	preliminary_history: TriagePreliminaryHistory;
+	confidence_score: number;
+	status: TriageProcedureStatus;
+	vital_signs?: TriageVitalSigns | null;
+	comments: ISISComment[];
+	created_at: string;
+	updated_at: string;
+	webhook_delivery: string;
+}
+
+export interface ISISTriageIntakeResponse {
+	procedure_id: string;
+	patient_id: string;
+	status: string;
+	recommendation: string;
 }
 
 export interface TriageTextInputRequest {
-	patient_id: string;
+	patient_id?: string;
 	text: string;
 }
 
@@ -63,18 +115,15 @@ export interface TriageProcedureResponse {
 }
 
 export interface UpdateVitalSignsRequest {
-	patient_id: string;
 	vital_signs: TriageVitalSigns;
 }
 
 export interface AddCommentRequest {
-	patient_id: string;
 	comment: string;
 }
 
 export interface CloseProcedureRequest {
-	patient_id: string;
-	close_reason: string;
+	close_reason?: string;
 }
 
 export interface TriageApiError {

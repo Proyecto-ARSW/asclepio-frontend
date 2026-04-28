@@ -1,22 +1,3 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# Sentinel Security Gate — workflow reutilizable- Daniel Eduardo Useche FDSI
-# ─────────────────────────────────────────────────────────────────────────────
-# Copia este archivo a .github/workflows/sentinel.yml en CUALQUIER proyecto
-# que tenga un Dockerfile. No requiere dependencias externas.
-#
-# Configuración en el repo destino (Settings → Variables / Secrets):
-#
-#   Variables (vars.*):
-#     SENTINEL_GATE_URL    URL del gate desplegado
-#                          default: https://sentinelia-avd7b2gabqe3b2g8.brazilsouth-01.azurewebsites.net
-#     SENTINEL_AI_ENABLED  "true" | "false"   (default: "true")
-#                          false → el gate se llama igualmente pero sin IA activa en servidor
-#     SENTINEL_DOCKERFILE  ruta al Dockerfile  (default: "Dockerfile")
-#
-#   Secrets (secrets.*):
-#     SENTINEL_TOKEN       Bearer token de autenticación del gate
-# ─────────────────────────────────────────────────────────────────────────────
-
 name: Sentinel Security Gate
 
 on:

@@ -1,4 +1,4 @@
-import { AI_API_URL } from '@/lib/env';
+import { AI_API_URL, TRIAGE_API_URL } from '@/lib/env';
 import { apiGetBlob, getStoredToken } from '@/lib/api';
 import type {
 	AddCommentRequest,
@@ -7,6 +7,7 @@ import type {
 	ISISTriageIntakeResponse,
 	TriageClinicalSection,
 	TriageComment,
+	TriageConfirmacion,
 	TriagePreliminaryHistory,
 	TriageProcedure,
 	TriageTextInputRequest,
@@ -231,4 +232,17 @@ export async function closeTriageProcedureToISIS(
 
 export async function downloadTriagePdf(procedureId: string): Promise<Blob> {
 	return apiGetBlob(`/api/v1/triage/procedure/${procedureId}/pdf`);
+}
+
+/* ─── Confirmaciones de triage (NESTJS-TRIAGE service, :3001) ─── */
+
+export async function getConfirmacionesFromTriage(
+	enfermeroId: string,
+	limit = 50,
+): Promise<TriageConfirmacion[]> {
+	const res = await fetch(
+		`${TRIAGE_API_URL}/api/triage/confirmaciones/enfermero/${enfermeroId}?limit=${limit}`,
+		{ headers: getIsisHeaders() },
+	);
+	return handleResponse<TriageConfirmacion[]>(res);
 }

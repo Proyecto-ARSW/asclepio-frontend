@@ -86,4 +86,12 @@ export const SEARCH_API_URL = (
 	import.meta.env.VITE_SEARCH_API_URL ?? 'http://localhost:3006'
 ).replace(/\/$/, '');
 
+/**
+ * URL del microservicio de triage (NestJS-TRIAGE).
+ * Confirmaciones de nivel, cola de espera, alertas críticas.
+ */
+export const TRIAGE_API_URL = (
+	import.meta.env.VITE_TRIAGE_API_URL ?? 'http://localhost:3001'
+).replace(/\/$/, '');
+
 // Daniel Useche

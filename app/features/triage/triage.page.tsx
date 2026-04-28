@@ -30,6 +30,7 @@ import { VitalSignsForm } from '@/features/triage/forms/vital-signs.form';
 import {
 	addTriageCommentToISIS,
 	closeTriageProcedureToISIS,
+	getConfirmacionesFromTriage,
 	getMyProceduresFromISIS,
 	getTriageProcedureFromISIS,
 	getTriageRecordsFromISIS,
@@ -39,6 +40,7 @@ import {
 } from '@/features/triage/triage.api';
 import type {
 	ISISTriageIntakeResponse,
+	TriageConfirmacion,
 	TriageProcedure,
 	TriageVitalSigns,
 } from '@/features/triage/triage.types';
@@ -105,6 +107,68 @@ function PriorityBadge({ level }: { level: number }) {
 		<span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${cls}`}>
 			N{level} · {NIVEL_LABEL[level] ?? '?'}
 		</span>
+	);
+}
+
+/* ─── CONFIRMACIÓN CARD ──────────────────────────────────────────────────────── */
+
+function ConfirmacionCard({
+	conf,
+	locale,
+	content,
+}: {
+	conf: TriageConfirmacion;
+	locale: AppLocale;
+	content: ReturnType<typeof getTriageContent>;
+}) {
+	const nivelFinal = conf.nivel_final_enfermero;
+	const borderCls = NIVEL_COLOR[nivelFinal] ?? 'border-border/70 bg-muted/30 text-foreground';
+
+	return (
+		<div className={`rounded-xl border px-4 py-3 space-y-2 ${borderCls}`}>
+			<div className="flex items-start justify-between gap-2 flex-wrap">
+				<div className="flex items-center gap-2 flex-wrap">
+					<PriorityBadge level={nivelFinal} />
+					{conf.acepto_sugerencia ? (
+						<Badge variant="secondary" className="text-xs flex items-center gap-1">
+							<CheckBadgeIcon className="size-3" />
+							{content.confirmaciones.accepted}
+						</Badge>
+					) : (
+						<Badge
+							variant="outline"
+							className="text-xs text-amber-400 border-amber-500/40"
+						>
+							{conf.tipo_modificacion ?? content.confirmaciones.modified}
+						</Badge>
+					)}
+				</div>
+				{conf.creado_en && (
+					<span className="text-xs text-muted-foreground">
+						{new Date(conf.creado_en).toLocaleString(locale, {
+							dateStyle: 'short',
+							timeStyle: 'short',
+						})}
+					</span>
+				)}
+			</div>
+			<div className="flex items-center gap-2 text-xs text-muted-foreground">
+				<span>
+					{content.confirmaciones.nivelIA}:{' '}
+					<strong>N{conf.nivel_sugerido_ia}</strong>
+				</span>
+				<span aria-hidden>→</span>
+				<span>
+					{content.confirmaciones.nivelFinal}:{' '}
+					<strong>N{nivelFinal}</strong>
+				</span>
+			</div>
+			{conf.razon_modificacion && (
+				<p className="text-xs text-muted-foreground italic line-clamp-2">
+					{conf.razon_modificacion}
+				</p>
+			)}
+		</div>
 	);
 }
 
@@ -437,6 +501,353 @@ function ProcedureDetail({
 	);
 }
 
+/* ─── NURSE VITAL SIGNS STEP ─────────────────────────────────────────────────── */
+
+function NurseVitalSignsStep({
+	procedure,
+	content,
+	locale,
+	onBack,
+	onVitalsSaved,
+}: {
+	procedure: TriageProcedure;
+	content: ReturnType<typeof getTriageContent>;
+	locale: AppLocale;
+	onBack: () => void;
+	onVitalsSaved: () => void;
+}) {
+	const [error, setError] = useState('');
+	const [commentError, setCommentError] = useState('');
+	const [saved, setSaved] = useState(false);
+	const ph = procedure.preliminary_history;
+
+	async function handleSaveVitals(nextVitals: TriageVitalSigns) {
+		setError('');
+		try {
+			await updateTriageVitalSignsToISIS(procedure.procedure_id, {
+				vital_signs: nextVitals,
+			});
+			setSaved(true);
+		} catch (e) {
+			setError(mapTriageErrorToMessage(e, locale));
+		}
+	}
+
+	async function handleComment(comment: string) {
+		if (!comment.trim()) return;
+		setCommentError('');
+		try {
+			await addTriageCommentToISIS(procedure.procedure_id, { comment });
+		} catch (e) {
+			setCommentError(mapTriageErrorToMessage(e, locale));
+		}
+	}
+
+	return (
+		<div className="space-y-4">
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				onClick={onBack}
+				className="gap-1.5"
+			>
+				<ArrowLeftIcon className="size-4" />
+				{content.queue.title}
+			</Button>
+
+			{/* Context: patient info */}
+			<Card className="border-primary/30 bg-primary/5">
+				<CardHeader className="pb-3">
+					<CardTitle className="text-base flex items-center gap-2">
+						<BeakerIcon className="size-5 text-primary" />
+						{content.nurseVitals.title}
+					</CardTitle>
+					<CardDescription>{content.nurseVitals.subtitle}</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-3">
+					<div className="flex flex-wrap gap-2 items-center">
+						<Badge variant="outline" className="font-mono text-xs">
+							{content.patient.procedureId}: {procedure.procedure_id.slice(-8)}
+						</Badge>
+						{ph?.nivelPrioridad && <PriorityBadge level={ph.nivelPrioridad} />}
+					</div>
+					{(ph?.sintomas?.length ?? 0) > 0 && (
+						<div className="flex flex-wrap gap-1.5">
+							{ph!.sintomas.slice(0, 5).map((s, i) => (
+								<Badge key={i} variant="outline" className="text-xs">
+									{s}
+								</Badge>
+							))}
+						</div>
+					)}
+					{ph?.comentariosIA && (
+						<p className="text-xs text-muted-foreground">{ph.comentariosIA}</p>
+					)}
+				</CardContent>
+			</Card>
+
+			{/* Success banner */}
+			{saved && (
+				<Alert>
+					<CheckBadgeIcon className="size-4" />
+					<AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+						<span>{content.nurseVitals.saved}</span>
+						<Button type="button" size="sm" onClick={onVitalsSaved}>
+							{content.nurseVitals.goToConfirmations}
+						</Button>
+					</AlertDescription>
+				</Alert>
+			)}
+
+			{error && (
+				<Alert variant="destructive">
+					<AlertDescription>{error}</AlertDescription>
+				</Alert>
+			)}
+
+			{/* Vital signs form */}
+			{!saved && (
+				<Card className="border-border/70 bg-card/95">
+					<CardHeader className="pb-3">
+						<CardTitle className="text-base">{content.detail.vitalSigns}</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<VitalSignsForm
+							content={content}
+							initialValues={procedure.vital_signs}
+							disabled={false}
+							onSubmit={handleSaveVitals}
+						/>
+					</CardContent>
+				</Card>
+			)}
+
+			{/* Optional comment */}
+			{commentError && (
+				<Alert variant="destructive">
+					<AlertDescription>{commentError}</AlertDescription>
+				</Alert>
+			)}
+			<Card className="border-border/70 bg-card/95">
+				<CardHeader className="pb-3">
+					<CardTitle className="text-base">{content.nurseVitals.commentOptional}</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<TriageCommentForm
+						content={content}
+						disabled={false}
+						onSubmit={handleComment}
+					/>
+				</CardContent>
+			</Card>
+		</div>
+	);
+}
+
+/* ─── NURSE VIEW (2 tabs: Pendientes + Confirmaciones) ──────────────────────── */
+
+function NurseView({
+	content,
+	locale,
+}: {
+	content: ReturnType<typeof getTriageContent>;
+	locale: AppLocale;
+}) {
+	const { user } = useAuthStore();
+	const [tab, setTab] = useState<'pending' | 'confirmaciones'>('pending');
+	const [pending, setPending] = useState<TriageProcedure[]>([]);
+	const [confirmaciones, setConfirmaciones] = useState<TriageConfirmacion[]>([]);
+	const [selectedProcedure, setSelectedProcedure] = useState<TriageProcedure | null>(null);
+	const [loadingPending, setLoadingPending] = useState(true);
+	const [loadingConf, setLoadingConf] = useState(false);
+	const [pendingError, setPendingError] = useState('');
+	const [confError, setConfError] = useState('');
+	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+	const loadPending = useCallback(async () => {
+		try {
+			const records = await getTriageRecordsFromISIS(100, 'pending');
+			setPending(records.filter((p) => !p.vital_signs));
+			setPendingError('');
+		} catch (e) {
+			setPendingError(mapTriageErrorToMessage(e, locale));
+		} finally {
+			setLoadingPending(false);
+		}
+	}, [locale]);
+
+	const loadConfirmaciones = useCallback(async () => {
+		if (!user?.id) return;
+		setLoadingConf(true);
+		try {
+			const data = await getConfirmacionesFromTriage(user.id);
+			setConfirmaciones(data);
+			setConfError('');
+		} catch (e) {
+			setConfError(mapTriageErrorToMessage(e, locale));
+		} finally {
+			setLoadingConf(false);
+		}
+	}, [user?.id, locale]);
+
+	useEffect(() => {
+		void loadPending();
+		intervalRef.current = setInterval(() => void loadPending(), 15_000);
+		return () => {
+			if (intervalRef.current) clearInterval(intervalRef.current);
+		};
+	}, [loadPending]);
+
+	useEffect(() => {
+		if (tab === 'confirmaciones') void loadConfirmaciones();
+	}, [tab, loadConfirmaciones]);
+
+	function handleVitalsSaved() {
+		setSelectedProcedure(null);
+		setTab('confirmaciones');
+		void loadConfirmaciones();
+		void loadPending();
+	}
+
+	function handleTabChange(nextTab: 'pending' | 'confirmaciones') {
+		setSelectedProcedure(null);
+		setTab(nextTab);
+	}
+
+	const isLoading = tab === 'pending' ? loadingPending : loadingConf;
+
+	return (
+		<div className="rounded-2xl border border-border/70 bg-card/95 shadow-sm overflow-hidden">
+			{/* Tab bar */}
+			<div
+				role="tablist"
+				aria-label={content.queue.title}
+				className="flex items-center border-b border-border/70 bg-muted/10 px-2 pt-1.5"
+			>
+				<button
+					type="button"
+					role="tab"
+					aria-selected={tab === 'pending'}
+					onClick={() => handleTabChange('pending')}
+					className={`relative flex items-center gap-1.5 px-5 py-2 text-sm font-medium rounded-t-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+						tab === 'pending'
+							? 'bg-background text-foreground shadow-sm border border-b-background border-border/50 -mb-px z-10'
+							: 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+					}`}
+				>
+					{content.confirmaciones.pendingTab}
+					{!loadingPending && pending.length > 0 && (
+						<span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-xs font-semibold text-primary leading-none">
+							{pending.length}
+						</span>
+					)}
+				</button>
+				<button
+					type="button"
+					role="tab"
+					aria-selected={tab === 'confirmaciones'}
+					onClick={() => handleTabChange('confirmaciones')}
+					className={`relative px-5 py-2 text-sm font-medium rounded-t-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+						tab === 'confirmaciones'
+							? 'bg-background text-foreground shadow-sm border border-b-background border-border/50 -mb-px z-10'
+							: 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+					}`}
+				>
+					{content.confirmaciones.tab}
+				</button>
+				<div className="ml-auto pb-1 pr-1">
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						onClick={() =>
+							tab === 'pending' ? void loadPending() : void loadConfirmaciones()
+						}
+						disabled={isLoading}
+						className="h-7 gap-1 text-xs px-2"
+					>
+						<ArrowPathIcon className={`size-3 ${isLoading ? 'animate-spin' : ''}`} />
+						{content.detail.refresh}
+					</Button>
+				</div>
+			</div>
+
+			{/* Tab content */}
+			<div role="tabpanel" className="p-4 min-h-[320px]">
+				{tab === 'pending' ? (
+					selectedProcedure ? (
+						<NurseVitalSignsStep
+							procedure={selectedProcedure}
+							content={content}
+							locale={locale}
+							onBack={() => setSelectedProcedure(null)}
+							onVitalsSaved={handleVitalsSaved}
+						/>
+					) : (
+						<div className="space-y-3">
+							{pendingError && (
+								<Alert variant="destructive">
+									<AlertDescription>{pendingError}</AlertDescription>
+								</Alert>
+							)}
+							{loadingPending ? (
+								Array.from({ length: 4 }).map((_, i) => (
+									<Skeleton key={i} className="h-20 rounded-xl" />
+								))
+							) : pending.length === 0 ? (
+								<div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+									<ClipboardDocumentListIcon className="size-12 text-muted-foreground/20" />
+									<p className="text-sm text-muted-foreground">{content.queue.empty}</p>
+								</div>
+							) : (
+								pending.map((p) => (
+									<ProcedureCard
+										key={p.procedure_id}
+										procedure={p}
+										isSelected={false}
+										onSelect={() => setSelectedProcedure(p)}
+										locale={locale}
+									/>
+								))
+							)}
+						</div>
+					)
+				) : (
+					<div className="space-y-3">
+						{confError && (
+							<Alert variant="destructive">
+								<AlertDescription>{confError}</AlertDescription>
+							</Alert>
+						)}
+						{loadingConf ? (
+							Array.from({ length: 4 }).map((_, i) => (
+								<Skeleton key={i} className="h-20 rounded-xl" />
+							))
+						) : confirmaciones.length === 0 ? (
+							<div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+								<CheckBadgeIcon className="size-12 text-muted-foreground/20" />
+								<p className="text-sm text-muted-foreground">
+									{content.confirmaciones.empty}
+								</p>
+							</div>
+						) : (
+							confirmaciones.map((c) => (
+								<ConfirmacionCard
+									key={c.id}
+									conf={c}
+									locale={locale}
+									content={content}
+								/>
+							))
+						)}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
 /* ─── RECOMMENDATION CARD (paciente post-submit) ─────────────────────────────── */
 
 function RecommendationCard({
@@ -659,7 +1070,7 @@ function StaffView({
 	content,
 	locale,
 }: {
-	role: 'ENFERMERO' | 'MEDICO';
+	role: 'MEDICO';
 	content: ReturnType<typeof getTriageContent>;
 	locale: AppLocale;
 }) {
@@ -680,10 +1091,9 @@ function StaffView({
 
 	const loadLists = useCallback(async () => {
 		try {
-			const attendedStatus = role === 'MEDICO' ? 'closed' : 'resolved';
 			const [pend, att] = await Promise.all([
 				getTriageRecordsFromISIS(100, 'pending'),
-				getTriageRecordsFromISIS(50, attendedStatus),
+				getTriageRecordsFromISIS(50, 'closed'),
 			]);
 			setPending(pend);
 			setAttended(att);
@@ -913,8 +1323,12 @@ export default function TriagePage() {
 					<PatientView content={content} locale={locale} />
 				)}
 
-				{(role === 'ENFERMERO' || role === 'MEDICO') && (
-					<StaffView role={role} content={content} locale={locale} />
+				{role === 'ENFERMERO' && (
+					<NurseView content={content} locale={locale} />
+				)}
+
+				{role === 'MEDICO' && (
+					<StaffView role="MEDICO" content={content} locale={locale} />
 				)}
 			</div>
 		</div>

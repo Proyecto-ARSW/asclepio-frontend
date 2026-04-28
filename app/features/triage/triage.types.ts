@@ -131,3 +131,25 @@ export interface TriageApiError {
 	code: string;
 	message: string;
 }
+
+export interface TriageConfirmacionRegistro {
+	id: string;
+	estado?: string;
+	nivel_triage_id?: number;
+	creado_en?: string;
+}
+
+export interface TriageConfirmacion {
+	id: string;
+	registro_triage_id: string;
+	enfermero_id: string;
+	nivel_sugerido_ia: number;
+	nivel_final_enfermero: number;
+	acepto_sugerencia: boolean;
+	razon_modificacion?: string | null;
+	tipo_modificacion?: string | null;
+	diferencia_niveles?: number | null;
+	tiempo_confirmacion_ms?: number;
+	creado_en: string;
+	registro_triage?: TriageConfirmacionRegistro | null;
+}

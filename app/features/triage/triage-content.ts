@@ -59,6 +59,13 @@ export interface TriageContent {
 		closedLabel: string;
 		transcript: string;
 	};
+	nurseVitals: {
+		title: string;
+		subtitle: string;
+		saved: string;
+		goToConfirmations: string;
+		commentOptional: string;
+	};
 	forms: {
 		vitalSigns: {
 			formLabel: string;
@@ -103,6 +110,15 @@ export interface TriageContent {
 		invalidNumber: string;
 		actionNotAllowed: string;
 	};
+	confirmaciones: {
+		tab: string;
+		pendingTab: string;
+		empty: string;
+		nivelFinal: string;
+		nivelIA: string;
+		accepted: string;
+		modified: string;
+	};
 }
 
 const INLINE_TEXTS: Record<AppLocale, {
@@ -121,6 +137,18 @@ const INLINE_TEXTS: Record<AppLocale, {
 	queuePossibleCauses: string;
 	queueAIComments: string;
 	detailTranscript: string;
+	nurseVitalsTitle: string;
+	nurseVitalsSubtitle: string;
+	nurseVitalsSaved: string;
+	nurseVitalsGoToConfirmations: string;
+	nurseVitalsCommentOptional: string;
+	confirmacionesTab: string;
+	confirmacionesPendingTab: string;
+	confirmacionesEmpty: string;
+	confirmacionesNivelFinal: string;
+	confirmacionesNivelIA: string;
+	confirmacionesAccepted: string;
+	confirmacionesModified: string;
 }> = {
 	es: {
 		myProceduresTitle: 'Mis procedimientos recientes',
@@ -129,7 +157,7 @@ const INLINE_TEXTS: Record<AppLocale, {
 		queueTitle: 'Cola de triage',
 		queuePending: 'Pendientes',
 		queueAttended: 'Atendidos',
-		queueEmpty: 'Sin procedimientos pendientes.',
+		queueEmpty: 'Sin procedimientos pendientes de signos vitales.',
 		queueEmptyAttended: 'Sin procedimientos atendidos aún.',
 		queueSelectProcedure: 'Selecciona un procedimiento de la lista para ver el detalle.',
 		queueConfidence: 'Confianza IA',
@@ -138,6 +166,18 @@ const INLINE_TEXTS: Record<AppLocale, {
 		queuePossibleCauses: 'Posibles causas',
 		queueAIComments: 'Análisis de la IA',
 		detailTranscript: 'Descripción del paciente',
+		nurseVitalsTitle: 'Registrar signos vitales',
+		nurseVitalsSubtitle: 'Completa los signos vitales del paciente antes de pasar a confirmaciones',
+		nurseVitalsSaved: 'Signos vitales guardados correctamente.',
+		nurseVitalsGoToConfirmations: 'Ir a Triage · Confirmaciones',
+		nurseVitalsCommentOptional: 'Comentario (opcional)',
+		confirmacionesTab: 'Confirmaciones',
+		confirmacionesPendingTab: 'Triajes Pendientes',
+		confirmacionesEmpty: 'Sin confirmaciones registradas aún.',
+		confirmacionesNivelFinal: 'Nivel final',
+		confirmacionesNivelIA: 'Nivel IA',
+		confirmacionesAccepted: 'Aceptó sugerencia IA',
+		confirmacionesModified: 'Modificó nivel',
 	},
 	en: {
 		myProceduresTitle: 'My recent procedures',
@@ -146,7 +186,7 @@ const INLINE_TEXTS: Record<AppLocale, {
 		queueTitle: 'Triage queue',
 		queuePending: 'Pending',
 		queueAttended: 'Attended',
-		queueEmpty: 'No pending procedures.',
+		queueEmpty: 'No procedures pending vital signs.',
 		queueEmptyAttended: 'No attended procedures yet.',
 		queueSelectProcedure: 'Select a procedure from the list to see the details.',
 		queueConfidence: 'AI Confidence',
@@ -155,6 +195,18 @@ const INLINE_TEXTS: Record<AppLocale, {
 		queuePossibleCauses: 'Possible causes',
 		queueAIComments: 'AI Analysis',
 		detailTranscript: 'Patient description',
+		nurseVitalsTitle: 'Record vital signs',
+		nurseVitalsSubtitle: "Complete the patient's vital signs before proceeding to confirmations",
+		nurseVitalsSaved: 'Vital signs saved successfully.',
+		nurseVitalsGoToConfirmations: 'Go to Triage · Confirmations',
+		nurseVitalsCommentOptional: 'Comment (optional)',
+		confirmacionesTab: 'Confirmations',
+		confirmacionesPendingTab: 'Pending Triages',
+		confirmacionesEmpty: 'No confirmations recorded yet.',
+		confirmacionesNivelFinal: 'Final level',
+		confirmacionesNivelIA: 'AI level',
+		confirmacionesAccepted: 'Accepted AI suggestion',
+		confirmacionesModified: 'Modified level',
 	},
 	pt: {
 		myProceduresTitle: 'Meus procedimentos recentes',
@@ -163,7 +215,7 @@ const INLINE_TEXTS: Record<AppLocale, {
 		queueTitle: 'Fila de triagem',
 		queuePending: 'Pendentes',
 		queueAttended: 'Atendidos',
-		queueEmpty: 'Sem procedimentos pendentes.',
+		queueEmpty: 'Sem procedimentos pendentes de sinais vitais.',
 		queueEmptyAttended: 'Sem procedimentos atendidos ainda.',
 		queueSelectProcedure: 'Selecione um procedimento da lista para ver os detalhes.',
 		queueConfidence: 'Confiança IA',
@@ -172,6 +224,18 @@ const INLINE_TEXTS: Record<AppLocale, {
 		queuePossibleCauses: 'Possíveis causas',
 		queueAIComments: 'Análise da IA',
 		detailTranscript: 'Descrição do paciente',
+		nurseVitalsTitle: 'Registrar sinais vitais',
+		nurseVitalsSubtitle: 'Preencha os sinais vitais do paciente antes de continuar às confirmações',
+		nurseVitalsSaved: 'Sinais vitais salvos com sucesso.',
+		nurseVitalsGoToConfirmations: 'Ir para Triagem · Confirmações',
+		nurseVitalsCommentOptional: 'Comentário (opcional)',
+		confirmacionesTab: 'Confirmações',
+		confirmacionesPendingTab: 'Triagens Pendentes',
+		confirmacionesEmpty: 'Sem confirmações registradas ainda.',
+		confirmacionesNivelFinal: 'Nível final',
+		confirmacionesNivelIA: 'Nível IA',
+		confirmacionesAccepted: 'Aceitou sugestão IA',
+		confirmacionesModified: 'Modificou nível',
 	},
 	fr: {
 		myProceduresTitle: 'Mes procédures récentes',
@@ -180,7 +244,7 @@ const INLINE_TEXTS: Record<AppLocale, {
 		queueTitle: 'File de triage',
 		queuePending: 'En attente',
 		queueAttended: 'Traités',
-		queueEmpty: 'Aucune procédure en attente.',
+		queueEmpty: 'Aucune procédure en attente de signes vitaux.',
 		queueEmptyAttended: 'Aucune procédure traitée encore.',
 		queueSelectProcedure: 'Sélectionnez une procédure de la liste pour voir les détails.',
 		queueConfidence: 'Confiance IA',
@@ -189,6 +253,18 @@ const INLINE_TEXTS: Record<AppLocale, {
 		queuePossibleCauses: 'Causes possibles',
 		queueAIComments: "Analyse de l'IA",
 		detailTranscript: 'Description du patient',
+		nurseVitalsTitle: 'Enregistrer les signes vitaux',
+		nurseVitalsSubtitle: 'Remplissez les signes vitaux du patient avant de passer aux confirmations',
+		nurseVitalsSaved: 'Signes vitaux enregistrés avec succès.',
+		nurseVitalsGoToConfirmations: 'Aller à Triage · Confirmations',
+		nurseVitalsCommentOptional: 'Commentaire (facultatif)',
+		confirmacionesTab: 'Confirmations',
+		confirmacionesPendingTab: 'Triages en attente',
+		confirmacionesEmpty: 'Aucune confirmation enregistrée encore.',
+		confirmacionesNivelFinal: 'Niveau final',
+		confirmacionesNivelIA: "Niveau IA",
+		confirmacionesAccepted: "Accepté la suggestion IA",
+		confirmacionesModified: 'Niveau modifié',
 	},
 	de: {
 		myProceduresTitle: 'Meine aktuellen Vorgänge',
@@ -197,7 +273,7 @@ const INLINE_TEXTS: Record<AppLocale, {
 		queueTitle: 'Triage-Warteschlange',
 		queuePending: 'Ausstehend',
 		queueAttended: 'Erledigt',
-		queueEmpty: 'Keine ausstehenden Vorgänge.',
+		queueEmpty: 'Keine Vorgänge mit ausstehenden Vitalzeichen.',
 		queueEmptyAttended: 'Noch keine erledigten Vorgänge.',
 		queueSelectProcedure: 'Wählen Sie einen Vorgang aus der Liste, um Details anzuzeigen.',
 		queueConfidence: 'KI-Konfidenz',
@@ -206,6 +282,18 @@ const INLINE_TEXTS: Record<AppLocale, {
 		queuePossibleCauses: 'Mögliche Ursachen',
 		queueAIComments: 'KI-Analyse',
 		detailTranscript: 'Patientenbeschreibung',
+		nurseVitalsTitle: 'Vitalzeichen erfassen',
+		nurseVitalsSubtitle: 'Füllen Sie die Vitalzeichen des Patienten vor den Bestätigungen aus',
+		nurseVitalsSaved: 'Vitalzeichen erfolgreich gespeichert.',
+		nurseVitalsGoToConfirmations: 'Zu Triage · Bestätigungen',
+		nurseVitalsCommentOptional: 'Kommentar (optional)',
+		confirmacionesTab: 'Bestätigungen',
+		confirmacionesPendingTab: 'Ausstehende Triagen',
+		confirmacionesEmpty: 'Noch keine Bestätigungen registriert.',
+		confirmacionesNivelFinal: 'Endgültige Stufe',
+		confirmacionesNivelIA: 'KI-Stufe',
+		confirmacionesAccepted: 'KI-Vorschlag akzeptiert',
+		confirmacionesModified: 'Stufe geändert',
 	},
 };
 
@@ -273,6 +361,13 @@ export function getTriageContent(
 			closedLabel: m.triageStatusClosed({}, options),
 			transcript: t.detailTranscript,
 		},
+		nurseVitals: {
+			title: t.nurseVitalsTitle,
+			subtitle: t.nurseVitalsSubtitle,
+			saved: t.nurseVitalsSaved,
+			goToConfirmations: t.nurseVitalsGoToConfirmations,
+			commentOptional: t.nurseVitalsCommentOptional,
+		},
 		forms: {
 			vitalSigns: {
 				formLabel: m.a11yTriageVitalsForm({}, options),
@@ -316,6 +411,15 @@ export function getTriageContent(
 			required: m.triageValidationRequired({}, options),
 			invalidNumber: m.triageValidationInvalidNumber({}, options),
 			actionNotAllowed: m.triageErrorActionNotAllowed({}, options),
+		},
+		confirmaciones: {
+			tab: t.confirmacionesTab,
+			pendingTab: t.confirmacionesPendingTab,
+			empty: t.confirmacionesEmpty,
+			nivelFinal: t.confirmacionesNivelFinal,
+			nivelIA: t.confirmacionesNivelIA,
+			accepted: t.confirmacionesAccepted,
+			modified: t.confirmacionesModified,
 		},
 	};
 }

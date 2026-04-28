@@ -2113,6 +2113,12 @@ export function DoctorDashboardView({
 						<CardTitle className="text-base">
 							{m.dashboardSidebarQueue({}, { locale })}
 						</CardTitle>
+						{turns.some((t) => t.tipo === 'URGENTE') && (
+							<Badge variant="destructive" className="gap-1 text-xs">
+								<span className="flex size-1.5 rounded-full bg-red-300 animate-pulse" />
+								{turns.filter((t) => t.tipo === 'URGENTE').length} de triage
+							</Badge>
+						)}
 						<CardDescription>
 							{m.dashboardStatusInConsultation({}, { locale })}
 						</CardDescription>
@@ -2901,6 +2907,12 @@ export function DoctorDashboardView({
 					<Badge variant={turnVariant(turn.estado)}>
 						{turnLabel(turn.estado, locale)}
 					</Badge>
+					{turn.tipo === 'URGENTE' && (
+						<Badge className="text-xs border-red-500/40 bg-red-500/10 text-red-400 gap-1">
+							<span className="flex size-1.5 rounded-full bg-red-400 animate-pulse" />
+							Triage
+						</Badge>
+					)}
 					{canAttend && (
 						<Button
 							type="button"

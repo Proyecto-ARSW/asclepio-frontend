@@ -1334,11 +1334,7 @@ export function AdminDashboardView({
 	function sectionContent() {
 		switch (section) {
 			case 'triage':
-				return (
-					<p className="text-sm text-muted-foreground">
-						{m.dashboardComingSoonDescription({}, { locale })}
-					</p>
-				);
+				return <AdminTriageSection />;
 			case 'hospitals':
 				return (
 					<div className="space-y-3">

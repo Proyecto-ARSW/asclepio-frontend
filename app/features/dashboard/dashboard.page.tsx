@@ -126,7 +126,6 @@ function isNavSection(value: string | null): value is NavSection {
 		value === 'overview' ||
 		value === 'hospitals' ||
 		value === 'patients' ||
-		value === 'triage' ||
 		value === 'appointments' ||
 		value === 'queue' ||
 		value === 'ai' ||
@@ -135,6 +134,7 @@ function isNavSection(value: string | null): value is NavSection {
 		value === 'userManagement' ||
 		value === 'disponibilidad' ||
 		value === 'historial' ||
+		value === 'triage' ||
 		value === 'consentimientos' ||
 		value === 'recetas' ||
 		value === 'anatomy3d' ||

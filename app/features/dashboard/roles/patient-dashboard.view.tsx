@@ -2324,7 +2324,14 @@ export function PatientDashboardView({
 				</section>
 			)}
 
-			{showTriage && <PatientTriageSection locale={locale} />}
+			{showTriage && (
+				<PatientTriageSection 
+				locale={locale}
+				onNavigateToTriage={() => {
+					window.location.href = `/${locale}/triage`;
+				}}
+				/>
+			)}
 
 			{showAi && <PatientAiSection locale={locale} />}
 

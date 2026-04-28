@@ -32,6 +32,7 @@ import { m } from '@/features/i18n/paraglide/messages';
 import { gqlMutation, gqlQuery } from '@/lib/graphql-client';
 import type { RoleViewProps } from './dashboard-role.types';
 import { RoleDashboardShell } from './role-dashboard-shell';
+import { NurseTriageSection } from '../triage/nurse-triage-section';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -1254,25 +1255,33 @@ export function NurseDashboardView({
 
 	const sectionTitles: Record<string, string> = {
 		overview: m.dashboardNurseOverviewTitle({}, { locale }),
+		triage: locale === 'es' ? 'Triage · Confirmaciones' : 'Triage · Confirmations',
 		disponibilidad: m.dashboardDoctorDisponibilidadTitle({}, { locale }),
 		medicines: m.dashboardSidebarMedicines({}, { locale }),
 		queue: m.dashboardNurseQueueTitle({}, { locale }),
 	};
 
 	function renderSection() {
-		switch (section) {
-			case 'overview':
-				return <OverviewSection />;
-			case 'disponibilidad':
-				return <DisponibilidadSection />;
-			case 'medicines':
-				return <MedicinesSection />;
-			case 'queue':
-				return <QueueSection />;
-			default:
-				return <OverviewSection />;
-		}
-	}
+    switch (section) {
+        case 'overview':
+            return <OverviewSection />;
+        case 'triage':
+            return (
+                <NurseTriageSection
+                    hospitalId={selectedHospitalId ?? undefined}
+                    userId={user.id}
+                />
+            );
+        case 'disponibilidad':
+            return <DisponibilidadSection />;
+        case 'medicines':
+            return <MedicinesSection />;
+        case 'queue':
+            return <QueueSection />;
+        default:
+            return <OverviewSection />;
+    }
+}
 
 	return (
 		<RoleDashboardShell

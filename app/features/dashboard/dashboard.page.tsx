@@ -79,6 +79,7 @@ const PATIENT_SIDEBAR_SECTIONS: NavSection[] = [
 ];
 const ADMIN_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
+	'triage',
 	'hospitals',
 	'patients',
 	'appointments',
@@ -106,6 +107,7 @@ const DOCTOR_SIDEBAR_SECTIONS: NavSection[] = [
 // Enfermero: ve su disponibilidad, gestiona la cola de turnos y el inventario de medicamentos
 const NURSE_SIDEBAR_SECTIONS: NavSection[] = [
 	'overview',
+	'triage',
 	'disponibilidad',
 	'medicines',
 	'queue',

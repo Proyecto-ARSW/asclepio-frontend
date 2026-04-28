@@ -55,6 +55,7 @@ import type {
 } from './dashboard-role.types';
 import { RoleDashboardShell } from './role-dashboard-shell';
 import { getLocalizedRoleLabel } from './role-label';
+import { AdminTriageSection } from '../triage/admin-triage-section';
 
 interface AdminGqlData {
 	users: Array<{
@@ -1290,9 +1291,9 @@ export function AdminDashboardView({
 
 	const sectionTitle = {
 		overview: m.dashboardSidebarOverview({}, { locale }),
+		triage: m.triageNewMenu({}, { locale }),
 		hospitals: m.dashboardSidebarHospitals({}, { locale }),
 		patients: m.dashboardSidebarPatients({}, { locale }),
-		triage: m.triageNewMenu({}, { locale }),
 		appointments: m.dashboardSidebarAppointments({}, { locale }),
 		queue: m.dashboardSidebarQueue({}, { locale }),
 		ai: m.dashboardSidebarAi({}, { locale }),

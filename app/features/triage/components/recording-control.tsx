@@ -1,4 +1,4 @@
-import { Mic, Square } from 'lucide-react';
+import { MicrophoneIcon, StopIcon } from '@heroicons/react/24/solid';
 import { Button } from '@/components/ui/button/button.component';
 import {
 	Card,
@@ -79,7 +79,7 @@ export function RecordingControl({
 						className="gap-2 flex-1 sm:flex-none"
 						aria-pressed={isRecording}
 					>
-						<Mic className="h-4 w-4" />
+						<MicrophoneIcon className="h-4 w-4" />
 						<span className="hidden sm:inline">{labels.start}</span>
 						<span className="sm:hidden">{labels.start}</span>
 					</Button>
@@ -91,7 +91,7 @@ export function RecordingControl({
 						variant="outline"
 						className="gap-2 flex-1 sm:flex-none"
 					>
-						<Square className="h-4 w-4" />
+						<StopIcon className="h-4 w-4" />
 						<span className="hidden sm:inline">{labels.stop}</span>
 						<span className="sm:hidden">{labels.stop}</span>
 					</Button>
@@ -112,11 +112,17 @@ export function RecordingControl({
 				{/* Indicador visual de grabación activa */}
 				{isRecording && (
 					<div className="flex items-center gap-2 rounded-md bg-blue-50 px-3 py-2 dark:bg-blue-950">
-						<div className="flex gap-1">
-							<span className="inline-block h-2 w-2 animate-bounce rounded-full bg-blue-500" />
-							<span className="inline-block h-2 w-2 animate-bounce rounded-full bg-blue-500 animation-delay-100" />
-							<span className="inline-block h-2 w-2 animate-bounce rounded-full bg-blue-500 animation-delay-200" />
-						</div>
+					<div className="flex gap-1">
+						<span className="inline-block h-2 w-2 animate-bounce rounded-full bg-blue-500" />
+						<span
+							className="inline-block h-2 w-2 animate-bounce rounded-full bg-blue-500"
+							style={{ animationDelay: '100ms' }}
+						/>
+						<span
+							className="inline-block h-2 w-2 animate-bounce rounded-full bg-blue-500"
+							style={{ animationDelay: '200ms' }}
+						/>
+					</div>
 						<span className="text-sm font-medium text-blue-900 dark:text-blue-100">
 							{labels.recordingActive}
 						</span>

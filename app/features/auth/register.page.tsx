@@ -28,6 +28,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card/card.component';
+import { Checkbox } from '@/components/ui/checkbox/checkbox.component';
 import {
 	Field,
 	FieldDescription,
@@ -114,6 +115,7 @@ interface RegisterFormValues {
 	pacienteTipoSangre: string;
 	pacienteEps: string;
 	pacienteAlergias: string;
+	acceptedTerms: boolean;
 	submitError: string;
 }
 
@@ -241,10 +243,18 @@ export default function RegisterPage() {
 			pacienteTipoSangre: '',
 			pacienteEps: '',
 			pacienteAlergias: '',
+			acceptedTerms: false,
 			submitError: '',
 		} as RegisterFormValues,
 		onSubmit: async ({ value }) => {
 			form.setFieldValue('submitError', '');
+			if (!value.acceptedTerms) {
+				form.setFieldValue(
+					'submitError',
+					content.register.errors.requiredTerms,
+				);
+				return;
+			}
 			try {
 				const payload: RegisterPayload = {
 					nombre: value.nombre.trim(),
@@ -907,6 +917,51 @@ export default function RegisterPage() {
 														</Field>
 													)}
 												</form.Field>
+												<form.Field name="acceptedTerms">
+													{(field) => {
+														const hasTermsError =
+															form.state.values.submitError ===
+																content.register.errors.requiredTerms &&
+															!field.state.value;
+														return (
+															<Field
+																orientation="horizontal"
+																data-invalid={hasTermsError}
+																className="rounded-xl border border-border/70 bg-background/60 px-3 py-3"
+															>
+																<Checkbox
+																	id="register-terms"
+																	checked={field.state.value}
+																	onCheckedChange={(checked) => {
+																		const nextValue = Boolean(checked);
+																		field.handleChange(nextValue);
+																		if (
+																			nextValue &&
+																			form.state.values.submitError ===
+																				content.register.errors.requiredTerms
+																		) {
+																			form.setFieldValue('submitError', '');
+																		}
+																	}}
+																	aria-invalid={hasTermsError || undefined}
+																/>
+																<FieldLabel
+																	htmlFor="register-terms"
+																	className="text-sm font-medium leading-snug"
+																>
+																	{content.register.terms.prefix}{' '}
+																	<Link
+																		to={localePath('/legal/terms', locale)}
+																		className="text-primary underline-offset-4 hover:underline"
+																		onClick={(event) => event.stopPropagation()}
+																	>
+																		{content.register.terms.link}
+																	</Link>
+																</FieldLabel>
+															</Field>
+														);
+													}}
+												</form.Field>
 											</div>
 										)}
 									</motion.div>
@@ -934,39 +989,49 @@ export default function RegisterPage() {
 									</form.Field>
 								</AnimatePresence>
 
-								<form.Subscribe selector={(state) => state.isSubmitting}>
-									{(isSubmitting) => (
-										<div className="flex items-center gap-3 pt-1">
-											{step > 1 && (
+								<form.Subscribe
+									selector={(state) => ({
+										isSubmitting: state.isSubmitting,
+										values: state.values,
+									})}
+								>
+									{({ isSubmitting, values }) => {
+										const hasAcceptedTerms = Boolean(values.acceptedTerms);
+										const disableSubmit =
+											isSubmitting || (step === 3 && !hasAcceptedTerms);
+										return (
+											<div className="flex items-center gap-3 pt-1">
+												{step > 1 && (
+													<Button
+														type="button"
+														variant="outline"
+														onClick={handleBack}
+														aria-label={m.a11yRegisterNavBack({}, { locale })}
+													>
+														<ChevronLeftIcon className="h-4 w-4" />
+														{content.register.navigation.back}
+													</Button>
+												)}
 												<Button
-													type="button"
-													variant="outline"
-													onClick={handleBack}
-													aria-label={m.a11yRegisterNavBack({}, { locale })}
+													type="submit"
+													className="flex-1"
+													disabled={disableSubmit}
+													aria-label={
+														step < 3
+															? m.a11yRegisterNavNext({}, { locale })
+															: m.a11yRegisterNavSubmit({}, { locale })
+													}
 												>
-													<ChevronLeftIcon className="h-4 w-4" />
-													{content.register.navigation.back}
+													{step < 3
+														? content.register.navigation.next
+														: isSubmitting
+															? content.register.navigation.submitLoading
+															: content.register.navigation.submit}
+													{step < 3 && <ChevronRightIcon className="h-4 w-4" />}
 												</Button>
-											)}
-											<Button
-												type="submit"
-												className="flex-1"
-												disabled={isSubmitting}
-												aria-label={
-													step < 3
-														? m.a11yRegisterNavNext({}, { locale })
-														: m.a11yRegisterNavSubmit({}, { locale })
-												}
-											>
-												{step < 3
-													? content.register.navigation.next
-													: isSubmitting
-														? content.register.navigation.submitLoading
-														: content.register.navigation.submit}
-												{step < 3 && <ChevronRightIcon className="h-4 w-4" />}
-											</Button>
-										</div>
-									)}
+											</div>
+										);
+									}}
 								</form.Subscribe>
 							</form>
 

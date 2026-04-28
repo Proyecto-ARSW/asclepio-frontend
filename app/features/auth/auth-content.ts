@@ -26,6 +26,10 @@ interface AuthContent {
 			readyHint: string;
 			optionalInfo: string;
 		};
+		terms: {
+			prefix: string;
+			link: string;
+		};
 		labels: {
 			nombre: string;
 			apellido: string;
@@ -87,6 +91,7 @@ interface AuthContent {
 			requiredDoctorSpecialty: string;
 			requiredNurseRegistration: string;
 			requiredNurseArea: string;
+			requiredTerms: string;
 			loadHospitals: string;
 			submit: string;
 		};
@@ -163,6 +168,10 @@ export function getAuthContent(
 				readyTitle: m.authRegisterSectionReadyTitle({}, options),
 				readyHint: m.authRegisterSectionReadyHint({}, options),
 				optionalInfo: m.authRegisterSectionOptionalInfo({}, options),
+			},
+			terms: {
+				prefix: m.authRegisterTermsPrefix({}, options),
+				link: m.authRegisterTermsLink({}, options),
 			},
 			labels: {
 				nombre: m.authRegisterLabelNombre({}, options),
@@ -278,6 +287,7 @@ export function getAuthContent(
 					options,
 				),
 				requiredNurseArea: m.authRegisterErrorRequiredNurseArea({}, options),
+				requiredTerms: m.authRegisterErrorRequiredTerms({}, options),
 				loadHospitals: m.authRegisterErrorLoadHospitals({}, options),
 				submit: m.authRegisterErrorSubmit({}, options),
 			},

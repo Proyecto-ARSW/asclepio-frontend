@@ -1,5 +1,12 @@
 import { AI_API_URL } from '@/lib/env';
-import { getStoredToken } from '@/lib/api';
+import {
+	apiGetBlob,
+	apiGetWithStatus,
+	apiPostFormData,
+	apiPostWithStatus,
+	apiPut,
+	getStoredToken,
+} from '@/lib/api';
 import type {
 	AddCommentRequest,
 	CloseProcedureRequest,
@@ -157,13 +164,7 @@ export async function closeTriageProcedureToISIS(
    para compatibilidad con flujos ENFERMERO / MEDICO existentes
    ──────────────────────────────────────────────────────────────── */
 
-import {
-	apiGetBlob,
-	apiGetWithStatus,
-	apiPostFormData,
-	apiPostWithStatus,
-	apiPut,
-} from '@/lib/api';
+
 
 export function sendTriageTextInput(payload: TriageTextInputRequest) {
 	return apiPostWithStatus<TriageProcedureResponse>(
@@ -174,8 +175,8 @@ export function sendTriageTextInput(payload: TriageTextInputRequest) {
 
 export function sendTriageVoiceInput(payload: TriageVoiceInputRequest) {
 	const form = new FormData();
-	form.append('patient_id', payload.patient_id);
-	form.append('audio', payload.audio);
+	if (payload.patient_id) form.append('patient_id', payload.patient_id);
+	if (payload.audio) form.append('audio', payload.audio);
 	return apiPostFormData<TriageProcedureResponse>(
 		'/api/v1/triage/voice-input',
 		form,
